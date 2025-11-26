@@ -1,0 +1,8 @@
+{
+  "login": "Sign In",
+  "register": "Sign Up",
+  "header": {
+    "home": "Home",
+    "profile": "Profile"
+  }
+}
