@@ -4,5 +4,11 @@
   "header": {
     "home": "Home",
     "profile": "Profile"
+  },
+  "footer": {
+    "discounts": "Discounts and Promotions",
+    "about": "About Us",
+    "legal": "For Legal Entities",
+    "allRights": "All rights reserved"
   }
 }
