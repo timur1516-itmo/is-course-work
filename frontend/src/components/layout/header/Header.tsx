@@ -1,7 +1,7 @@
 import MainLogo from "../../../assets/main-logo.svg";
 import {useTranslation} from "react-i18next";
 import {useState} from "react";
-import {Link} from "react-router-dom";
+import {Link, useLocation} from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -49,35 +49,42 @@ function Header() {
 
   const otherLanguages = LANGUAGES.filter((l) => l.code !== currentLang.code);
 
+  const location = useLocation();
+
+  const isAuthPage = location.pathname === "/auth";
+
   return (
     <header className="header bg-stone-950 px-24 py-4 sticky top-0 z-50 flex row justify-between items-center">
       <div className="header-logo">
         <img src={MainLogo} alt={"logo"} />
       </div>
       <div className="header-menu flex items-center gap-4">
-        <div>
-          <Link
-            to="/"
-            className="px-4 py-2 rounded-full text-sm font-medium
-            border border-gray-500 text-white
-            hover:bg-gray-800 transition-colors"
-          >
-            {t("login")}
-          </Link>
-        </div>
+        {!isAuthPage && (
+          <>
+            <div>
+              <Link
+                to="/auth?mode=login"
+                className="px-4 py-2 rounded-full text-sm font-medium
+              border border-gray-500 text-white
+              hover:bg-gray-800 transition-colors"
+              >
+                {t("login")}
+              </Link>
+            </div>
 
-        <div>
-          <Link
-            to="/"
-            className="px-4 py-2 rounded-full text-sm font-medium
-          bg-white text-black
-          hover:bg-gray-200 transition-colors"
-          >
-            {t("register")}
-          </Link>
-        </div>
+            <div>
+              <Link
+                  to="/auth?mode=register"
+                  className="px-4 py-2 rounded-full text-sm font-medium
+                  bg-white text-black
+                  hover:bg-gray-200 transition-colors"
+                  >
+                {t("register")}
+              </Link>
+            </div>
+          </>
+        )}
 
-        {/* Домой */}
         <div className="relative flex items-center justify-center group">
           <Link to="/" className="flex items-center justify-center">
             <div
