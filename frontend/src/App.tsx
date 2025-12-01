@@ -3,6 +3,7 @@ import Header from "./components/layout/header/Header.tsx";
 import {BrowserRouter as Router, Route, Routes} from "react-router-dom";
 import Footer from "./components/layout/footer/Footer.tsx";
 import AuthPage from "./components/pages/login/AuthPage.tsx";
+import Profile from "./components/pages/profile/Profile.tsx";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/auth" element={<AuthPage/>}/>
+            <Route path="/profile" element={<Profile/>}/>
           </Routes>
         </main>
 
