@@ -132,16 +132,20 @@ function ProfilePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-8">
-          <div className="space-y-6">
-            {!isSettingsOpen && (
+        <div className="flex flex-col lg:flex-row gap-8 transition-all duration-500 ease-in-out">
+          <div className="space-y-6 transition-all duration-500 ease-in-out lg:flex-1 lg:min-w-0">
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+              isSettingsOpen
+                ? 'opacity-0 max-h-0 scale-y-0'
+                : 'opacity-100 scale-y-100'
+            }`}>
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 className="w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"
               >
                 {t("profile.openProfileSettings")}
               </button>
-            )}
+            </div>
             {currentOrders.length > 0 && (
               <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -271,8 +275,8 @@ function ProfilePage() {
 
           <aside className={`space-y-6 transition-all duration-500 ease-in-out origin-top ${
             isSettingsOpen 
-              ? 'opacity-100 max-h-[5000px] scale-y-100 overflow-visible' 
-              : 'opacity-0 max-h-0 scale-y-0 overflow-hidden'
+              ? 'opacity-100 max-h-[5000px] scale-y-100 overflow-visible lg:w-[33.333%] lg:min-w-[300px]' 
+              : 'opacity-0 max-h-0 scale-y-0 overflow-hidden lg:w-0 lg:min-w-0'
           }`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">
