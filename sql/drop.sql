@@ -1,3 +1,21 @@
+-- Удаление функций, связанных с управлением статусами и балансами
+DROP FUNCTION IF EXISTS f_update_client_order_status_and_set_current(BIGINT, VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS f_update_production_task_status_and_set_current(BIGINT, VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS f_update_purchase_order_status_and_set_current(BIGINT, VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS f_update_material_balance_and_set_current(BIGINT, NUMERIC, BIGINT) CASCADE;
+DROP FUNCTION IF EXISTS f_update_file_version_and_set_current(BIGINT, TEXT, TEXT, BIGINT, VARCHAR, BIGINT) CASCADE;
+
+-- Удаление остальных функций и представлений
+DROP VIEW IF EXISTS v_client_order_summary CASCADE;
+DROP VIEW IF EXISTS v_conversation_participants CASCADE;
+DROP VIEW IF EXISTS v_material_stock CASCADE;
+DROP FUNCTION IF EXISTS f_order_required_materials(BIGINT) CASCADE;
+DROP FUNCTION IF EXISTS f_order_material_shortage(BIGINT) CASCADE;
+DROP FUNCTION IF EXISTS f_client_order_status_history(BIGINT) CASCADE;
+DROP FUNCTION IF EXISTS f_production_task_status_history(BIGINT) CASCADE;
+DROP FUNCTION IF EXISTS f_order_last_message(BIGINT) CASCADE;
+
+-- Удаление таблиц
 DROP TABLE IF EXISTS production_task_status CASCADE;
 DROP TABLE IF EXISTS production_task CASCADE;
 DROP TABLE IF EXISTS material_consumption CASCADE;
@@ -26,20 +44,3 @@ DROP TABLE IF EXISTS message CASCADE;
 DROP TABLE IF EXISTS account CASCADE;
 DROP TABLE IF EXISTS conversation CASCADE;
 DROP TABLE IF EXISTS conversation_participant CASCADE;
-
--- Удаление VIEW
-DROP VIEW IF EXISTS v_client_order_summary CASCADE;
-DROP VIEW IF EXISTS v_conversation_participants CASCADE;
-DROP VIEW IF EXISTS v_material_stock CASCADE;
-
--- Удаление функций
-DROP FUNCTION IF EXISTS f_order_required_materials(BIGINT) CASCADE;
-DROP FUNCTION IF EXISTS f_order_material_shortage(BIGINT) CASCADE;
-DROP FUNCTION IF EXISTS f_client_order_status_history(BIGINT) CASCADE;
-DROP FUNCTION IF EXISTS f_production_task_status_history(BIGINT) CASCADE;
-DROP FUNCTION IF EXISTS f_order_last_message(BIGINT) CASCADE;
-
--- Удаление триггерных функций
-DROP FUNCTION IF EXISTS tg_set_client_order_current_status() CASCADE;
-DROP FUNCTION IF EXISTS tg_set_production_task_current_status() CASCADE;
-DROP FUNCTION IF EXISTS tg_set_purchase_order_current_status() CASCADE;

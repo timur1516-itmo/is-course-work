@@ -74,6 +74,12 @@ VALUES ((SELECT id FROM material WHERE name = 'Фанера 4мм'),
         100.00,
         NULL,
         (SELECT id FROM account WHERE username = 'supply_manager1'));
+-- Обновление текущего баланса с помощью функции
+SELECT f_update_material_balance_and_set_current(
+               (SELECT id FROM material WHERE name = 'Фанера 4мм'),
+               100.00,
+               (SELECT id FROM account WHERE username = 'supply_manager1')
+       );
 
 -- 2.2. Второй материал: упаковка
 INSERT INTO material (name, unit_of_measure, order_point)
@@ -84,6 +90,12 @@ VALUES ((SELECT id FROM material WHERE name = 'Картон упаковочны
         200.00,
         NULL,
         (SELECT id FROM account WHERE username = 'supply_manager1'));
+-- Обновление текущего баланса с помощью функции
+SELECT f_update_material_balance_and_set_current(
+               (SELECT id FROM material WHERE name = 'Картон упаковочный'),
+               200.00,
+               (SELECT id FROM account WHERE username = 'supply_manager1')
+       );
 
 COMMIT;
 
@@ -102,14 +114,15 @@ INSERT INTO file (filename, content_type, owner_id)
 VALUES ('keychain_photo.jpg',
         'image/jpeg',
         (SELECT id FROM account WHERE username = 'sales_manager'));
-
-INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
-VALUES ((SELECT id FROM account WHERE username = 'sales_manager'),
-        'product-images',
-        'keychain_photo_v1.jpg',
-        123456,
-        'image/jpeg',
-        (SELECT id FROM file WHERE filename = 'keychain_photo.jpg'));
+-- Обновление версии файла с помощью функции
+SELECT f_update_file_version_and_set_current(
+               (SELECT id FROM file WHERE filename = 'keychain_photo.jpg'),
+               'product-images',
+               'keychain_photo_v1.jpg',
+               123456,
+               'image/jpeg',
+               (SELECT id FROM account WHERE username = 'sales_manager')
+       );
 
 -- 3.3. Размещение брелка в каталоге
 INSERT INTO product_catalog (name, description, product_design_id, price, minimal_amount, category)
@@ -121,7 +134,7 @@ VALUES ('Брелок для ключей "Дом"',
         'Брелоки');
 
 INSERT INTO product_photo (file_id, product_catalog_id)
-VALUES ((SELECT id FROM file WHERE filename = 'keychain_photo.jpg'),
+VALUES ((SELECT current_version_id FROM file WHERE filename = 'keychain_photo.jpg'), -- используем текущую версию
         (SELECT id FROM product_catalog WHERE name = 'Брелок для ключей "Дом"'));
 
 COMMIT;
@@ -208,14 +221,15 @@ INSERT INTO file (filename, content_type, owner_id)
 VALUES ('client_sketch.dxf',
         'application/dxf',
         (SELECT account_id FROM client WHERE email = 'client1@example.com'));
-
-INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
-VALUES ((SELECT account_id FROM client WHERE email = 'client1@example.com'),
-        'client-attachments',
-        'client1/sketch_v1.dxf',
-        20480,
-        'application/dxf',
-        (SELECT id FROM file WHERE filename = 'client_sketch.dxf'));
+-- Обновление версии файла с помощью функции
+SELECT f_update_file_version_and_set_current(
+               (SELECT id FROM file WHERE filename = 'client_sketch.dxf'),
+               'client-attachments',
+               'client1/sketch_v1.dxf',
+               20480,
+               'application/dxf',
+               (SELECT account_id FROM client WHERE email = 'client1@example.com')
+       );
 
 INSERT INTO client_application_attachment (client_application_id, file_id)
 VALUES ((SELECT id
@@ -249,16 +263,16 @@ VALUES (NULL,
          FROM client_application
          WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')),
         NULL);
-
--- 9.3. Установка статуса заказа "СОЗДАН"
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- 9.3. Установка статуса заказа "СОЗДАН" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'CREATED');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'CREATED'
+       );
 
 -- 9.4. Создание диалога по заказу
 INSERT INTO conversation (order_id, status)
@@ -361,16 +375,16 @@ WHERE id = (SELECT product_design_id
             WHERE client_application_id = (SELECT id
                                            FROM client_application
                                            WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')));
-
--- 11.3. Статус заказа "В ОБРАБОТКЕ"
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- 11.3. Статус заказа "В ОБРАБОТКЕ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'IN_PROGRESS');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'IN_PROGRESS'
+       );
 
 COMMIT;
 
@@ -397,14 +411,15 @@ INSERT INTO file (filename, content_type, owner_id)
 VALUES ('keychain_model.step',
         'application/step',
         (SELECT id FROM account WHERE username = 'constructor1'));
-
-INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
-VALUES ((SELECT id FROM account WHERE username = 'constructor1'),
-        'design-files',
-        'constructor1/keychain_model_v1.step',
-        409600,
-        'application/step',
-        (SELECT id FROM file WHERE filename = 'keychain_model.step'));
+-- Обновление версии файла с помощью функции
+SELECT f_update_file_version_and_set_current(
+               (SELECT id FROM file WHERE filename = 'keychain_model.step'),
+               'design-files',
+               'constructor1/keychain_model_v1.step',
+               409600,
+               'application/step',
+               (SELECT id FROM account WHERE username = 'constructor1')
+       );
 
 INSERT INTO product_design_file (product_design_id, file_id)
 VALUES ((SELECT product_design_id
@@ -419,14 +434,15 @@ INSERT INTO file (filename, content_type, owner_id)
 VALUES ('keychain_bom.xlsx',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         (SELECT id FROM account WHERE username = 'constructor1'));
-
-INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
-VALUES ((SELECT id FROM account WHERE username = 'constructor1'),
-        'design-files',
-        'constructor1/keychain_bom_v1.xlsx',
-        102400,
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        (SELECT id FROM file WHERE filename = 'keychain_bom.xlsx'));
+-- Обновление версии файла с помощью функции
+SELECT f_update_file_version_and_set_current(
+               (SELECT id FROM file WHERE filename = 'keychain_bom.xlsx'),
+               'design-files',
+               'constructor1/keychain_bom_v1.xlsx',
+               102400,
+               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+               (SELECT id FROM account WHERE username = 'constructor1')
+       );
 
 INSERT INTO product_design_file (product_design_id, file_id)
 VALUES ((SELECT product_design_id
@@ -456,16 +472,16 @@ VALUES ((SELECT id FROM material WHERE name = 'Картон упаковочны
                                         WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
         1.00 -- одна упаковка на брелок
        );
-
--- 13.4. Статус заказа "НА СОГЛАСОВАНИИ"
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- 13.4. Статус заказа "НА СОГЛАСОВАНИИ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'PENDING_APPROVAL');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'PENDING_APPROVAL'
+       );
 
 -- 13.5. Уведомление клиенту в чат
 INSERT INTO message (content, conversation_participant_id)
@@ -504,15 +520,16 @@ VALUES ('Просьба изменить рисунок гравировки и 
                                                (SELECT id
                                                 FROM client_application
                                                 WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))))));
-
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- Статус "НА ДОРАБОТКЕ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'REWORK');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'REWORK'
+       );
 
 COMMIT;
 
@@ -522,23 +539,25 @@ COMMIT;
 BEGIN;
 
 -- Новая версия 3D-модели брелка
-INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
-VALUES ((SELECT id FROM account WHERE username = 'constructor1'),
-        'design-files',
-        'constructor1/keychain_model_v2.step',
-        410000,
-        'application/step',
-        (SELECT id FROM file WHERE filename = 'keychain_model.step'));
+SELECT f_update_file_version_and_set_current(
+               (SELECT id FROM file WHERE filename = 'keychain_model.step'),
+               'design-files',
+               'constructor1/keychain_model_v2.step',
+               410000,
+               'application/step',
+               (SELECT id FROM account WHERE username = 'constructor1')
+       );
 
--- Статус "НА СОГЛАСОВАНИИ"
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- Статус "НА СОГЛАСОВАНИИ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'PENDING_APPROVAL');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'PENDING_APPROVAL'
+       );
 
 COMMIT;
 
@@ -561,15 +580,16 @@ VALUES ('Вариант брелка подходит, утверждаю мод
                                                (SELECT id
                                                 FROM client_application
                                                 WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))))));
-
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- Статус "СОГЛАСОВАН" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'APPROVED');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'APPROVED'
+       );
 
 COMMIT;
 
@@ -582,15 +602,16 @@ UPDATE client_order
 SET price = 7500.00
 WHERE client_application_id =
       (SELECT id FROM client_application WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'));
-
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- Статус "ОЖИДАЕТ ОПЛАТЫ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'AWAITING_PAYMENT');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'AWAITING_PAYMENT'
+       );
 
 COMMIT;
 
@@ -598,15 +619,16 @@ COMMIT;
 -- 18. КЛИЕНТ ОПЛАЧИВАЕТ, СТАТУС "ОПЛАЧЕН"
 -- =========================================================
 BEGIN;
-
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- Статус "ОПЛАЧЕН" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'PAID');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'PAID'
+       );
 
 COMMIT;
 
@@ -619,15 +641,15 @@ INSERT INTO file (filename, content_type, owner_id)
 VALUES ('keychain_nc_program.nc',
         'text/plain',
         (SELECT id FROM account WHERE username = 'constructor1'));
-
-INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
-VALUES ((SELECT id FROM account WHERE username = 'constructor1'),
-        'nc-programs',
-        'constructor1/keychain_nc_program_v1.nc',
-        51200,
-        'text/plain',
-        (SELECT id FROM file WHERE filename = 'keychain_nc_program.nc'));
-
+-- Обновление версии файла с помощью функции
+SELECT f_update_file_version_and_set_current(
+               (SELECT id FROM file WHERE filename = 'keychain_nc_program.nc'),
+               'nc-programs',
+               'constructor1/keychain_nc_program_v1.nc',
+               51200,
+               'text/plain',
+               (SELECT id FROM account WHERE username = 'constructor1')
+       );
 
 INSERT INTO product_design_file (product_design_id, file_id)
 VALUES ((SELECT product_design_id
@@ -636,15 +658,16 @@ VALUES ((SELECT product_design_id
                                         FROM client_application
                                         WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
         (SELECT id FROM file WHERE filename = 'keychain_nc_program.nc'));
-
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- Статус "ГОТОВ К ИЗГОТОВЛЕНИЮ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'READY_FOR_PRODUCTION');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'READY_FOR_PRODUCTION'
+       );
 
 COMMIT;
 
@@ -680,19 +703,19 @@ VALUES ((SELECT id
          FROM employee e
                   JOIN account a ON e.account_id = a.id
          WHERE a.username = 'cnc_operator1'));
-
--- Статус задачи "В ОЧЕРЕДИ"
-INSERT INTO production_task_status (production_task_id, status)
-VALUES ((SELECT id
-         FROM production_task
-         WHERE client_order_id =
+-- Статус задачи "В ОЧЕРЕДИ" с помощью функции
+SELECT f_update_production_task_status_and_set_current(
                (SELECT id
-                FROM client_order
-                WHERE client_application_id =
+                FROM production_task
+                WHERE client_order_id =
                       (SELECT id
-                       FROM client_application
-                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')))),
-        'QUEUED');
+                       FROM client_order
+                       WHERE client_application_id =
+                             (SELECT id
+                              FROM client_application
+                              WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')))),
+               'QUEUED'
+       );
 
 COMMIT;
 
@@ -709,28 +732,30 @@ WHERE client_order_id = (SELECT id
                                (SELECT id
                                 FROM client_application
                                 WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')));
+-- Статус задачи "ВЫПОЛНЯЕТСЯ" с помощью функции
+SELECT f_update_production_task_status_and_set_current(
+               (SELECT id
+                FROM production_task
+                WHERE client_order_id =
+                      (SELECT id
+                       FROM client_order
+                       WHERE client_application_id =
+                             (SELECT id
+                              FROM client_application
+                              WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')))),
+               'IN_PROGRESS'
+       );
 
-INSERT INTO production_task_status (production_task_id, status)
-VALUES ((SELECT id
-         FROM production_task
-         WHERE client_order_id =
+-- Статус заказа "В ПРОИЗВОДСТВЕ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
                 FROM client_order
                 WHERE client_application_id =
                       (SELECT id
                        FROM client_application
-                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')))),
-        'IN_PROGRESS');
-
--- Статус заказа "В ПРОИЗВОДСТВЕ"
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
-               (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'IN_PRODUCTION');
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'IN_PRODUCTION'
+       );
 
 COMMIT;
 
@@ -747,18 +772,19 @@ WHERE client_order_id = (SELECT id
                                (SELECT id
                                 FROM client_application
                                 WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')));
-
-INSERT INTO production_task_status (production_task_id, status)
-VALUES ((SELECT id
-         FROM production_task
-         WHERE client_order_id =
+-- Статус задачи "ЗАВЕРШЕН" с помощью функции
+SELECT f_update_production_task_status_and_set_current(
                (SELECT id
-                FROM client_order
-                WHERE client_application_id =
+                FROM production_task
+                WHERE client_order_id =
                       (SELECT id
-                       FROM client_application
-                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')))),
-        'COMPLETED');
+                       FROM client_order
+                       WHERE client_application_id =
+                             (SELECT id
+                              FROM client_application
+                              WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')))),
+               'COMPLETED'
+       );
 
 COMMIT;
 
@@ -791,34 +817,37 @@ VALUES ((SELECT id
        );
 
 -- 24.2. Обновляем остаток по фанере
-INSERT INTO material_balance (material_id, balance, previous_balance_id, changer_id)
-VALUES ((SELECT id FROM material WHERE name = 'Фанера 4мм'),
-        (SELECT mb.balance - 0.50
-         FROM material m
-                  JOIN material_balance mb ON m.current_balance_id = mb.id
-         WHERE m.name = 'Фанера 4мм'),
-        (SELECT current_balance_id FROM material WHERE name = 'Фанера 4мм'),
-        (SELECT id FROM account WHERE username = 'cnc_operator1'));
+-- Обновление баланса фанеры с помощью функции
+SELECT f_update_material_balance_and_set_current(
+               (SELECT id FROM material WHERE name = 'Фанера 4мм'),
+               (SELECT mb.balance - 0.50
+                FROM material m
+                         JOIN material_balance mb ON m.current_balance_id = mb.id
+                WHERE m.name = 'Фанера 4мм'),
+               (SELECT id FROM account WHERE username = 'cnc_operator1')
+       );
 
 -- 24.3. Обновляем остаток по картону
-INSERT INTO material_balance (material_id, balance, previous_balance_id, changer_id)
-VALUES ((SELECT id FROM material WHERE name = 'Картон упаковочный'),
-        (SELECT mb.balance - 10.00
-         FROM material m
-                  JOIN material_balance mb ON m.current_balance_id = mb.id
-         WHERE m.name = 'Картон упаковочный'),
-        (SELECT current_balance_id FROM material WHERE name = 'Картон упаковочный'),
-        (SELECT id FROM account WHERE username = 'warehouse1'));
+-- Обновление баланса картона с помощью функции
+SELECT f_update_material_balance_and_set_current(
+               (SELECT id FROM material WHERE name = 'Картон упаковочный'),
+               (SELECT mb.balance - 10.00
+                FROM material m
+                         JOIN material_balance mb ON m.current_balance_id = mb.id
+                WHERE m.name = 'Картон упаковочный'),
+               (SELECT id FROM account WHERE username = 'warehouse1')
+       );
 
--- 24.4. Статус заказа "ГОТОВ"
-INSERT INTO client_order_status (client_order_id, status)
-VALUES ((SELECT id
-         FROM client_order
-         WHERE client_application_id =
+-- 24.4. Статус заказа "ГОТОВ" с помощью функции
+SELECT f_update_client_order_status_and_set_current(
                (SELECT id
-                FROM client_application
-                WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
-        'COMPLETED');
+                FROM client_order
+                WHERE client_application_id =
+                      (SELECT id
+                       FROM client_application
+                       WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com'))),
+               'COMPLETED'
+       );
 
 COMMIT;
 
@@ -834,10 +863,11 @@ VALUES (NULL,
          FROM employee e
                   JOIN account a ON e.account_id = a.id
          WHERE a.username = 'supply_manager1'));
-
-INSERT INTO purchase_order_status (purchase_order_id, status)
-VALUES ((SELECT id FROM purchase_order ORDER BY id DESC LIMIT 1),
-        'CREATED');
+-- Статус закупки "СОЗДАН" с помощью функции
+SELECT f_update_purchase_order_status_and_set_current(
+               (SELECT id FROM purchase_order ORDER BY id DESC LIMIT 1),
+               'CREATED'
+       );
 
 -- Позиция по фанере в заказе
 INSERT INTO purchase_order_material (material_id, purchase_order_id, amount, price_for_unit, supplier)
@@ -864,18 +894,20 @@ VALUES ((SELECT id FROM purchase_order ORDER BY id DESC LIMIT 1),
         'INV-2025-0001');
 
 -- 26.2. Обновление остатка по фанере (приход)
-INSERT INTO material_balance (material_id, balance, previous_balance_id, changer_id)
-VALUES ((SELECT id FROM material WHERE name = 'Фанера 4мм'),
-        (SELECT mb.balance + 50.00
-         FROM material m
-                  JOIN material_balance mb ON m.current_balance_id = mb.id
-         WHERE m.name = 'Фанера 4мм'),
-        (SELECT current_balance_id FROM material WHERE name = 'Фанера 4мм'),
-        (SELECT id FROM account WHERE username = 'warehouse1'));
+-- Обновление баланса фанеры с помощью функции
+SELECT f_update_material_balance_and_set_current(
+               (SELECT id FROM material WHERE name = 'Фанера 4мм'),
+               (SELECT mb.balance + 50.00
+                FROM material m
+                         JOIN material_balance mb ON m.current_balance_id = mb.id
+                WHERE m.name = 'Фанера 4мм'),
+               (SELECT id FROM account WHERE username = 'warehouse1')
+       );
 
--- 26.3. Статус закупочного заказа "ПОЛУЧЕН"
-INSERT INTO purchase_order_status (purchase_order_id, status)
-VALUES ((SELECT id FROM purchase_order ORDER BY id DESC LIMIT 1),
-        'COMPLETED');
+-- 26.3. Статус закупочного заказа "ПОЛУЧЕН" с помощью функции
+SELECT f_update_purchase_order_status_and_set_current(
+               (SELECT id FROM purchase_order ORDER BY id DESC LIMIT 1),
+               'COMPLETED'
+       );
 
 COMMIT;

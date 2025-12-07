@@ -147,106 +147,106 @@ SELECT
 FROM material m
          LEFT JOIN material_balance mb ON mb.id = m.current_balance_id;
 
--- Триггеры для взаимных связей
-
--- client_order.current_status_id
-CREATE OR REPLACE FUNCTION tg_set_client_order_current_status()
-    RETURNS trigger
+-- Функции для обновления текущего статуса/баланса/версии
+CREATE OR REPLACE FUNCTION f_update_client_order_status_and_set_current(p_client_order_id BIGINT, p_status VARCHAR)
+    RETURNS VOID
     LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_new_status_id BIGINT;
 BEGIN
+    -- Вставка нового статуса
+    INSERT INTO client_order_status (client_order_id, status)
+    VALUES (p_client_order_id, p_status)
+    RETURNING id INTO v_new_status_id;
+
+    -- Обновление текущего статуса в заказе
     UPDATE client_order
-    SET current_status_id = NEW.id
-    WHERE id = NEW.client_order_id;
-    RETURN NEW;
+    SET current_status_id = v_new_status_id
+    WHERE id = p_client_order_id;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_client_order_status_set_current ON client_order_status;
-
-CREATE TRIGGER trg_client_order_status_set_current
-    AFTER INSERT ON client_order_status
-    FOR EACH ROW
-EXECUTE FUNCTION tg_set_client_order_current_status();
-
--- production_task.current_status_id
-CREATE OR REPLACE FUNCTION tg_set_production_task_current_status()
-    RETURNS trigger
+CREATE OR REPLACE FUNCTION f_update_production_task_status_and_set_current(p_task_id BIGINT, p_status VARCHAR)
+    RETURNS VOID
     LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_new_status_id BIGINT;
 BEGIN
+    -- Вставка нового статуса
+    INSERT INTO production_task_status (production_task_id, status)
+    VALUES (p_task_id, p_status)
+    RETURNING id INTO v_new_status_id;
+
+    -- Обновление текущего статуса в задаче
     UPDATE production_task
-    SET current_status_id = NEW.id
-    WHERE id = NEW.production_task_id;
-    RETURN NEW;
+    SET current_status_id = v_new_status_id
+    WHERE id = p_task_id;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_production_task_status_set_current ON production_task_status;
-
-CREATE TRIGGER trg_production_task_status_set_current
-    AFTER INSERT ON production_task_status
-    FOR EACH ROW
-EXECUTE FUNCTION tg_set_production_task_current_status();
-
--- purchase_order.current_status_id
-CREATE OR REPLACE FUNCTION tg_set_purchase_order_current_status()
-    RETURNS trigger
+CREATE OR REPLACE FUNCTION f_update_purchase_order_status_and_set_current(p_po_id BIGINT, p_status VARCHAR)
+    RETURNS VOID
     LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_new_status_id BIGINT;
 BEGIN
+    -- Вставка нового статуса
+    INSERT INTO purchase_order_status (purchase_order_id, status)
+    VALUES (p_po_id, p_status)
+    RETURNING id INTO v_new_status_id;
+
+    -- Обновление текущего статуса в закупке
     UPDATE purchase_order
-    SET current_status_id = NEW.id
-    WHERE id = NEW.purchase_order_id;
-    RETURN NEW;
+    SET current_status_id = v_new_status_id
+    WHERE id = p_po_id;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_purchase_order_status_set_current ON purchase_order_status;
-
-CREATE TRIGGER trg_purchase_order_status_set_current
-    AFTER INSERT ON purchase_order_status
-    FOR EACH ROW
-EXECUTE FUNCTION tg_set_purchase_order_current_status();
-
--- material.current_balance_id
-CREATE OR REPLACE FUNCTION tg_set_material_current_balance()
-    RETURNS trigger
+CREATE OR REPLACE FUNCTION f_update_material_balance_and_set_current(p_material_id BIGINT, p_new_balance NUMERIC, p_changer_id BIGINT)
+    RETURNS VOID
     LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_current_balance_id BIGINT;
+    v_new_balance_id BIGINT;
 BEGIN
+    -- Получаем текущий баланс
+    SELECT current_balance_id INTO v_current_balance_id
+    FROM material
+    WHERE id = p_material_id;
+
+    -- Вставка нового баланса
+    INSERT INTO material_balance (material_id, balance, previous_balance_id, changer_id)
+    VALUES (p_material_id, p_new_balance, v_current_balance_id, p_changer_id)
+    RETURNING id INTO v_new_balance_id;
+
+    -- Обновление текущего баланса в материале
     UPDATE material
-    SET current_balance_id = NEW.id
-    WHERE id = NEW.material_id;
-    RETURN NEW;
+    SET current_balance_id = v_new_balance_id
+    WHERE id = p_material_id;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_material_balance_set_current ON material_balance;
-
-CREATE TRIGGER trg_material_balance_set_current
-    AFTER INSERT ON material_balance
-    FOR EACH ROW
-EXECUTE FUNCTION tg_set_material_current_balance();
-
--- file.current_version_id
-CREATE OR REPLACE FUNCTION tg_set_file_current_version()
-    RETURNS trigger
+CREATE OR REPLACE FUNCTION f_update_file_version_and_set_current(p_file_id BIGINT, p_bucket TEXT, p_object_key TEXT, p_size_bytes BIGINT, p_content_type VARCHAR, p_creator_id BIGINT)
+    RETURNS VOID
     LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_new_version_id BIGINT;
 BEGIN
+    -- Вставка новой версии файла
+    INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
+    VALUES (p_creator_id, p_bucket, p_object_key, p_size_bytes, p_content_type, p_file_id)
+    RETURNING id INTO v_new_version_id;
+
+    -- Обновление текущей версии в файле
     UPDATE file
-    SET current_version_id = NEW.id
-    WHERE id = NEW.file_id;
-    RETURN NEW;
+    SET current_version_id = v_new_version_id
+    WHERE id = p_file_id;
 END;
 $$;
-
-DROP TRIGGER IF EXISTS trg_file_version_set_current ON file_version;
-
-CREATE TRIGGER trg_file_version_set_current
-    AFTER INSERT ON file_version
-    FOR EACH ROW
-EXECUTE FUNCTION tg_set_file_current_version();
 
 COMMIT;
