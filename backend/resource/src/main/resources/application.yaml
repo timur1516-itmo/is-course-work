@@ -1,0 +1,16 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /resource
+
+spring:
+  application:
+    name: resource
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
