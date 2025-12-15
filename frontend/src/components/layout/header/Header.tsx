@@ -9,6 +9,8 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { IS_STAFF } from "../../../config/app.ts";
 
 type LangCode = "ru" | "en";
 
@@ -33,8 +35,10 @@ function Header() {
   };
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [staffMenuAnchor, setStaffMenuAnchor] = useState<null | HTMLElement>(null);
 
   const open = Boolean(anchorEl);
+  const staffMenuOpen = Boolean(staffMenuAnchor);
 
   const currentLang =
     LANGUAGES.find((l) => l.code === i18n.language) ?? LANGUAGES[0];
@@ -47,11 +51,97 @@ function Header() {
     setAnchorEl(null);
   };
 
+  const handleStaffMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setStaffMenuAnchor(event.currentTarget);
+  };
+
+  const handleStaffMenuClose = () => {
+    setStaffMenuAnchor(null);
+  };
+
+  const handleLogout = () => {
+    handleStaffMenuClose();
+    // TODO: Реализовать выход
+    console.log("Logout");
+  };
+
   const otherLanguages = LANGUAGES.filter((l) => l.code !== currentLang.code);
 
   const location = useLocation();
 
   const isAuthPage = location.pathname === "/auth";
+
+  const staffName = "Иван";
+  const staffLastName = "Петров";
+
+  if (IS_STAFF) {
+    return (
+      <header className="header bg-gray-700 px-24 py-4 sticky top-0 z-50 flex row justify-between items-center">
+        <div className="header-logo">
+          <img src={MainLogo} alt={"logo"} />
+        </div>
+        <div className="header-menu flex items-center gap-4">
+          <div className="relative inline-flex">
+            <button
+              onClick={handleStaffMenuClick}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                border border-gray-500 text-white
+                hover:bg-gray-600 transition-colors"
+            >
+              <span className="text-white">{staffName} {staffLastName.charAt(0)}.</span>
+              <ArrowDropDownIcon className="text-white" />
+            </button>
+
+            <Menu
+              anchorEl={staffMenuAnchor}
+              open={staffMenuOpen}
+              onClose={handleStaffMenuClose}
+              transformOrigin={{ horizontal: "right", vertical: "top" }}
+              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              MenuListProps={{
+                className:
+                  "py-1 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 shadow-lg",
+              }}
+            >
+              <MenuItem
+                component={Link}
+                to="/account"
+                onClick={handleStaffMenuClose}
+                className="
+                  flex items-center
+                  hover:bg-gray-100 dark:hover:bg-gray-800
+                  px-3
+                "
+              >
+                <ListItemIcon className="min-w-0 mr-3">
+                  <AccountCircleIcon className="text-gray-700 dark:text-gray-300" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{t("header.profile")}</span>
+                  }
+                />
+              </MenuItem>
+              <MenuItem
+                onClick={handleLogout}
+                className="
+                  flex items-center
+                  hover:bg-gray-100 dark:hover:bg-gray-800
+                  px-3
+                "
+              >
+                <ListItemText
+                  primary={
+                    <span className="text-sm font-medium text-red-700 dark:text-red-500">{t("header.logout")}</span>
+                  }
+                />
+              </MenuItem>
+            </Menu>
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="header bg-stone-950 px-24 py-4 sticky top-0 z-50 flex row justify-between items-center">

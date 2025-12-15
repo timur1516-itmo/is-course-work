@@ -26,12 +26,15 @@ function App() {
             </>)}
             {IS_STAFF && (
               <>
+                {/*<Route path="/account" element={<Account/>}/>*/}
               </>
             )}
           </Routes>
         </main>
 
-        <Footer />
+        {IS_CLIENT && (
+          <Footer />
+        )}
       </div>
     </Router>
   );
