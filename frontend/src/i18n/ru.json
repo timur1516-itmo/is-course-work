@@ -85,5 +85,35 @@
     "cancelled": "Отменён",
     "openProfileSettings": "Открыть настройки профиля",
     "closeProfileSettings": "Скрыть настройки"
+  },
+  "manager": {
+    "dashboard": "Панель менеджера",
+    "newApplications": "Новые заявки",
+    "currentApplications": "Текущие заявки",
+    "pendingApproval": "Требуют согласования",
+    "ordersList": "Список заказов",
+    "applicationsList": "Список заявок",
+    "order": "Заказ",
+    "application": "Заявка",
+    "client": "Клиент",
+    "status": "Статус",
+    "orderDate": "Дата заказа",
+    "applicationDate": "Дата заявки",
+    "openOrder": "Открыть заказ",
+    "openApplication": "Открыть заявку",
+    "noOrders": "Заказы отсутствуют",
+    "noApplications": "Заявки отсутствуют"
+  },
+  "designer": {
+    "dashboard": "Панель конструктора",
+    "ordersForDesign": "Заказы для проектирования",
+    "orderDate": "Дата заказа",
+    "expectedDate": "Ожидаемая дата получения",
+    "attachedFiles": "Прикрепленные файлы",
+    "upload3DModel": "Загрузить 3D модель",
+    "generateUP": "Сгенерировать УП",
+    "noOrders": "Заказы отсутствуют",
+    "file": "Файл",
+    "download": "Скачать"
   }
 }

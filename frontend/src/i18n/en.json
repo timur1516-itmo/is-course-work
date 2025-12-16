@@ -85,5 +85,35 @@
     "cancelled": "Cancelled",
     "openProfileSettings": "Open Profile Settings",
     "closeProfileSettings": "Hide Settings"
+  },
+  "manager": {
+    "dashboard": "Manager Dashboard",
+    "newApplications": "New Applications",
+    "currentApplications": "Current Applications",
+    "pendingApproval": "Pending Approval",
+    "ordersList": "Orders List",
+    "applicationsList": "Applications List",
+    "order": "Order",
+    "application": "Application",
+    "client": "Client",
+    "status": "Status",
+    "orderDate": "Order Date",
+    "applicationDate": "Application Date",
+    "openOrder": "Open Order",
+    "openApplication": "Open Application",
+    "noOrders": "No orders",
+    "noApplications": "No applications"
+  },
+  "designer": {
+    "dashboard": "Designer Dashboard",
+    "ordersForDesign": "Orders for Design",
+    "orderDate": "Order Date",
+    "expectedDate": "Expected Date",
+    "attachedFiles": "Attached Files",
+    "upload3DModel": "Upload 3D Model",
+    "generateUP": "Generate UP",
+    "noOrders": "No orders",
+    "file": "File",
+    "download": "Download"
   }
 }

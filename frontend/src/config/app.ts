@@ -23,3 +23,4 @@ export const APP_TYPE: AppType = getAppType();
 export const IS_STAFF = APP_TYPE === 'staff';
 export const IS_CLIENT = APP_TYPE === 'client';
 
+
