@@ -44,3 +44,31 @@ export interface DesignerOrder {
   attachedFiles: string[];
 }
 
+export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
+
+export interface MachineTask {
+  id: string;
+  name: string;
+  upFile: string;
+  material: string;
+  quantity: number;
+  priority: TaskPriority;
+  status?: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+}
+
+export interface MaterialReceipt {
+  invoiceNumber: string;
+  author: string;
+  expectedDate: string;
+  status?: "PENDING" | "REGISTERED";
+}
+
+export interface ShipmentOrder {
+  id: string;
+  clientName: string;
+  name: string;
+  material: string;
+  expectedDate: string;
+  status?: "READY" | "SHIPPED";
+}
+

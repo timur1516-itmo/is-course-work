@@ -7,6 +7,8 @@ import Profile from "./components/pages/profile/Profile.tsx";
 import ManagerDashboard from "./components/pages/manager/ManagerDashboard.tsx";
 import ApplicationsList from "./components/pages/manager/ApplicationsList.tsx";
 import DesignerDashboard from "./components/pages/designer/DesignerDashboard.tsx";
+import OperatorDashboard from "./components/pages/operator/OperatorDashboard.tsx";
+import WarehouseDashboard from "./components/pages/warehouse/WarehouseDashboard.tsx";
 import {APP_TYPE, IS_CLIENT, IS_STAFF} from "./config/app.ts";
 import { useEffect } from "react";
 
@@ -32,6 +34,8 @@ function App() {
                 <Route path="/manager" element={<ManagerDashboard/>}/>
                 <Route path="/manager/applications" element={<ApplicationsList/>}/>
                 <Route path="/designer" element={<DesignerDashboard/>}/>
+                <Route path="/operator" element={<OperatorDashboard/>}/>
+                <Route path="/warehouse" element={<WarehouseDashboard/>}/>
                 {/*<Route path="/account" element={<Account/>}/>*/}
               </>
             )}

@@ -115,5 +115,38 @@
     "noOrders": "No orders",
     "file": "File",
     "download": "Download"
+  },
+  "operator": {
+    "dashboard": "Machine Operator Dashboard",
+    "currentTask": "Current Task",
+    "taskQueue": "Task Queue",
+    "task": "Task",
+    "upFile": "UP File",
+    "material": "Material",
+    "quantity": "Quantity",
+    "priority": "Priority",
+    "startWork": "Start Work",
+    "completeTask": "Complete",
+    "noCurrentTask": "No current task",
+    "noTasks": "No tasks",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "download": "Download"
+  },
+  "warehouse": {
+    "dashboard": "Warehouse Employee Dashboard",
+    "materialReceipts": "Material Receipts",
+    "ordersReadyForShipment": "Orders Ready for Shipment",
+    "invoiceNumber": "Invoice Number",
+    "author": "Author",
+    "expectedDate": "Expected Date",
+    "registerReceipt": "Register Receipt",
+    "processShipment": "Process Shipment",
+    "noReceipts": "No receipts",
+    "noOrders": "No orders",
+    "client": "Client",
+    "order": "Order",
+    "material": "Material"
   }
 }

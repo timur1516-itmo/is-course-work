@@ -115,5 +115,38 @@
     "noOrders": "Заказы отсутствуют",
     "file": "Файл",
     "download": "Скачать"
+  },
+  "operator": {
+    "dashboard": "Панель оператора станка",
+    "currentTask": "Текущая задача",
+    "taskQueue": "Очередь задач",
+    "task": "Задача",
+    "upFile": "УП файл",
+    "material": "Материал",
+    "quantity": "Количество",
+    "priority": "Приоритет",
+    "startWork": "Начать работу",
+    "completeTask": "Завершить",
+    "noCurrentTask": "Нет текущей задачи",
+    "noTasks": "Задачи отсутствуют",
+    "high": "Высокий",
+    "medium": "Средний",
+    "low": "Низкий",
+    "download": "Скачать"
+  },
+  "warehouse": {
+    "dashboard": "Панель сотрудника склада",
+    "materialReceipts": "Поступление материалов",
+    "ordersReadyForShipment": "Заказы, готовые к отгрузке",
+    "invoiceNumber": "Номер накладной",
+    "author": "Автор",
+    "expectedDate": "Ожидаемая дата",
+    "registerReceipt": "Зарегистрировать поступление",
+    "processShipment": "Оформить отгрузку",
+    "noReceipts": "Поступления отсутствуют",
+    "noOrders": "Заказы отсутствуют",
+    "client": "Покупатель",
+    "order": "Заказ",
+    "material": "Материал"
   }
 }
