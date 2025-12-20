@@ -5,75 +5,83 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
-import ru.itmo.se.is.cw.model.value.ClientOrderStatus;
+import ru.itmo.se.is.cw.service.ConversationsService;
+import ru.itmo.se.is.cw.service.MaterialsService;
+import ru.itmo.se.is.cw.service.OrdersService;
 
+import java.net.URI;
 import java.util.List;
 
 
 @RestController
 @RequestMapping("/orders")
 @Tag(name = "Orders", description = "Операции с заказами")
+@RequiredArgsConstructor
 public class OrdersController {
+
+    private final OrdersService ordersService;
+    private final MaterialsService materialsService;
+    private final ConversationsService conversationsService;
 
     @PostMapping
     @Operation(
             summary = "Создание заказа на основе клиентской заявки",
             description = "Создает новый заказ по переданной заявке клиента."
     )
-    @RequestBody(
-            description = "Данные для создания заказа",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = CreateOrderRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
                     description = "Заказ успешно создан",
                     content = @Content(
-                            schema = @Schema(implementation = ClientOrder.class)
+                            schema = @Schema(implementation = ClientOrderResponseDto.class)
                     )
             )
     })
-    public ResponseEntity<ClientOrder> createOrder(
-            @RequestBody CreateOrderRequest request
+    public ResponseEntity<ClientOrderResponseDto> createOrder(
+            @RequestBody CreateOrderRequestDto request,
+            UriComponentsBuilder uriBuilder
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ClientOrderResponseDto created = ordersService.createOrder(request);
+        URI location = uriBuilder
+                .path("/orders/{id}")
+                .buildAndExpand(created.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
 
     @GetMapping
     @Operation(
             summary = "Список заказов",
-            description = "Возвращает заказы, отфильтрованные по статусу и/или клиенту."
+            description = "Возвращает заказы"
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Список заказов",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = ClientOrder.class))
+                            array = @ArraySchema(schema = @Schema(implementation = ClientOrderResponseDto.class))
                     )
             )
     })
-    public ResponseEntity<List<ClientOrder>> getOrders(
-            @Parameter(description = "Фильтр по статусу заказа")
-            @RequestParam(value = "status", required = false) ClientOrderStatus status,
-
-            @Parameter(description = "Идентификатор клиента")
-            @RequestParam(value = "clientId", required = false) Long clientId
+    public ResponseEntity<Page<ClientOrderResponseDto>> getOrders(
+            @ParameterObject @ModelAttribute ClientOrderFilter filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(ordersService.getOrders(pageable, filter));
     }
 
 
@@ -87,21 +95,21 @@ public class OrdersController {
                     responseCode = "200",
                     description = "Заказ найден",
                     content = @Content(
-                            schema = @Schema(implementation = ClientOrder.class)
+                            schema = @Schema(implementation = ClientOrderResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заказ не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<ClientOrder> getOrderById(
+    public ResponseEntity<ClientOrderResponseDto> getOrderById(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(ordersService.getOrderById(id));
     }
 
     @GetMapping("/{id}/conversation")
@@ -116,7 +124,7 @@ public class OrdersController {
                     description = "Диалог",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = Conversation.class)
+                            schema = @Schema(implementation = ConversationResponseDto.class)
                     )
             ),
             @ApiResponse(
@@ -124,29 +132,20 @@ public class OrdersController {
                     description = "Диалог не найден",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Conversation> getConversationByOrderId(
+    public ResponseEntity<ConversationResponseDto> getConversationByOrderId(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
     ) {
-        // TODO: Реализовать логику получения диалога по заказу
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(conversationsService.getConversationByOrderId(id));
     }
 
     @PostMapping("/{id}/status")
     @Operation(
             summary = "Изменение статуса заказа",
             description = "Меняет статус заказа. Проверяет допустимость перехода."
-    )
-    @RequestBody(
-            description = "Запрос на изменение статуса заказа",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ClientOrderStatusChangeRequest.class)
-            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -158,23 +157,23 @@ public class OrdersController {
                     responseCode = "400",
                     description = "Недопустимый переход статуса",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заказ не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
     public ResponseEntity<Void> changeOrderStatus(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id,
-
-            @RequestBody ClientOrderStatusChangeRequest request
+            @RequestBody ClientOrderStatusChangeRequestDto request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ordersService.changeOrderStatus(id, request);
+        return ResponseEntity.ok().build();
     }
 
 
@@ -183,36 +182,27 @@ public class OrdersController {
             summary = "Обновить цену заказа",
             description = "Обновляет итоговую стоимость заказа."
     )
-    @RequestBody(
-            description = "Новая цена заказа",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = UpdateOrderPriceRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Цена обновлена",
                     content = @Content(
-                            schema = @Schema(implementation = ClientOrder.class)
+                            schema = @Schema(implementation = ClientOrderResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заказ не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<ClientOrder> updateOrderPrice(
+    public ResponseEntity<ClientOrderResponseDto> updateOrderPrice(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id,
-
-            @RequestBody UpdateOrderPriceRequest request
+            @RequestBody UpdateOrderPriceRequestDto request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(ordersService.updateOrderPrice(id, request));
     }
 
     @GetMapping("/{id}/materials-consumption")
@@ -227,7 +217,7 @@ public class OrdersController {
                     description = "Расход материалов",
                     content = @Content(
                             mediaType = "application/json",
-                            array = @ArraySchema(schema = @Schema(implementation = MaterialConsumptionRecord.class))
+                            array = @ArraySchema(schema = @Schema(implementation = MaterialConsumptionResponseDto.class))
                     )
             ),
             @ApiResponse(
@@ -235,14 +225,13 @@ public class OrdersController {
                     description = "Заказ не найден",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<List<MaterialConsumptionRecord>> getMaterialsConsumption(
+    public ResponseEntity<List<MaterialConsumptionResponseDto>> getMaterialsConsumption(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
     ) {
-        // TODO: Реализовать логику получения расхода материалов по заказу
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(materialsService.getMaterialsConsumptionByOrder(id));
     }
 }

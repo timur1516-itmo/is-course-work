@@ -7,7 +7,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import ru.itmo.se.is.cw.model.value.PurchaseOrderStatus;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -29,7 +29,7 @@ public class PurchaseOrderStatusEntity {
     private PurchaseOrderStatus status;
 
     @Column(name = "set_at", nullable = false)
-    private OffsetDateTime setAt;
+    private ZonedDateTime setAt;
 
 
 }

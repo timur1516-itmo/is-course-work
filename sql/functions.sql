@@ -17,7 +17,7 @@ FROM client_order co
          JOIN client c                ON c.id = ca.client_id
          JOIN product_design pd       ON pd.id = co.product_design_id
          LEFT JOIN product_catalog pc ON pc.product_design_id = pd.id
-         JOIN employee e_manager      ON e_manager.id = co.manager_id
+         JOIN employeeDto e_manager      ON e_manager.id = co.manager_id
          JOIN account a_manager       ON a_manager.id = e_manager.account_id;
 
 -- 2. Требуемые материалы по заказу

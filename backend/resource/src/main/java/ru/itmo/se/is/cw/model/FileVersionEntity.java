@@ -6,7 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -36,7 +36,7 @@ public class FileVersionEntity {
     private String contentType;
 
     @Column(name = "uploaded_at", nullable = false)
-    private OffsetDateTime uploadedAt;
+    private ZonedDateTime uploadedAt;
 
     @ManyToOne(optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)

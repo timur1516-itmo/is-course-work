@@ -5,49 +5,57 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.service.PurchaseOrdersService;
 
+import java.net.URI;
 import java.util.List;
 
 
 @RestController
 @RequestMapping("/purchase-orders")
 @Tag(name = "PurchaseOrders", description = "Операции с заявками на закупку")
+@RequiredArgsConstructor
 public class PurchaseOrdersController {
+
+    private final PurchaseOrdersService purchaseOrdersService;
 
     @PostMapping
     @Operation(
             summary = "Создание заявки на закупку",
             description = "Создает новую заявку на закупку материалов."
     )
-    @RequestBody(
-            description = "Данные для создания заявки",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = PurchaseOrderCreateRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
                     description = "Заявка создана",
                     content = @Content(
-                            schema = @Schema(implementation = PurchaseOrder.class)
+                            schema = @Schema(implementation = PurchaseOrderResponseDto.class)
                     )
             )
     })
-    public ResponseEntity<PurchaseOrder> createPurchaseOrder(
-            @RequestBody PurchaseOrderCreateRequest request
+    public ResponseEntity<PurchaseOrderResponseDto> createPurchaseOrder(
+            @RequestBody PurchaseOrderRequestDto request,
+            UriComponentsBuilder uriBuilder
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        PurchaseOrderResponseDto purchaseOrder = purchaseOrdersService.createPurchaseOrder(request);
+        URI location = uriBuilder
+                .path("/{id}")
+                .buildAndExpand(purchaseOrder.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(purchaseOrder);
     }
 
 
@@ -61,12 +69,16 @@ public class PurchaseOrdersController {
                     responseCode = "200",
                     description = "Заявки на закупку",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = PurchaseOrder.class))
+                            array = @ArraySchema(schema = @Schema(implementation = PurchaseOrderResponseDto.class))
                     )
             )
     })
-    public ResponseEntity<List<PurchaseOrder>> getPurchaseOrders() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    public ResponseEntity<Page<PurchaseOrderResponseDto>> getPurchaseOrders(
+            @ParameterObject @ModelAttribute PurchaseOrderFilter filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<PurchaseOrderResponseDto> orders = purchaseOrdersService.getPurchaseOrders(pageable, filter);
+        return ResponseEntity.ok(orders);
     }
 
 
@@ -80,22 +92,22 @@ public class PurchaseOrdersController {
                     responseCode = "200",
                     description = "Заявка найдена",
                     content = @Content(
-                            schema = @Schema(implementation = PurchaseOrder.class)
+                            schema = @Schema(implementation = PurchaseOrderResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заявка не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<PurchaseOrder> getPurchaseOrderById(
-            @Parameter(description = "Идентификатор заявки", required = true)
-            @PathVariable("id") Long id
+    public ResponseEntity<PurchaseOrderResponseDto> getPurchaseOrderById(
+            @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        PurchaseOrderResponseDto purchaseOrder = purchaseOrdersService.getPurchaseOrderById(id);
+        return ResponseEntity.ok(purchaseOrder);
     }
 
 
@@ -103,14 +115,6 @@ public class PurchaseOrdersController {
     @Operation(
             summary = "Добавить или обновить материалы в заявке",
             description = "Обновляет список материалов, включённых в заявку на закупку."
-    )
-    @RequestBody(
-            description = "Список материалов, включаемых в заявку",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    array = @ArraySchema(schema = @Schema(implementation = PurchaseOrderMaterialItem.class))
-            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -122,82 +126,45 @@ public class PurchaseOrdersController {
                     responseCode = "404",
                     description = "Заявка не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Void> updateMaterialsInPurchaseOrder(
-            @Parameter(description = "Идентификатор заявки", required = true)
-            @PathVariable("id") Long id,
+    public ResponseEntity<PurchaseOrderResponseDto> updateMaterialsInPurchaseOrder(
+            @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id,
 
-            @RequestBody List<PurchaseOrderMaterialItem> materials
+            @RequestBody List<PurchaseOrderMaterialDto> materials
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        PurchaseOrderResponseDto purchaseOrder = purchaseOrdersService.updateMaterialsInPurchaseOrder(id, materials);
+        return ResponseEntity.ok(purchaseOrder);
     }
-
-
-    @PostMapping("/{id}/approve")
-    @Operation(
-            summary = "Утвердить заявку на закупку",
-            description = "Утверждает заявку и передает её в дальнейшую обработку."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Заявка утверждена",
-                    content = @Content()
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Заявка не найдена",
-                    content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
-            )
-    })
-    public ResponseEntity<Void> approvePurchaseOrder(
-            @Parameter(description = "Идентификатор заявки", required = true)
-            @PathVariable("id") Long id
-    ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
-    }
-
 
     @PostMapping("/{id}/receipt")
     @Operation(
             summary = "Зарегистрировать приход материалов по заявке",
             description = "Создает запись о приходе материалов по утверждённой заявке."
     )
-    @RequestBody(
-            description = "Данные о фактическом приходе материалов",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = PurchaseOrderReceiptCreateRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Приход зарегистрирован",
                     content = @Content(
-                            schema = @Schema(implementation = PurchaseOrderReceipt.class)
+                            schema = @Schema(implementation = PurchaseOrderReceiptResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заявка не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<PurchaseOrderReceipt> registerReceipt(
-            @Parameter(description = "Идентификатор заявки", required = true)
-            @PathVariable("id") Long id,
-
-            @RequestBody PurchaseOrderReceiptCreateRequest request
+    public ResponseEntity<PurchaseOrderReceiptResponseDto> registerReceipt(
+            @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id,
+            @RequestBody PurchaseOrderReceiptRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        PurchaseOrderReceiptResponseDto receipt = purchaseOrdersService.registerReceipt(id, request);
+        return ResponseEntity.ok(receipt);
     }
 }

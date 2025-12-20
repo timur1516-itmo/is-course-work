@@ -8,40 +8,48 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.itmo.se.is.cw.dto.ErrorResponse;
-import ru.itmo.se.is.cw.dto.ProductionTask;
-import ru.itmo.se.is.cw.model.value.ProductionTaskStatus;
-
-import java.util.List;
+import ru.itmo.se.is.cw.dto.ProblemDetail;
+import ru.itmo.se.is.cw.dto.ProductionTaskFilter;
+import ru.itmo.se.is.cw.dto.ProductionTaskResponseDto;
+import ru.itmo.se.is.cw.service.ProductionService;
 
 
 @RestController
 @RequestMapping("/production-tasks")
 @Tag(name = "Production", description = "Операции с производственными задачами")
+@RequiredArgsConstructor
 public class ProductionController {
+
+    private final ProductionService productionService;
 
     @GetMapping
     @Operation(
             summary = "Список производственных задач",
-            description = "Возвращает список задач, отфильтрованных по статусу."
+            description = "Возвращает список задач"
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Список производственных задач",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = ProductionTask.class))
+                            array = @ArraySchema(schema = @Schema(implementation = ProductionTaskResponseDto.class))
                     )
             )
     })
-    public ResponseEntity<List<ProductionTask>> getProductionTasks(
-            @Parameter(description = "Статус задачи для фильтрации")
-            @RequestParam(value = "status", required = false) ProductionTaskStatus status
+    public ResponseEntity<Page<ProductionTaskResponseDto>> getProductionTasks(
+            @ParameterObject @ModelAttribute ProductionTaskFilter filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        Page<ProductionTaskResponseDto> products = productionService.getProductionTasks(pageable, filter);
+        return ResponseEntity.ok(products);
     }
 
 
@@ -55,22 +63,22 @@ public class ProductionController {
                     responseCode = "200",
                     description = "Задача найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ProductionTask.class)
+                            schema = @Schema(implementation = ProductionTaskResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Задача не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<ProductionTask> getProductionTaskById(
-            @Parameter(description = "Идентификатор производственной задачи", required = true)
-            @PathVariable("id") Long id
+    public ResponseEntity<ProductionTaskResponseDto> getProductionTaskById(
+            @PathVariable @Parameter(description = "Идентификатор производственной задачи", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ProductionTaskResponseDto productionTask = productionService.getProductionTaskById(id);
+        return ResponseEntity.ok(productionTask);
     }
 
 
@@ -89,15 +97,15 @@ public class ProductionController {
                     responseCode = "404",
                     description = "Задача не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
     public ResponseEntity<Void> startProductionTask(
-            @Parameter(description = "Идентификатор задачи", required = true)
-            @PathVariable("id") Long id
+            @PathVariable @Parameter(description = "Идентификатор задачи", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        productionService.startProductionTask(id);
+        return ResponseEntity.ok().build();
     }
 
 
@@ -116,14 +124,14 @@ public class ProductionController {
                     responseCode = "404",
                     description = "Задача не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
     public ResponseEntity<Void> finishProductionTask(
-            @Parameter(description = "Идентификатор задачи", required = true)
-            @PathVariable("id") Long id
+            @PathVariable @Parameter(description = "Идентификатор задачи", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        productionService.finishProductionTask(id);
+        return ResponseEntity.ok().build();
     }
 }

@@ -1,12 +1,23 @@
 package ru.itmo.se.is.cw.service;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.se.is.cw.dto.*;
-import ru.itmo.se.is.cw.repository.PurchaseOrderMaterialRepository;
+import ru.itmo.se.is.cw.exception.EntityNotFoundException;
+import ru.itmo.se.is.cw.mapper.PurchaseOrderMapper;
+import ru.itmo.se.is.cw.mapper.PurchaseOrderMaterialMapper;
+import ru.itmo.se.is.cw.mapper.PurchaseOrderReceiptMapper;
+import ru.itmo.se.is.cw.model.EmployeeEntity;
+import ru.itmo.se.is.cw.model.PurchaseOrderEntity;
+import ru.itmo.se.is.cw.model.PurchaseOrderReceiptEntity;
+import ru.itmo.se.is.cw.model.value.PurchaseOrderStatus;
 import ru.itmo.se.is.cw.repository.PurchaseOrderReceiptRepository;
 import ru.itmo.se.is.cw.repository.PurchaseOrderRepository;
+import ru.itmo.se.is.cw.specs.PurchaseOrderSpecification;
 
 import java.util.List;
 
@@ -15,34 +26,106 @@ import java.util.List;
 public class PurchaseOrdersService {
 
     private final PurchaseOrderRepository purchaseOrderRepository;
-    private final PurchaseOrderMaterialRepository purchaseOrderMaterialRepository;
     private final PurchaseOrderReceiptRepository purchaseOrderReceiptRepository;
+    private final PurchaseOrderMapper purchaseOrderMapper;
+    private final EntityManager em;
+    private final MaterialsService materialsService;
+    private final PurchaseOrderReceiptMapper purchaseOrderReceiptMapper;
+    private final PurchaseOrderMaterialMapper purchaseOrderMaterialMapper;
+    private final EmployeesService employeesService;
 
     @Transactional
-    public PurchaseOrder createPurchaseOrder(PurchaseOrderCreateRequest request) {
-        return null;
+    public PurchaseOrderResponseDto createPurchaseOrder(PurchaseOrderRequestDto request) {
+        EmployeeEntity employee = employeesService.getByAccountId(
+                getCurrentAccountId()
+        );
+        PurchaseOrderEntity purchaseOrder = purchaseOrderMapper.toEntity(request, employee);
+        applyMaterials(purchaseOrder, request.getMaterials());
+        purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
+        purchaseOrderRepository.updateStatusAndSetCurrent(
+                purchaseOrder.getId(),
+                PurchaseOrderStatus.CREATED.name()
+        );
+        em.refresh(purchaseOrder);
+        return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
     @Transactional(readOnly = true)
-    public List<PurchaseOrder> getPurchaseOrders() {
-        return List.of();
+    public Page<PurchaseOrderResponseDto> getPurchaseOrders(Pageable pageable, PurchaseOrderFilter filter) {
+        return purchaseOrderRepository
+                .findAll(PurchaseOrderSpecification.byFilter(filter), pageable)
+                .map(purchaseOrderMapper::toDto);
     }
 
     @Transactional(readOnly = true)
-    public PurchaseOrder getPurchaseOrderById(Long id) {
-        return null;
+    public PurchaseOrderResponseDto getPurchaseOrderById(Long id) {
+        return purchaseOrderMapper.toDto(getById(id));
     }
 
     @Transactional
-    public void updateMaterialsInPurchaseOrder(Long id, List<PurchaseOrderMaterialItem> materials) {
+    public PurchaseOrderResponseDto updateMaterialsInPurchaseOrder(Long id, List<PurchaseOrderMaterialDto> materials) {
+        PurchaseOrderEntity purchaseOrder = getById(id);
+        applyMaterials(purchaseOrder, materials);
+        return purchaseOrderMapper.toDto(
+                purchaseOrderRepository.save(purchaseOrder)
+        );
     }
 
     @Transactional
-    public void approvePurchaseOrder(Long id) {
+    public PurchaseOrderReceiptResponseDto registerReceipt(Long id, PurchaseOrderReceiptRequest request) {
+        PurchaseOrderEntity purchaseOrder = getById(id);
+
+        if (purchaseOrder.getCurrentStatus().getStatus().equals(PurchaseOrderStatus.COMPLETED)) {
+            throw new IllegalStateException("Order with id " + id + " has already been completed");
+        }
+
+        updateReceivedMaterialsBalance(id, request, purchaseOrder);
+
+        purchaseOrderRepository.updateStatusAndSetCurrent(id, PurchaseOrderStatus.COMPLETED.name());
+        em.refresh(purchaseOrder);
+
+        EmployeeEntity warehouseWorker = employeesService.getByAccountId(
+                getCurrentAccountId()
+        );
+        PurchaseOrderReceiptEntity receipt = purchaseOrderReceiptMapper.toEntity(request, purchaseOrder, warehouseWorker);
+        return purchaseOrderReceiptMapper.toDto(
+                purchaseOrderReceiptRepository.save(receipt)
+        );
     }
 
-    @Transactional
-    public PurchaseOrderReceipt registerReceipt(Long id, PurchaseOrderReceiptCreateRequest request) {
-        return null;
+    public PurchaseOrderEntity getById(Long id) {
+        return purchaseOrderRepository
+                .findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Purchase order with id " + id + " not found"));
+    }
+
+    private void updateReceivedMaterialsBalance(Long id, PurchaseOrderReceiptRequest request, PurchaseOrderEntity purchaseOrder) {
+        List<Long> allowedMaterialsIds = purchaseOrder.getMaterials().stream()
+                .map(pm -> pm.getMaterial().getId())
+                .toList();
+
+        request.getReceivedItems().forEach(item -> {
+            if (!allowedMaterialsIds.contains(item.getMaterialId())) {
+                throw new IllegalArgumentException("Material " + item.getMaterialId() + " is not in purchase order " + id);
+            }
+            materialsService.setMaterialBalance(item.getMaterialId(), item.getAmount());
+        });
+    }
+
+    private void applyMaterials(PurchaseOrderEntity purchaseOrder, List<PurchaseOrderMaterialDto> materials) {
+        purchaseOrder.clearMaterials();
+        materials.stream()
+                .map(dto ->
+                        purchaseOrderMaterialMapper.toEntity(
+                                dto,
+                                materialsService.getById(dto.getMaterialId()),
+                                purchaseOrder
+                        )
+                )
+                .forEach(purchaseOrder::addMaterial);
+    }
+
+    private Long getCurrentAccountId() {
+        return 1L; // TODO
     }
 }

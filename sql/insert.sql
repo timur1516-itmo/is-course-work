@@ -10,7 +10,7 @@ VALUES ('sales_manager', 'hashed_password_sales', TRUE, 'SALES_MANAGER');
 INSERT INTO person (first_name, last_name)
 VALUES ('Иван', 'Петров');
 
-INSERT INTO employee (account_id, person_id)
+INSERT INTO employeeDto (account_id, person_id)
 VALUES ((SELECT id FROM account WHERE username = 'sales_manager'),
         (SELECT id FROM person WHERE first_name = 'Иван' AND last_name = 'Петров'));
 
@@ -21,7 +21,7 @@ VALUES ('constructor1', 'hashed_password_constructor', TRUE, 'CONSTRUCTOR');
 INSERT INTO person (first_name, last_name)
 VALUES ('Пётр', 'Соколов');
 
-INSERT INTO employee (account_id, person_id)
+INSERT INTO employeeDto (account_id, person_id)
 VALUES ((SELECT id FROM account WHERE username = 'constructor1'),
         (SELECT id FROM person WHERE first_name = 'Пётр' AND last_name = 'Соколов'));
 
@@ -32,7 +32,7 @@ VALUES ('cnc_operator1', 'hashed_password_cnc', TRUE, 'CNC_OPERATOR');
 INSERT INTO person (first_name, last_name)
 VALUES ('Сергей', 'Иванов');
 
-INSERT INTO employee (account_id, person_id)
+INSERT INTO employeeDto (account_id, person_id)
 VALUES ((SELECT id FROM account WHERE username = 'cnc_operator1'),
         (SELECT id FROM person WHERE first_name = 'Сергей' AND last_name = 'Иванов'));
 
@@ -43,7 +43,7 @@ VALUES ('warehouse1', 'hashed_password_warehouse', TRUE, 'WAREHOUSE_WORKER');
 INSERT INTO person (first_name, last_name)
 VALUES ('Анна', 'Смирнова');
 
-INSERT INTO employee (account_id, person_id)
+INSERT INTO employeeDto (account_id, person_id)
 VALUES ((SELECT id FROM account WHERE username = 'warehouse1'),
         (SELECT id FROM person WHERE first_name = 'Анна' AND last_name = 'Смирнова'));
 
@@ -54,7 +54,7 @@ VALUES ('supply_manager1', 'hashed_password_supply', TRUE, 'SUPPLY_MANAGER');
 INSERT INTO person (first_name, last_name)
 VALUES ('Олег', 'Орлов');
 
-INSERT INTO employee (account_id, person_id)
+INSERT INTO employeeDto (account_id, person_id)
 VALUES ((SELECT id FROM account WHERE username = 'supply_manager1'),
         (SELECT id FROM person WHERE first_name = 'Олег' AND last_name = 'Орлов'));
 
@@ -256,7 +256,7 @@ VALUES (NULL,
          FROM client_application
          WHERE client_id = (SELECT id FROM client WHERE email = 'client1@example.com')),
         (SELECT e.id
-         FROM employee e
+         FROM employeeDto e
                   JOIN account a ON e.account_id = a.id
          WHERE a.username = 'sales_manager'),
         (SELECT template_product_design_id
@@ -367,7 +367,7 @@ VALUES ((SELECT id
 -- 11.2. Конструктор назначается в дизайне продукта
 UPDATE product_design
 SET constructor_id = (SELECT e.id
-                      FROM employee e
+                      FROM employeeDto e
                                JOIN account a ON e.account_id = a.id
                       WHERE a.username = 'constructor1')
 WHERE id = (SELECT product_design_id
@@ -700,7 +700,7 @@ VALUES ((SELECT id
         NULL,
         NULL,
         (SELECT e.id
-         FROM employee e
+         FROM employeeDto e
                   JOIN account a ON e.account_id = a.id
          WHERE a.username = 'cnc_operator1'));
 -- Статус задачи "В ОЧЕРЕДИ" с помощью функции
@@ -860,7 +860,7 @@ BEGIN;
 INSERT INTO purchase_order (current_status_id, supply_manager_id)
 VALUES (NULL,
         (SELECT e.id
-         FROM employee e
+         FROM employeeDto e
                   JOIN account a ON e.account_id = a.id
          WHERE a.username = 'supply_manager1'));
 -- Статус закупки "СОЗДАН" с помощью функции
@@ -888,7 +888,7 @@ BEGIN;
 INSERT INTO purchase_order_receipt (purchase_order_id, warehouse_worker_id, invoice_number)
 VALUES ((SELECT id FROM purchase_order ORDER BY id DESC LIMIT 1),
         (SELECT e.id
-         FROM employee e
+         FROM employeeDto e
                   JOIN account a ON e.account_id = a.id
          WHERE a.username = 'warehouse1'),
         'INV-2025-0001');

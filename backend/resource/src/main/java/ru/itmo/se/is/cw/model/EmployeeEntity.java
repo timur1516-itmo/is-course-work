@@ -16,15 +16,13 @@ public class EmployeeEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @OneToOne(optional = false)
+    @OneToOne(optional = false, cascade = CascadeType.ALL)
     @OnDelete(action = OnDeleteAction.RESTRICT)
     @JoinColumn(name = "account_id", nullable = false)
     private AccountEntity account;
 
-    @OneToOne(optional = false)
+    @OneToOne(optional = false, cascade = CascadeType.ALL)
     @OnDelete(action = OnDeleteAction.RESTRICT)
     @JoinColumn(name = "person_id", nullable = false)
     private PersonEntity person;
-
-
 }

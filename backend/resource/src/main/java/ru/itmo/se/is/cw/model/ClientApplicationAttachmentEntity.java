@@ -25,6 +25,4 @@ public class ClientApplicationAttachmentEntity {
     @OnDelete(action = OnDeleteAction.RESTRICT)
     @JoinColumn(name = "file_id", nullable = false)
     private FileEntity file;
-
-
 }

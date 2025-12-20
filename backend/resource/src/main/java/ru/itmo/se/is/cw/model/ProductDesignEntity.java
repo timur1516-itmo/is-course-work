@@ -3,10 +3,14 @@ package ru.itmo.se.is.cw.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -27,10 +31,16 @@ public class ProductDesignEntity {
     private String productName;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
+    @CreationTimestamp
+    private ZonedDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
+    @UpdateTimestamp
+    private ZonedDateTime updatedAt;
 
+    @OneToMany(mappedBy = "productDesign", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductDesignFileEntity> files = new ArrayList<>();
 
+    @OneToMany(mappedBy = "productDesign", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RequiredMaterialEntity> requiredMaterials = new ArrayList<>();
 }

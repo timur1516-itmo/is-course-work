@@ -6,7 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -32,7 +32,5 @@ public class PurchaseOrderReceiptEntity {
     private String invoiceNumber;
 
     @Column(name = "receipted_at", nullable = false)
-    private OffsetDateTime receiptedAt;
-
-
+    private ZonedDateTime receiptedAt;
 }

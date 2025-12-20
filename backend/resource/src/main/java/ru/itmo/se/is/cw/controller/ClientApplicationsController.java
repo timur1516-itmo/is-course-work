@@ -5,69 +5,82 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.service.ClientApplicationsService;
 
+import java.net.URI;
 import java.util.List;
 
 
 @RestController
 @RequestMapping("/client-applications")
 @Tag(name = "ClientApplications", description = "Операции с клиентскими заявками")
+@RequiredArgsConstructor
 public class ClientApplicationsController {
+
+    private final ClientApplicationsService clientApplicationsService;
 
     @PostMapping
     @Operation(
             summary = "Создание клиентской заявки",
             description = "Создает новую клиентскую заявку, включая описание проблемы, пожелания и дополнительные данные."
     )
-    @RequestBody(
-            description = "Данные для создания клиентской заявки",
-            required = true,
-            content = @Content(
-                    schema = @Schema(implementation = ClientApplicationCreateRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
                     description = "Заявка успешно создана",
                     content = @Content(
-                            schema = @Schema(implementation = ClientApplication.class)
+                            schema = @Schema(implementation = ClientApplicationResponseDto.class)
                     )
             )
     })
-    public ResponseEntity<ClientApplication> createApplication(
-            @RequestBody ClientApplicationCreateRequest request
+    public ResponseEntity<ClientApplicationResponseDto> createApplication(
+            @RequestBody ClientApplicationRequestDto request,
+            UriComponentsBuilder uriBuilder
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ClientApplicationResponseDto response = clientApplicationsService.createApplication(request);
+        URI location = uriBuilder
+                .path("//client-applications/{id}")
+                .buildAndExpand(response.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(response);
     }
 
 
-    @GetMapping("/{clientId}")
+    @GetMapping
     @Operation(
-            summary = "Список клиентских заявок",
-            description = "Возвращает список заявок определённого клиента."
+            summary = "Список клиентских заявок (пагинация + фильтр)",
+            description = """
+                    Возвращает список заявок.
+                    Для роли CLIENT возвращаются только заявки текущего клиента (filter.clientId игнорируется).
+                    Для остальных ролей можно смотреть все заявки и фильтровать по clientId.
+                    """
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Список заявок клиента",
-                    content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = ClientApplication.class))
-                    )
+                    description = "Страница заявок",
+                    content = @Content(schema = @Schema(implementation = Page.class))
             )
     })
-    public ResponseEntity<List<ClientApplication>> getApplications(
-            @PathVariable @Parameter(description = "Идентификатор клиента", required = true) Long clientId
+    public ResponseEntity<Page<ClientApplicationResponseDto>> getApplications(
+            @ParameterObject @ModelAttribute ClientApplicationFilter filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(clientApplicationsService.getApplications(pageable, filter));
     }
 
 
@@ -81,21 +94,22 @@ public class ClientApplicationsController {
                     responseCode = "200",
                     description = "Заявка найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ClientApplication.class)
+                            schema = @Schema(implementation = ClientApplicationResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заявка не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<ClientApplication> getApplicationById(
+    public ResponseEntity<ClientApplicationResponseDto> getApplicationById(
             @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ClientApplicationResponseDto response = clientApplicationsService.getApplicationById(id);
+        return ResponseEntity.ok(response);
     }
 
 
@@ -103,14 +117,6 @@ public class ClientApplicationsController {
     @Operation(
             summary = "Добавить вложение к заявке",
             description = "Добавляет файл или ссылку на файл в клиентскую заявку."
-    )
-    @RequestBody(
-            description = "Описание файла, который нужно вложить в заявку",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = AddAttachmentRequest.class)
-            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -121,16 +127,17 @@ public class ClientApplicationsController {
                     responseCode = "404",
                     description = "Заявка или файл не найдены",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
     public ResponseEntity<Void> addAttachmentToApplication(
             @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id,
 
-            @RequestBody AddAttachmentRequest request
+            @RequestBody AddAttachmentRequestDto request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        clientApplicationsService.addAttachmentToApplication(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
 
@@ -144,20 +151,20 @@ public class ClientApplicationsController {
                     responseCode = "200",
                     description = "Список вложений",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = FileMetadata.class))
+                            array = @ArraySchema(schema = @Schema(implementation = FileMetadataResponseDto.class))
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Заявка не найдена",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<List<FileMetadata>> getApplicationAttachments(
+    public ResponseEntity<List<FileMetadataResponseDto>> getApplicationAttachments(
             @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(clientApplicationsService.getApplicationAttachments(id));
     }
 }

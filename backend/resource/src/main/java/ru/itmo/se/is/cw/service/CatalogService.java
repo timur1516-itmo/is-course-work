@@ -1,11 +1,22 @@
 package ru.itmo.se.is.cw.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.ProductCatalogFilter;
+import ru.itmo.se.is.cw.dto.ProductCatalogRequestDto;
+import ru.itmo.se.is.cw.dto.ProductCatalogResponseDto;
+import ru.itmo.se.is.cw.exception.EntityNotFoundException;
+import ru.itmo.se.is.cw.mapper.FileMapper;
+import ru.itmo.se.is.cw.mapper.ProductCatalogMapper;
+import ru.itmo.se.is.cw.mapper.ProductPhotoMapper;
+import ru.itmo.se.is.cw.model.ProductCatalogEntity;
+import ru.itmo.se.is.cw.model.ProductDesignEntity;
 import ru.itmo.se.is.cw.repository.ProductCatalogRepository;
 import ru.itmo.se.is.cw.repository.ProductPhotoRepository;
+import ru.itmo.se.is.cw.specs.ProductCatalogSpecification;
 
 import java.util.List;
 
@@ -15,37 +26,72 @@ public class CatalogService {
 
     private final ProductCatalogRepository productCatalogRepository;
     private final ProductPhotoRepository productPhotoRepository;
+    private final ProductCatalogMapper productCatalogMapper;
+    private final DesignsService designsService;
+    private final ProductPhotoMapper productPhotoMapper;
+    private final FileMapper fileMapper;
+    private final FilesService filesService;
 
     @Transactional(readOnly = true)
-    public ProductCatalogPage getProducts(int page, int size, String category, String search) {
-        // TODO: пейджинация, фильтрация, маппинг в ProductCatalogPage
-        return null;
+    public Page<ProductCatalogResponseDto> getProducts(Pageable pageable, ProductCatalogFilter filter) {
+        return productCatalogRepository
+                .findAll(ProductCatalogSpecification.byFilter(filter), pageable)
+                .map(productCatalogMapper::toDto);
     }
 
     @Transactional
-    public ProductCatalogItem createProduct(ProductCatalogItemCreateRequest request) {
-        // TODO: создать ProductCatalogEntity
-        return null;
+    public ProductCatalogResponseDto createProduct(ProductCatalogRequestDto request) {
+        ProductCatalogEntity entity = productCatalogMapper.toEntity(request);
+        applyProductDesign(entity, request.getProductDesignId());
+        applyProductPhotos(entity, request.getPhotoFileIds());
+        return productCatalogMapper.toDto(
+                productCatalogRepository.save(entity)
+        );
     }
 
     @Transactional(readOnly = true)
-    public ProductCatalogItem getProductById(Long id) {
-        return null;
+    public ProductCatalogResponseDto getProductById(Long id) {
+        return productCatalogMapper.toDto(getById(id));
+    }
+
+    @Transactional(readOnly = true)
+    public ProductCatalogEntity getById(Long id) {
+        return productCatalogRepository
+                .findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Product with id " + id + " not found"));
     }
 
     @Transactional
-    public ProductCatalogItem updateProduct(Long id, ProductCatalogItemUpdateRequest request) {
-        return null;
+    public ProductCatalogResponseDto updateProduct(Long id, ProductCatalogRequestDto request) {
+        ProductCatalogEntity entity = getById(id);
+        applyProductDesign(entity, request.getProductDesignId());
+        applyProductPhotos(entity, request.getPhotoFileIds());
+        productCatalogMapper.updateEntity(entity, request);
+        return productCatalogMapper.toDto(
+                productCatalogRepository.save(entity)
+        );
     }
 
     @Transactional
     public void deleteProduct(Long id) {
-        // TODO: удалить
+        productCatalogRepository.delete(getById(id));
     }
 
-    @Transactional(readOnly = true)
-    public List<ProductPhoto> getProductPhotos(Long id) {
-        return List.of();
+    private void applyProductDesign(ProductCatalogEntity entity, Long productDesignId) {
+        ProductDesignEntity design = designsService.getById(productDesignId);
+        entity.setProductDesign(design);
+    }
+
+    private void applyProductPhotos(ProductCatalogEntity entity, List<Long> fileIds) {
+        entity.setPhotos(
+                fileIds.stream()
+                        .map(filesService::getById)
+                        .map(file -> productPhotoMapper.toEntity(
+                                file,
+                                entity
+                        ))
+                        .toList()
+        );
     }
 }
 

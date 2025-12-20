@@ -31,6 +31,4 @@ public class MaterialEntity {
 
     @Column(name = "order_point", nullable = false, precision = 12, scale = 2)
     private BigDecimal orderPoint;
-
-
 }

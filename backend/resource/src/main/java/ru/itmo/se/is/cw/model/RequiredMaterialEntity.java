@@ -30,6 +30,4 @@ public class RequiredMaterialEntity {
 
     @Column(name = "amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
-
-
 }

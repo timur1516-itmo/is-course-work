@@ -6,4 +6,5 @@ import ru.itmo.se.is.cw.model.ClientApplicationAttachmentEntity;
 
 @Repository
 public interface ClientApplicationAttachmentRepository extends JpaRepository<ClientApplicationAttachmentEntity, Long> {
+    boolean existsByFileId(Long fileId);
 }

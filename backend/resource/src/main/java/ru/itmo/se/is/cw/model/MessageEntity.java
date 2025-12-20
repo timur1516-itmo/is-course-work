@@ -3,10 +3,11 @@ package ru.itmo.se.is.cw.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -27,7 +28,8 @@ public class MessageEntity {
     private ConversationParticipantEntity conversationParticipant;
 
     @Column(name = "sent_at", nullable = false)
-    private OffsetDateTime sentAt;
+    @CreationTimestamp
+    private ZonedDateTime sentAt;
 
 
 }

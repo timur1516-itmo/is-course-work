@@ -3,11 +3,12 @@ package ru.itmo.se.is.cw.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -43,7 +44,6 @@ public class ClientOrderEntity {
     private BigDecimal price;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
-
-
+    @CreationTimestamp
+    private ZonedDateTime createdAt;
 }

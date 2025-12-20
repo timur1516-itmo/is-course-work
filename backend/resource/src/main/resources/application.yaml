@@ -1,11 +1,25 @@
 server:
-  port: 8082
+  port: ${RESOURCE_PORT:8082}
   servlet:
     context-path: /resource
 
 spring:
   application:
     name: resource
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laserworks}
+    username: ${POSTGRES_USER:laserworks}
+    password: ${POSTGRES_PASSWORD:laserworks}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+minio:
+  url: http://${MINIO_HOST:localhost}:${MINIO_PORT:9000}
+  accessKey: ${MINIO_ROOT_USER:minioadmin}
+  secretKey: ${MINIO_ROOT_PASSWORD:minioadmin}
 
 springdoc:
   api-docs:
@@ -14,3 +28,21 @@ springdoc:
     enabled: false
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+springdoc:
+  swagger-ui:
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: server
+springdoc:
+  swagger-ui:
+    enabled: false

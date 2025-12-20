@@ -29,7 +29,7 @@ public class SecurityConfig {
                                 "/resource/v3/api-docs",
                                 "/resource/v3/api-docs.yaml"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .formLogin(Customizer.withDefaults());
 

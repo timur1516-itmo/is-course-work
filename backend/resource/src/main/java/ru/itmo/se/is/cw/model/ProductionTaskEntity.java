@@ -3,10 +3,11 @@ package ru.itmo.se.is.cw.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -29,10 +30,10 @@ public class ProductionTaskEntity {
     private ProductionTaskStatusEntity currentStatus;
 
     @Column(name = "started_at")
-    private OffsetDateTime startedAt;
+    private ZonedDateTime startedAt;
 
     @Column(name = "finished_at")
-    private OffsetDateTime finishedAt;
+    private ZonedDateTime finishedAt;
 
     @ManyToOne(optional = false)
     @OnDelete(action = OnDeleteAction.RESTRICT)
@@ -40,7 +41,6 @@ public class ProductionTaskEntity {
     private EmployeeEntity cncOperator;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
-
-
+    @CreationTimestamp
+    private ZonedDateTime createdAt;
 }

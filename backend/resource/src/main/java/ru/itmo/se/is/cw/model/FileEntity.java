@@ -3,10 +3,12 @@ package ru.itmo.se.is.cw.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -30,18 +32,18 @@ public class FileEntity {
     private FileVersionEntity currentVersion;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
+    @CreationTimestamp
+    private ZonedDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
+    @UpdateTimestamp
+    private ZonedDateTime updatedAt;
 
     @Column(name = "deleted_at")
-    private OffsetDateTime deletedAt;
+    private ZonedDateTime deletedAt;
 
     @ManyToOne(optional = false)
     @OnDelete(action = OnDeleteAction.RESTRICT)
     @JoinColumn(name = "owner_id", nullable = false)
     private AccountEntity owner;
-
-
 }

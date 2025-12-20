@@ -2,28 +2,32 @@ package ru.itmo.se.is.cw.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import ru.itmo.se.is.cw.dto.Client;
-import ru.itmo.se.is.cw.dto.ErrorResponse;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
+import ru.itmo.se.is.cw.dto.ClientFilter;
+import ru.itmo.se.is.cw.dto.ClientResponseDto;
+import ru.itmo.se.is.cw.dto.ProblemDetail;
+import ru.itmo.se.is.cw.service.ClientsService;
 
 
 @RestController
 @RequestMapping("/clients")
 @Tag(name = "Clients", description = "Операции с клиентами")
+@RequiredArgsConstructor
 public class ClientsController {
+
+    private final ClientsService clientsService;
 
     @GetMapping
     @Operation(
@@ -33,17 +37,30 @@ public class ClientsController {
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Список клиентов",
+                    description = "Список клиентов"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректный параметр запроса",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = Client.class))
+                            schema = @Schema(implementation = ProblemDetail.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Доступ запрещён",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<List<Client>> getClients() {
-        // TODO: Реализовать логику получения списка клиентов
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    public ResponseEntity<Page<ClientResponseDto>> getClients(
+            @ParameterObject @ModelAttribute ClientFilter filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<ClientResponseDto> clients = clientsService.getClients(pageable, filter);
+        return ResponseEntity.ok(clients);
     }
-
 
     @GetMapping("/{id}")
     @Operation(
@@ -55,21 +72,21 @@ public class ClientsController {
                     responseCode = "200",
                     description = "Информация о клиенте",
                     content = @Content(
-                            schema = @Schema(implementation = Client.class)
+                            schema = @Schema(implementation = ClientResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Клиент не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Client> getClientById(
+    public ResponseEntity<ClientResponseDto> getClientById(
             @PathVariable @Parameter(description = "Идентификатор клиента", required = true) Long id
     ) {
-        // TODO: Реализовать логику получения клиента по ID
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ClientResponseDto client = clientsService.getClientById(id);
+        return ResponseEntity.ok(client);
     }
 }

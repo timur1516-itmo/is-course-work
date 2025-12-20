@@ -8,15 +8,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import ru.itmo.se.is.cw.dto.ErrorResponse;
-import ru.itmo.se.is.cw.dto.FileMetadata;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import ru.itmo.se.is.cw.dto.FileMetadataResponseDto;
 import ru.itmo.se.is.cw.dto.FileVersion;
+import ru.itmo.se.is.cw.dto.ProblemDetail;
+import ru.itmo.se.is.cw.service.FilesService;
 
+import java.io.InputStream;
 import java.util.List;
 
 
@@ -25,6 +29,12 @@ import java.util.List;
 @Tag(name = "Files", description = "Операции с файлами")
 public class FilesController {
 
+
+    private final FilesService filesService;
+
+    public FilesController(FilesService filesService) {
+        this.filesService = filesService;
+    }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
@@ -36,15 +46,16 @@ public class FilesController {
                     responseCode = "201",
                     description = "Файл загружен",
                     content = @Content(
-                            schema = @Schema(implementation = FileMetadata.class)
+                            schema = @Schema(implementation = FileMetadataResponseDto.class)
                     )
             )
     })
-    public ResponseEntity<FileMetadata> uploadFile(
+    public ResponseEntity<FileMetadataResponseDto> uploadFile(
             @Parameter(description = "Загружаемый файл", required = true)
             @RequestPart("file") MultipartFile file
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        FileMetadataResponseDto dto = filesService.uploadFile(file);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
 
@@ -58,21 +69,21 @@ public class FilesController {
                     responseCode = "200",
                     description = "Метаданные файла",
                     content = @Content(
-                            schema = @Schema(implementation = FileMetadata.class)
+                            schema = @Schema(implementation = FileMetadataResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Файл не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<FileMetadata> getFileMetadata(
+    public ResponseEntity<FileMetadataResponseDto> getFileMetadata(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(filesService.getFileMetadata(id));
     }
 
 
@@ -93,14 +104,26 @@ public class FilesController {
                     responseCode = "404",
                     description = "Файл не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Void> downloadFile(
+    public ResponseEntity<StreamingResponseBody> downloadFile(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        FileMetadataResponseDto meta = filesService.getFileMetadata(id);
+        InputStream is = filesService.downloadFileStream(id);
+
+        StreamingResponseBody body = outputStream -> {
+            try (is) {
+                is.transferTo(outputStream);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + meta.getFilename() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(body);
     }
 
 
@@ -121,14 +144,14 @@ public class FilesController {
                     responseCode = "404",
                     description = "Файл не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
     public ResponseEntity<List<FileVersion>> getFileVersions(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.ok(filesService.getFileVersions(id));
     }
 
 
@@ -149,7 +172,7 @@ public class FilesController {
                     responseCode = "404",
                     description = "Файл не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
@@ -159,7 +182,8 @@ public class FilesController {
             @Parameter(description = "Новая версия файла", required = true)
             @RequestPart("file") MultipartFile file
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        FileVersion v = filesService.uploadNewFileVersion(id, file);
+        return ResponseEntity.status(HttpStatus.CREATED).body(v);
     }
 
 
@@ -180,15 +204,31 @@ public class FilesController {
                     responseCode = "404",
                     description = "Файл или версия не найдены",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Void> downloadFileVersion(
+    public ResponseEntity<StreamingResponseBody> downloadFileVersion(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id,
-
             @PathVariable @Parameter(description = "Идентификатор версии файла", required = true) Long versionId
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        InputStream is = filesService.downloadFileVersionStream(id, versionId);
+
+        StreamingResponseBody body = outputStream -> {
+            try (is) {
+                is.transferTo(outputStream);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(body);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Soft delete файла", description = "Помечает файл удалённым (deletedAt), физически не удаляет из хранилища.")
+    public ResponseEntity<Void> softDelete(@PathVariable Long id) {
+        filesService.softDeleteFile(id);
+        return ResponseEntity.noContent().build();
     }
 }

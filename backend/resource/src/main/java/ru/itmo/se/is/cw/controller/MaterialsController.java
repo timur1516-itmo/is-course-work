@@ -5,22 +5,31 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.service.MaterialsService;
 
-import java.util.List;
+import java.net.URI;
 
 
 @RestController
 @RequestMapping("/materials")
 @Tag(name = "Materials", description = "Операции с материалами")
+@RequiredArgsConstructor
 public class MaterialsController {
+
+    private final MaterialsService materialsService;
 
     @GetMapping
     @Operation(
@@ -32,12 +41,16 @@ public class MaterialsController {
                     responseCode = "200",
                     description = "Материалы",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = Material.class))
+                            array = @ArraySchema(schema = @Schema(implementation = MaterialResponseDto.class))
                     )
             )
     })
-    public ResponseEntity<List<Material>> getMaterials() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    public ResponseEntity<Page<MaterialResponseDto>> getMaterials(
+            @ParameterObject @ModelAttribute MaterialFilter filter,
+            @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<MaterialResponseDto> materials = materialsService.getMaterials(pageable, filter);
+        return ResponseEntity.ok(materials);
     }
 
 
@@ -46,27 +59,25 @@ public class MaterialsController {
             summary = "Создать материал (админ/снабжение)",
             description = "Создает новый материал. Доступно администраторам и сотрудникам снабжения."
     )
-    @RequestBody(
-            description = "Данные для создания материала",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = MaterialCreateRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
                     description = "Материал создан",
                     content = @Content(
-                            schema = @Schema(implementation = Material.class)
+                            schema = @Schema(implementation = MaterialResponseDto.class)
                     )
             )
     })
-    public ResponseEntity<Material> createMaterial(
-            @RequestBody MaterialCreateRequest request
+    public ResponseEntity<MaterialResponseDto> createMaterial(
+            @RequestBody MaterialRequestDto request,
+            UriComponentsBuilder uriBuilder
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        MaterialResponseDto material = materialsService.createMaterial(request);
+        URI location = uriBuilder
+                .path("/materials/{id}")
+                .buildAndExpand(material.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(material);
     }
 
 
@@ -80,21 +91,22 @@ public class MaterialsController {
                     responseCode = "200",
                     description = "Материал найден",
                     content = @Content(
-                            schema = @Schema(implementation = Material.class)
+                            schema = @Schema(implementation = MaterialResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Материал не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Material> getMaterialById(
+    public ResponseEntity<MaterialResponseDto> getMaterialById(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        MaterialResponseDto material = materialsService.getMaterialById(id);
+        return ResponseEntity.ok(material);
     }
 
 
@@ -103,36 +115,29 @@ public class MaterialsController {
             summary = "Обновить материал (админ/снабжение)",
             description = "Обновляет информацию о существующем материале."
     )
-    @RequestBody(
-            description = "Новые параметры материала",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = MaterialUpdateRequest.class)
-            )
-    )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "Материал обновлён",
                     content = @Content(
-                            schema = @Schema(implementation = Material.class)
+                            schema = @Schema(implementation = MaterialResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Материал не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<Material> updateMaterial(
+    public ResponseEntity<MaterialResponseDto> updateMaterial(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id,
 
-            @RequestBody MaterialUpdateRequest request
+            @RequestBody MaterialRequestDto request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        MaterialResponseDto material = materialsService.updateMaterial(id, request);
+        return ResponseEntity.ok(material);
     }
 
 
@@ -151,35 +156,41 @@ public class MaterialsController {
                     responseCode = "404",
                     description = "Материал не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
     public ResponseEntity<Void> deleteMaterial(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        materialsService.deleteMaterial(id);
+        return ResponseEntity.noContent().build();
     }
 
-
-    @GetMapping("/low-stock")
+    @PutMapping("/{id}/balance")
     @Operation(
-            summary = "Материалы ниже точки заказа",
-            description = "Возвращает список материалов, требующих пополнения."
+            summary = "Установить текущий баланс материала (склад/снабжение)",
+            description = "Устанавливает новый текущий баланс материала. Создаёт запись в истории баланса и обновляет currentBalance."
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Список материалов",
-                    content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = Material.class))
-                    )
+                    description = "Баланс обновлён",
+                    content = @Content(schema = @Schema(implementation = MaterialResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Материал не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
-    public ResponseEntity<List<Material>> getLowStockMaterials() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    public ResponseEntity<MaterialResponseDto> setBalance(
+            @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id,
+            @RequestBody MaterialBalanceChangeRequestDto request
+    ) {
+        MaterialResponseDto material = materialsService.updateMaterialBalance(id, request.getAmount());
+        return ResponseEntity.ok(material);
     }
-
 
     @GetMapping("/{id}/balance-history")
     @Operation(
@@ -191,20 +202,21 @@ public class MaterialsController {
                     responseCode = "200",
                     description = "История балансов/списаний",
                     content = @Content(
-                            schema = @Schema(implementation = MaterialBalanceHistory.class)
+                            schema = @Schema(implementation = MaterialBalanceHistoryResponseDto.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "Материал не найден",
                     content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class)
+                            schema = @Schema(implementation = ProblemDetail.class)
                     )
             )
     })
-    public ResponseEntity<MaterialBalanceHistory> getMaterialBalanceHistory(
+    public ResponseEntity<MaterialBalanceHistoryResponseDto> getMaterialBalanceHistory(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        MaterialBalanceHistoryResponseDto history = materialsService.getMaterialBalanceHistory(id);
+        return ResponseEntity.ok(history);
     }
 }

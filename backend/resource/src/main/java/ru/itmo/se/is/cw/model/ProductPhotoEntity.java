@@ -25,6 +25,4 @@ public class ProductPhotoEntity {
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "product_catalog_id", nullable = false)
     private ProductCatalogEntity productCatalog;
-
-
 }

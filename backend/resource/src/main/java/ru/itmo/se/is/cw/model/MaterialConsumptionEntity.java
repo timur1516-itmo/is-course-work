@@ -7,7 +7,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -33,7 +33,5 @@ public class MaterialConsumptionEntity {
     private BigDecimal amount;
 
     @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
-
-
+    private ZonedDateTime createdAt;
 }

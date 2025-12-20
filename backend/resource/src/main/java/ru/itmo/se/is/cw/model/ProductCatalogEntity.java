@@ -7,6 +7,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Setter
@@ -38,5 +39,6 @@ public class ProductCatalogEntity {
     @Column(name = "category", nullable = false)
     private String category;
 
-
+    @OneToMany(mappedBy = "productCatalog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductPhotoEntity> photos;
 }

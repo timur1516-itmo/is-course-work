@@ -36,6 +36,4 @@ public class PurchaseOrderMaterialEntity {
 
     @Column(name = "supplier", nullable = false)
     private String supplier;
-
-
 }

@@ -1,17 +1,24 @@
 package ru.itmo.se.is.cw.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.Conversation;
-import ru.itmo.se.is.cw.dto.ConversationParticipant;
-import ru.itmo.se.is.cw.dto.Message;
-import ru.itmo.se.is.cw.dto.SendMessageRequest;
+import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.exception.EntityNotFoundException;
+import ru.itmo.se.is.cw.mapper.ConversationMapper;
+import ru.itmo.se.is.cw.mapper.ConversationParticipantMapper;
+import ru.itmo.se.is.cw.mapper.MessageMapper;
+import ru.itmo.se.is.cw.model.ConversationEntity;
+import ru.itmo.se.is.cw.model.ConversationParticipantEntity;
+import ru.itmo.se.is.cw.model.MessageEntity;
+import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.ConversationParticipantRepository;
 import ru.itmo.se.is.cw.repository.ConversationRepository;
 import ru.itmo.se.is.cw.repository.MessageRepository;
+import ru.itmo.se.is.cw.specs.MessageSpecification;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 
 @Service
@@ -21,29 +28,81 @@ public class ConversationsService {
     private final ConversationRepository conversationRepository;
     private final ConversationParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
+    private final ConversationMapper conversationMapper;
+    private final MessageMapper messageMapper;
+    private final ConversationParticipantMapper conversationParticipantMapper;
 
     @Transactional(readOnly = true)
-    public Conversation getConversationByOrderId(Long orderId) {
-        return null;
+    public ConversationResponseDto getConversationByOrderId(Long orderId) {
+        ConversationEntity conversation = conversationRepository
+                .findByOrderId(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Conversation for order with id " + orderId + " not found"));
+        assertCanAccess(conversation);
+        return conversationMapper.toDto(conversation);
     }
 
     @Transactional(readOnly = true)
-    public Conversation getConversation(Long id) {
-        return null;
+    public ConversationEntity getById(Long id) {
+        return conversationRepository
+                .findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Conversation with id " + id + " not found"));
     }
 
     @Transactional(readOnly = true)
-    public List<Message> getMessages(Long conversationId, ZonedDateTime since, Integer limit) {
-        return List.of();
+    public ConversationResponseDto getConversation(Long id) {
+        return conversationMapper.toDto(getById(id));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MessageResponseDto> getMessages(Long id, Pageable pageable, MessageFilter filter) {
+        ConversationEntity conversation = getById(id);
+        assertCanAccess(conversation);
+        if (filter == null) filter = new MessageFilter();
+        filter.setConversationId(id);
+        return messageRepository
+                .findAll(MessageSpecification.byFilter(filter), pageable)
+                .map(messageMapper::toDto);
     }
 
     @Transactional
-    public Message sendMessage(Long conversationId, SendMessageRequest request) {
-        return null;
+    public MessageResponseDto sendMessage(Long id, SendMessageRequestDto request) {
+        ConversationEntity conversation = getById(id);
+        assertCanAccess(conversation);
+
+        ConversationParticipantEntity participant = participantRepository
+                .findByConversationIdAndUserId(conversation.getId(), getCurrentAccountId())
+                .orElseThrow(() -> new RuntimeException("Unexpected state"));
+
+        MessageEntity message = new MessageEntity();
+        message.setContent(request.getContent());
+        message.setConversationParticipant(participant);
+
+        return messageMapper.toDto(messageRepository.save(message));
     }
 
     @Transactional(readOnly = true)
-    public List<ConversationParticipant> getParticipants(Long conversationId) {
-        return List.of();
+    public List<ConversationParticipantResponseDto> getParticipants(Long conversationId) {
+        ConversationEntity conversation = getById(conversationId);
+        assertCanAccess(conversation);
+        return participantRepository
+                .findByConversationIdOrderByJoinedAtAsc(conversationId)
+                .stream()
+                .map(conversationParticipantMapper::toDto)
+                .toList();
     }
+
+    private void assertCanAccess(ConversationEntity conversation) {
+        if (!participantRepository.existsByConversationIdAndUserId(conversation.getId(), getCurrentAccountId())) {
+            throw new EntityNotFoundException("Conversation with id " + conversation.getId() + " not found");
+        }
+    }
+
+    private AccountRole getCurrentRole() {
+        return AccountRole.CLIENT; // TODO
+    }
+
+    private Long getCurrentAccountId() {
+        return 1L; // TODO
+    }
+
 }

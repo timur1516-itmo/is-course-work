@@ -32,7 +32,7 @@ CREATE TABLE person
     last_name  VARCHAR(25) NOT NULL
 );
 
-CREATE TABLE employee
+CREATE TABLE employeeDto
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     account_id BIGINT NOT NULL UNIQUE,
@@ -152,7 +152,7 @@ CREATE TABLE purchase_order
     supply_manager_id BIGINT      NOT NULL,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT fk_po_manager
-        FOREIGN KEY (supply_manager_id) REFERENCES employee (id) ON DELETE RESTRICT
+        FOREIGN KEY (supply_manager_id) REFERENCES employeeDto (id) ON DELETE RESTRICT
 );
 
 CREATE TABLE purchase_order_status
@@ -202,7 +202,7 @@ CREATE TABLE purchase_order_receipt
     CONSTRAINT fk_por_po
         FOREIGN KEY (purchase_order_id) REFERENCES purchase_order (id) ON DELETE RESTRICT,
     CONSTRAINT fk_por_worker
-        FOREIGN KEY (warehouse_worker_id) REFERENCES employee (id) ON DELETE RESTRICT
+        FOREIGN KEY (warehouse_worker_id) REFERENCES employeeDto (id) ON DELETE RESTRICT
 );
 
 -- ===================== ПРОДУКТ ======================
@@ -215,7 +215,7 @@ CREATE TABLE product_design
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT fk_product_design_constructor
-        FOREIGN KEY (constructor_id) REFERENCES employee (id) ON DELETE SET NULL
+        FOREIGN KEY (constructor_id) REFERENCES employeeDto (id) ON DELETE SET NULL
 );
 
 CREATE TABLE product_design_file
@@ -309,7 +309,7 @@ CREATE TABLE client_order
     CONSTRAINT fk_client_order_client_application
         FOREIGN KEY (client_application_id) REFERENCES client_application (id) ON DELETE RESTRICT,
     CONSTRAINT fk_client_order_manager
-        FOREIGN KEY (manager_id) REFERENCES employee (id) ON DELETE RESTRICT,
+        FOREIGN KEY (manager_id) REFERENCES employeeDto (id) ON DELETE RESTRICT,
     CONSTRAINT fk_client_order_product_design
         FOREIGN KEY (product_design_id) REFERENCES product_design (id) ON DELETE RESTRICT
 );
@@ -412,7 +412,7 @@ CREATE TABLE production_task
     CONSTRAINT fk_pt_order
         FOREIGN KEY (client_order_id) REFERENCES client_order (id) ON DELETE RESTRICT,
     CONSTRAINT fk_pt_operator
-        FOREIGN KEY (cnc_operator_id) REFERENCES employee (id) ON DELETE RESTRICT,
+        FOREIGN KEY (cnc_operator_id) REFERENCES employeeDto (id) ON DELETE RESTRICT,
     CONSTRAINT chk_production_task_time
         CHECK (
             finished_at IS NULL

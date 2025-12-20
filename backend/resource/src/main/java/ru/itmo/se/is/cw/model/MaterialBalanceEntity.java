@@ -7,7 +7,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -38,7 +38,5 @@ public class MaterialBalanceEntity {
     private AccountEntity changer;
 
     @Column(name = "changed_at", nullable = false)
-    private OffsetDateTime changedAt;
-
-
+    private ZonedDateTime changedAt;
 }
