@@ -56,6 +56,12 @@ export interface RequiredMaterialDto {
   amount: number;
 }
 
+export interface ProductDesignRequestDto {
+  productName: string;
+  fileIds?: number[];
+  requiredMaterials?: RequiredMaterialDto[];
+}
+
 export interface ProductDesignResponseDto {
   id: number;
   constructorId?: number;
@@ -156,11 +162,28 @@ export interface ClientResponseDto {
   accountId: number;
 }
 
+import type { AccountRole } from './auth.service';
+
+export interface EmployeeRequestDto {
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: AccountRole;
+}
+
 export interface EmployeeResponseDto {
   id: number;
   accountId: number;
   person: PersonResponseDto;
   role: string;
+}
+
+export interface EmployeesQueryParams {
+  role?: AccountRole; // AccountRole imported from auth.service
+  page?: number;
+  size?: number;
+  sort?: string[];
 }
 
 export interface SendMessageRequestDto {
@@ -173,4 +196,6 @@ export interface MessageAttachmentDto {
   fileId: number;
   messageId: number;
 }
+
+// AccountRole is exported from auth.service.ts to avoid duplication
 

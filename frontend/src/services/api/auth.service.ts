@@ -1,5 +1,13 @@
 import { apiClient, extractApiError } from './config';
-import type { EmployeeResponseDto } from './types';
+
+export type AccountRole = 
+  | 'CLIENT'
+  | 'SALES_MANAGER'
+  | 'CONSTRUCTOR'
+  | 'CNC_OPERATOR'
+  | 'WAREHOUSE_WORKER'
+  | 'SUPPLY_MANAGER'
+  | 'ADMIN';
 
 export interface LoginRequestDto {
   username: string;
@@ -10,81 +18,79 @@ export interface LoginResponseDto {
   accessToken: string;
   tokenType: string;
   expiresIn: number;
-  employee?: EmployeeResponseDto;
+  role: AccountRole;
 }
 
-const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || !import.meta.env.VITE_API_BASE_URL;
+export interface ClientRegistrationRequestDto {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+}
+
+export interface ClientRegistrationResponseDto {
+  clientId: number;
+  accountId: number;
+  email: string;
+  enabled: boolean;
+}
+
+export interface CurrentUserDto {
+  accountId: number;
+  username: string;
+  role: AccountRole;
+  person?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  };
+  client?: {
+    id: number;
+    email: string;
+    phoneNumber: string;
+    person: {
+      id: number;
+      firstName: string;
+      lastName: string;
+    };
+    accountId: number;
+  };
+}
+
+export interface UpdateProfileRequestDto {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+}
+
+export interface ChangePasswordRequestDto {
+  currentPassword: string;
+  newPassword: string;
+}
 
 export const authService = {
   async login(data: LoginRequestDto): Promise<LoginResponseDto> {
-    if (USE_MOCK_DATA) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const mockUsers: Record<string, { password: string; employeeId: number }> = {
-        'petrov': { password: 'password123', employeeId: 101 },
-        'smirnova': { password: 'password123', employeeId: 102 },
-        'admin': { password: 'admin123', employeeId: 101 },
-      };
-
-      const user = mockUsers[data.username];
-      if (!user || user.password !== data.password) {
-        throw new Error('Invalid username or password');
-      }
-
-      const mockToken = `mock_token_${data.username}_${Date.now()}`;
-      localStorage.setItem('accessToken', mockToken);
-      localStorage.setItem('employeeId', user.employeeId.toString());
-
-      return {
-        accessToken: mockToken,
-        tokenType: 'Bearer',
-        expiresIn: 3600,
-      };
-    }
-
     try {
-      const formData = new URLSearchParams();
-      formData.append('grant_type', 'password');
-      formData.append('username', data.username);
-      formData.append('password', data.password);
-      formData.append('client_id', 'staff-client');
+      const response = await apiClient.post<LoginResponseDto>('/login', data);
+      const loginData = response.data;
+      
+      localStorage.setItem('accessToken', loginData.accessToken);
+      localStorage.setItem('tokenType', loginData.tokenType);
+      localStorage.setItem('expiresIn', loginData.expiresIn.toString());
+      localStorage.setItem('role', loginData.role);
+      
+      return loginData;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
 
-      const tokenUrl = import.meta.env.VITE_OAUTH_TOKEN_URL || 'http://localhost:8081/oauth2/token';
-      const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid username or password');
-      }
-
-      const tokenData = await response.json();
-      const accessToken = tokenData.access_token;
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('tokenType', tokenData.token_type || 'Bearer');
-      localStorage.setItem('expiresIn', tokenData.expires_in?.toString() || '3600');
-
-      try {
-        const employeeResponse = await apiClient.get<EmployeeResponseDto>('/employees/me');
-        localStorage.setItem('employeeId', employeeResponse.data.id.toString());
-        return {
-          accessToken,
-          tokenType: tokenData.token_type || 'Bearer',
-          expiresIn: tokenData.expires_in || 3600,
-          employee: employeeResponse.data,
-        };
-      } catch {
-        return {
-          accessToken,
-          tokenType: tokenData.token_type || 'Bearer',
-          expiresIn: tokenData.expires_in || 3600,
-        };
-      }
+  async register(data: ClientRegistrationRequestDto): Promise<ClientRegistrationResponseDto> {
+    try {
+      const response = await apiClient.post<ClientRegistrationResponseDto>('/register', data);
+      return response.data;
     } catch (error) {
       throw extractApiError(error);
     }
@@ -94,6 +100,7 @@ export const authService = {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('tokenType');
     localStorage.removeItem('expiresIn');
+    localStorage.removeItem('role');
     localStorage.removeItem('employeeId');
     window.location.href = '/auth';
   },
@@ -106,9 +113,38 @@ export const authService = {
     return localStorage.getItem('accessToken');
   },
 
+  getRole(): AccountRole | null {
+    return (localStorage.getItem('role') as AccountRole) || null;
+  },
+
   getEmployeeId(): number | null {
     const id = localStorage.getItem('employeeId');
     return id ? Number(id) : null;
+  },
+
+  async getCurrentUser(): Promise<CurrentUserDto> {
+    try {
+      const response = await apiClient.get<CurrentUserDto>('/me');
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  async updateProfile(data: UpdateProfileRequestDto): Promise<void> {
+    try {
+      await apiClient.put('/me', data);
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  async changePassword(data: ChangePasswordRequestDto): Promise<void> {
+    try {
+      await apiClient.post('/change-password', data);
+    } catch (error) {
+      throw extractApiError(error);
+    }
   },
 };
 

@@ -3,7 +3,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
-import { authService, extractApiError } from "../../../services/api";
+import { authService, extractApiError, type AccountRole } from "../../../services/api";
 import type { TFunction } from "i18next";
 
 const PASSWORD_REGEX = /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/;
@@ -26,10 +26,31 @@ function StaffAuthPage() {
 
   useEffect(() => {
     if (authService.isAuthenticated()) {
-      const from = (location.state as { from?: string })?.from || "/manager";
+      const role = authService.getRole();
+      const defaultRoute = getDefaultRouteForRole(role);
+      const from = (location.state as { from?: string })?.from || defaultRoute;
       navigate(from, { replace: true });
     }
   }, [navigate, location]);
+
+  const getDefaultRouteForRole = (role: AccountRole | null): string => {
+    switch (role) {
+      case 'SALES_MANAGER':
+        return '/manager';
+      case 'CONSTRUCTOR':
+        return '/designer';
+      case 'CNC_OPERATOR':
+        return '/operator';
+      case 'WAREHOUSE_WORKER':
+        return '/warehouse';
+      case 'SUPPLY_MANAGER':
+        return '/warehouse';
+      case 'ADMIN':
+        return '/admin';
+      default:
+        return '/manager';
+    }
+  };
 
   const loginSchema = getLoginSchema(t);
 
@@ -54,11 +75,12 @@ function StaffAuthPage() {
               try {
                 setLoading(true);
                 setError(null);
-                await authService.login({
+                const loginResponse = await authService.login({
                   username: values.username,
                   password: values.password,
                 });
-                const from = (location.state as { from?: string })?.from || "/manager";
+                const defaultRoute = getDefaultRouteForRole(loginResponse.role);
+                const from = (location.state as { from?: string })?.from || defaultRoute;
                 navigate(from, { replace: true });
               } catch (err) {
                 const apiError = extractApiError(err);

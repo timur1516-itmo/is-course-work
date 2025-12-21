@@ -228,7 +228,6 @@ function OrderDetails() {
             return;
           }
         } catch (err) {
-          // Игнорируем ошибки загрузки клиента (возможно, это не клиент)
           console.debug("Failed to load client:", err);
         }
       }
@@ -245,7 +244,6 @@ function OrderDetails() {
             return;
           }
         } catch (err) {
-          // Игнорируем ошибки загрузки сотрудника (возможно, это не сотрудник)
           console.debug("Failed to load employee:", err);
         }
       }
@@ -261,7 +259,6 @@ function OrderDetails() {
             return;
           }
         } catch (err) {
-          // Игнорируем ошибки загрузки сотрудника
           console.debug("Failed to load employee:", err);
         }
       }

@@ -3,7 +3,8 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import {useTranslation} from "react-i18next";
 import type {TFunction} from "i18next";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams, useNavigate} from "react-router-dom";
+import { authService, extractApiError } from "../../../services/api";
 
 type AuthMode = "login" | "register" | "reset";
 
@@ -41,13 +42,18 @@ const getResetSchema = (t: TFunction) => Yup.object({
 });
 
 function AuthPage() {
-  const { t } = useTranslation()
-
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlMode = searchParams.get("mode");
   const [mode, setMode] = useState<AuthMode>(
     urlMode === "register" ? "register" : "login"
   );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/ban-ts-comment
+  // @ts-expect-error
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const isLogin: boolean = mode === "login";
   const isRegister: boolean = mode === "register";
@@ -101,8 +107,21 @@ function AuthPage() {
                 key="login"
                 initialValues={{ identifier: "", password: "" }}
                 validationSchema={loginSchema}
-                onSubmit={(values): void => {
-                  console.log("LOGIN", values);
+                onSubmit={async (values) => {
+                  try {
+                    setLoading(true);
+                    setError(null);
+                    await authService.login({
+                      username: values.identifier,
+                      password: values.password,
+                    });
+                    navigate("/", { replace: true });
+                  } catch (err) {
+                    const apiError = extractApiError(err);
+                    setError(apiError.message || t("auth.loginError"));
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
               >
                 {({ isSubmitting }) => (
@@ -159,10 +178,10 @@ function AuthPage() {
 
                     <button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || loading}
                       className="mt-4 w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-70"
                     >
-                      {t("login")}
+                      {loading ? t("auth.loggingIn") : t("login")}
                     </button>
                   </Form>
                 )}
@@ -181,8 +200,25 @@ function AuthPage() {
                   confirmPassword: "",
                 }}
                 validationSchema={registerSchema}
-                onSubmit={(values): void => {
-                  console.log("REGISTER", values);
+                onSubmit={async (values) => {
+                  try {
+                    setLoading(true);
+                    setError(null);
+                    await authService.register({
+                      email: values.email,
+                      password: values.password,
+                      firstName: values.firstName,
+                      lastName: values.lastName,
+                      phoneNumber: values.phone,
+                    });
+                    setMode("login");
+                    setError(null);
+                  } catch (err) {
+                    const apiError = extractApiError(err);
+                    setError(apiError.message || t("auth.loginError"));
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
               >
                 {({ isSubmitting }) => (
@@ -315,10 +351,10 @@ function AuthPage() {
 
                     <button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || loading}
                       className="mt-4 w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-70"
                     >
-                      {t("register")}
+                      {loading ? t("auth.loggingIn") : t("register")}
                     </button>
                   </Form>
                 )}

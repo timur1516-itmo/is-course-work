@@ -1,6 +1,6 @@
 import MainLogo from "../../../assets/main-logo.svg";
 import {useTranslation} from "react-i18next";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import {Link, useLocation} from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
@@ -11,7 +11,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { IS_STAFF } from "../../../config/app.ts";
-import { authService } from "../../../services/api";
+import { authService, type CurrentUserDto } from "../../../services/api";
 
 type LangCode = "ru" | "en";
 
@@ -68,12 +68,20 @@ function Header() {
   const otherLanguages = LANGUAGES.filter((l) => l.code !== currentLang.code);
 
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
 
   const isAuthPage = location.pathname === "/auth";
 
-  const isAuthenticated = IS_STAFF && authService.isAuthenticated();
-  const staffName = "Иван";
-  const staffLastName = "Петров";
+  const isAuthenticated = authService.isAuthenticated();
+
+  useEffect(() => {
+    if (isAuthenticated && IS_STAFF) {
+      authService.getCurrentUser()
+        .then(setCurrentUser)
+        .catch(() => {
+        });
+    }
+  }, [isAuthenticated]);
 
   if (IS_STAFF) {
     return (
@@ -90,7 +98,9 @@ function Header() {
                   border border-gray-500 text-white
                   hover:bg-gray-600 transition-colors"
               >
-                <span className="text-white">{staffName} {staffLastName.charAt(0)}.</span>
+                <span className="text-white">
+                  {currentUser?.person?.firstName || currentUser?.client?.person?.firstName || ""} {currentUser?.person?.lastName?.charAt(0) || currentUser?.client?.person?.lastName?.charAt(0) || ""}.
+                </span>
                 <ArrowDropDownIcon className="text-white" />
               </button>
 
@@ -105,25 +115,27 @@ function Header() {
                   "py-1 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 shadow-lg",
               }}
             >
-              <MenuItem
-                component={Link}
-                to="/account"
-                onClick={handleStaffMenuClose}
-                className="
-                  flex items-center
-                  hover:bg-gray-100 dark:hover:bg-gray-800
-                  px-3
-                "
-              >
-                <ListItemIcon className="min-w-0 mr-3">
-                  <AccountCircleIcon className="text-gray-700 dark:text-gray-300" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{t("header.profile")}</span>
-                  }
-                />
-              </MenuItem>
+              {currentUser?.role === 'ADMIN' && (
+                <MenuItem
+                  component={Link}
+                  to="/admin"
+                  onClick={handleStaffMenuClose}
+                  className="
+                    flex items-center
+                    hover:bg-gray-100 dark:hover:bg-gray-800
+                    px-3
+                  "
+                >
+                  <ListItemIcon className="min-w-0 mr-3">
+                    <AccountCircleIcon className="text-gray-700 dark:text-gray-300" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{t("admin.dashboard")}</span>
+                    }
+                  />
+                </MenuItem>
+              )}
               <MenuItem
                 onClick={handleLogout}
                 className="
@@ -159,7 +171,7 @@ function Header() {
         <img src={MainLogo} alt={"logo"} />
       </div>
       <div className="header-menu flex items-center gap-4">
-        {!isAuthPage && (
+        {!isAuthPage && !isAuthenticated && (
           <>
             <div>
               <Link
@@ -209,29 +221,31 @@ function Header() {
           </span>
         </div>
 
-        <div className="relative flex items-center justify-center group">
-          <Link to="/profile" className="flex items-center justify-center">
-            <div
-              className="transform transition-transform duration-200
-              group-hover:-translate-y-1 group-hover:scale-90"
-            >
-              <IconButton size="small" className="!p-1">
-                <AccountCircleIcon className="text-white" />
-              </IconButton>
-            </div>
-          </Link>
+        {isAuthenticated && (
+          <div className="relative flex items-center justify-center group">
+            <Link to="/profile" className="flex items-center justify-center">
+              <div
+                className="transform transition-transform duration-200
+                group-hover:-translate-y-1 group-hover:scale-90"
+              >
+                <IconButton size="small" className="!p-1">
+                  <AccountCircleIcon className="text-white" />
+                </IconButton>
+              </div>
+            </Link>
 
-          <span
-            className="pointer-events-none
-              absolute left-1/2 top-full -translate-x-1/2
-              text-xs text-gray-200
-              opacity-0 translate-y-1 transform
-              transition-all duration-200
-              group-hover:opacity-100 group-hover:translate-y-0"
-          >
-            {t("header.profile")}
-          </span>
-        </div>
+            <span
+              className="pointer-events-none
+                absolute left-1/2 top-full -translate-x-1/2
+                text-xs text-gray-200
+                opacity-0 translate-y-1 transform
+                transition-all duration-200
+                group-hover:opacity-100 group-hover:translate-y-0"
+            >
+              {t("header.profile")}
+            </span>
+          </div>
+        )}
 
         <div className="relative inline-flex">
           <IconButton

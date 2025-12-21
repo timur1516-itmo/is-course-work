@@ -1,91 +1,95 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
-import type { MachineTask, TaskPriority } from "../../../types/orders";
-import DownloadIcon from "@mui/icons-material/Download";
-
-const priorityLabelKeys: Record<TaskPriority, string> = {
-  HIGH: "operator.high",
-  MEDIUM: "operator.medium",
-  LOW: "operator.low",
-};
-
-const priorityStyles: Record<TaskPriority, string> = {
-  HIGH: "bg-red-500/10 text-red-300 ring-red-500/40",
-  MEDIUM: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
-  LOW: "bg-green-500/10 text-green-300 ring-green-500/40",
-};
-
-const mockCurrentTask: MachineTask | null = {
-  id: "TASK-2025-001",
-  name: "Комплект панелей для стенда",
-  upFile: "task-001.nc",
-  material: "Нержавеющая сталь 2мм",
-  quantity: 10,
-  priority: "HIGH",
-  status: "IN_PROGRESS",
-};
-
-const mockTaskQueue: MachineTask[] = [
-  {
-    id: "TASK-2025-002",
-    name: "Логотип из нержавейки",
-    upFile: "task-002.nc",
-    material: "Алюминий 3мм",
-    quantity: 5,
-    priority: "MEDIUM",
-    status: "PENDING",
-  },
-  {
-    id: "TASK-2025-003",
-    name: "Декоративные панели",
-    upFile: "task-003.nc",
-    material: "Пластик 5мм",
-    quantity: 20,
-    priority: "LOW",
-    status: "PENDING",
-  },
-  {
-    id: "TASK-2025-004",
-    name: "Таблички на двери",
-    upFile: "task-004.nc",
-    material: "Нержавеющая сталь 1мм",
-    quantity: 15,
-    priority: "HIGH",
-    status: "PENDING",
-  },
-];
+import { useState, useEffect } from "react";
+import { productionService, extractApiError, authService } from "../../../services/api";
+import type { ProductionTaskResponseDto } from "../../../services/api/production.service";
 
 function OperatorDashboard() {
   const { t } = useTranslation();
-  const [currentTask, setCurrentTask] = useState<MachineTask | null>(mockCurrentTask);
-  const [taskQueue] = useState<MachineTask[]>(mockTaskQueue);
+  const [currentTask, setCurrentTask] = useState<ProductionTaskResponseDto | null>(null);
+  const [taskQueue, setTaskQueue] = useState<ProductionTaskResponseDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Загрузка данных с API
-  // useEffect(() => {
-  //   fetchCurrentTask().then(setCurrentTask);
-  //   fetchTaskQueue().then(setTaskQueue);
-  // }, []);
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const employeeId = authService.getEmployeeId();
+        if (!employeeId) {
+          throw new Error('Employee ID not found');
+        }
 
-  const handleStartWork = () => {
+        const tasks = await productionService.getProductionTasks({
+          cncOperatorId: employeeId,
+        });
+
+        const inProgress = tasks.find(t => t.status === 'IN_PROGRESS');
+        setCurrentTask(inProgress || null);
+
+        const queued = tasks.filter(t => t.status === 'QUEUED');
+        setTaskQueue(queued);
+      } catch (err) {
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка загрузки задач');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadTasks();
+  }, []);
+
+  const handleStartWork = async () => {
     if (currentTask) {
-      // TODO: Отправка запроса на сервер о начале работы
-      setCurrentTask({ ...currentTask, status: "IN_PROGRESS" });
-      console.log(`Starting work on task ${currentTask.id}`);
+      try {
+        await productionService.startTask(currentTask.id);
+        setCurrentTask({ ...currentTask, status: 'IN_PROGRESS' });
+      } catch (err) {
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка начала работы');
+      }
     }
   };
 
-  const handleCompleteTask = () => {
+  const handleCompleteTask = async () => {
     if (currentTask) {
-      // TODO: Отправка запроса на сервер о завершении задачи
-      console.log(`Completing task ${currentTask.id}`);
-      setCurrentTask(null);
+      try {
+        await productionService.finishTask(currentTask.id);
+        setCurrentTask(null);
+        const employeeId = authService.getEmployeeId();
+        if (employeeId) {
+          const tasks = await productionService.getProductionTasks({
+            cncOperatorId: employeeId,
+          });
+          const inProgress = tasks.find(t => t.status === 'IN_PROGRESS');
+          setCurrentTask(inProgress || null);
+          const queued = tasks.filter(t => t.status === 'QUEUED');
+          setTaskQueue(queued);
+        }
+      } catch (err) {
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка завершения задачи');
+      }
     }
   };
 
-  const handleFileDownload = (fileName: string) => {
-    // TODO: Реализовать скачивание файла
-    console.log(`Downloading file: ${fileName}`);
-  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-gray-400">{t("catalog.loading")}</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-red-400">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex justify-center">
@@ -109,49 +113,23 @@ function OperatorDashboard() {
                     {t("manager.order")}
                   </div>
                   <div className="text-sm font-medium text-white">
-                    {currentTask.name}
+                    Заказ #{currentTask.clientOrderId}
                   </div>
-                  <div className="text-xs text-gray-500">№ {currentTask.id}</div>
+                  <div className="text-xs text-gray-500">Задача #{currentTask.id}</div>
                 </div>
 
                 <div>
                   <div className="text-xs text-gray-500 mb-1">
-                    {t("operator.upFile")}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-300">
-                      {currentTask.upFile}
-                    </span>
-                    <button
-                      onClick={() => handleFileDownload(currentTask.upFile)}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      <DownloadIcon fontSize="small" />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500 mb-1">
-                    {t("operator.material")}
+                    {t("operator.status")}
                   </div>
                   <div className="text-sm text-white">
-                    {currentTask.material}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-500 mb-1">
-                    {t("operator.quantity")}
-                  </div>
-                  <div className="text-sm text-white">
-                    {currentTask.quantity}
+                    {currentTask.status === 'IN_PROGRESS' ? t("operator.inProgress") : t("operator.queued")}
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-4 pt-2">
-                {currentTask.status === "PENDING" && (
+                {currentTask.status === "QUEUED" && (
                   <button
                     onClick={handleStartWork}
                     className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"
@@ -210,20 +188,20 @@ function OperatorDashboard() {
                 taskQueue.map((task) => (
                   <tr key={task.id}>
                     <td className="px-3 py-3">
-                      <div className="text-sm font-medium">{task.name}</div>
-                      <div className="text-xs text-gray-500">№ {task.id}</div>
+                      <div className="text-sm font-medium">Задача #{task.id}</div>
+                      <div className="text-xs text-gray-500">Заказ #{task.clientOrderId}</div>
                     </td>
                     <td className="px-3 py-3 text-sm text-gray-300">
-                      {task.material}
+                      —
                     </td>
                     <td className="px-3 py-3">
                         <span
                           className={[
                             "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                            priorityStyles[task.priority],
+                            "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
                           ].join(" ")}
                         >
-                          {t(priorityLabelKeys[task.priority])}
+                          {t("operator.queued")}
                         </span>
                     </td>
                   </tr>

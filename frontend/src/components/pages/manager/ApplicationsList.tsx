@@ -1,46 +1,57 @@
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { useState, useMemo } from "react";
-import type { Application } from "../../../types/orders";
-
-const mockApplications: Application[] = [
-  {
-    id: "APP-2025-001",
-    clientName: "Иван Петров",
-    createdAt: "12.11.2025",
-    status: "REQUEST",
-  },
-  {
-    id: "APP-2025-002",
-    clientName: "Мария Сидорова",
-    createdAt: "18.11.2025",
-    status: "REQUEST",
-  },
-  {
-    id: "APP-2025-003",
-    clientName: "Алексей Иванов",
-    createdAt: "20.11.2025",
-    status: "REQUEST",
-  },
-];
+import { useState, useMemo, useEffect } from "react";
+import { applicationsService, extractApiError } from "../../../services/api";
+import type { ClientApplicationResponseDto } from "../../../services/api/types";
 
 function ApplicationsList() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const filter = searchParams.get("filter");
-  const [applications] = useState<Application[]>(mockApplications);
+  const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Загрузка данных с API
-  // useEffect(() => {
-  //   fetchApplications(filter).then(setApplications);
-  // }, [filter]);
+  useEffect(() => {
+    const loadApplications = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await applicationsService.getApplications();
+        setApplications(response.content || []);
+      } catch (err) {
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка загрузки заявок');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadApplications();
+  }, []);
 
   const filteredApplications = useMemo(() => {
     if (filter === "new") {
-      return applications.filter((app) => app.status === "REQUEST");
+      return applications.filter((app) => !app.templateProductDesignId);
     }
     return applications;
   }, [filter, applications]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-gray-400">{t("catalog.loading")}</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-red-400">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex justify-center">
@@ -95,10 +106,10 @@ function ApplicationsList() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-300">
-                        {application.clientName}
+                        Клиент #{application.clientId}
                       </td>
                       <td className="px-3 py-3 text-xs text-gray-300">
-                        {application.createdAt}
+                        {new Date(application.createdAt).toLocaleDateString('ru-RU')}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <Link

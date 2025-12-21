@@ -21,6 +21,7 @@ import {APP_TYPE, IS_CLIENT, IS_STAFF} from "./config/app.ts";
 import { useEffect } from "react";
 import OperatorDashboard from "./components/pages/operator/OperatorDashboard.tsx";
 import WarehouseDashboard from "./components/pages/warehouse/WarehouseDashboard.tsx";
+import AdminDashboard from "./components/pages/admin/AdminDashboard.tsx";
 
 function App() {
   useEffect(() => {
@@ -95,6 +96,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <WarehouseDashboard/>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminDashboard/>
                     </ProtectedRoute>
                   }
                 />

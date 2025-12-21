@@ -1,114 +1,255 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
-import type { DesignerOrder } from "../../../types/orders";
+import { useState, useEffect } from "react";
+import { ordersService, applicationsService, filesService, designsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto } from "../../../services/api/types";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DownloadIcon from "@mui/icons-material/Download";
-
-// const statusLabelKeys: Record<OrderStatus, string> = {
-//   REQUEST: "profile.request",
-//   CREATED: "profile.created",
-//   PROCESSING: "profile.processing",
-//   ON_APPROVAL: "profile.onApproval",
-//   REVISION: "profile.revision",
-//   APPROVED: "profile.approved",
-//   WAITING_PAYMENT: "profile.waitingPayment",
-//   PAID: "profile.paid",
-//   READY_FOR_PRODUCTION: "profile.readyForProduction",
-//   IN_PRODUCTION: "profile.inProduction",
-//   COMPLETED: "profile.completed",
-//   CANCELLED: "profile.cancelled",
-// };
-//
-// const statusStyles: Record<OrderStatus, string> = {
-//   REQUEST: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
-//   CREATED: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
-//   PROCESSING: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/40",
-//   ON_APPROVAL: "bg-amber-500/10 text-amber-300 ring-amber-500/40",
-//   REVISION: "bg-orange-500/10 text-orange-300 ring-orange-500/40",
-//   APPROVED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-//   WAITING_PAYMENT: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
-//   PAID: "bg-green-500/10 text-green-300 ring-green-500/40",
-//   READY_FOR_PRODUCTION: "bg-cyan-500/10 text-cyan-300 ring-cyan-500/40",
-//   IN_PRODUCTION: "bg-purple-500/10 text-purple-300 ring-purple-500/40",
-//   COMPLETED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-//   CANCELLED: "bg-red-500/10 text-red-300 ring-red-500/40",
-// };
-
-const mockOrders: DesignerOrder[] = [
-  {
-    id: "ORD-2025-001",
-    name: "Комплект панелей для стенда",
-    clientName: "Иван Петров",
-    orderDate: "12.11.2025",
-    expectedDate: "25.11.2025",
-    status: "PROCESSING",
-    attachedFiles: ["specification.pdf", "sketch.dwg"],
-  },
-  {
-    id: "ORD-2025-002",
-    name: "Логотип из нержавейки 600×300",
-    clientName: "Мария Сидорова",
-    orderDate: "18.11.2025",
-    expectedDate: "30.11.2025",
-    status: "ON_APPROVAL",
-    attachedFiles: ["logo.png", "requirements.docx"],
-  },
-  {
-    id: "ORD-2025-003",
-    name: "Набор декоративных панелей",
-    clientName: "Алексей Иванов",
-    orderDate: "20.11.2025",
-    expectedDate: "05.12.2025",
-    status: "REVISION",
-    attachedFiles: ["design.pdf"],
-  },
-];
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 
 function DesignerDashboard() {
   const { t } = useTranslation();
-  const [orders] = useState<DesignerOrder[]>(mockOrders);
-  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
+  const [applications, setApplications] = useState<Record<number, ClientApplicationResponseDto>>({});
+  const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
+  const [applicationFiles, setApplicationFiles] = useState<Record<number, FileMetadataResponseDto[]>>({});
+  const [loadingFiles, setLoadingFiles] = useState<Record<number, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Загрузка данных с API
-  // useEffect(() => {
-  //   fetchOrders().then(setOrders);
-  // }, []);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const toggleOrder = (orderId: string) => {
+        const allOrders = await ordersService.getOrders();
+        const designerOrders = allOrders.filter(
+          (order) => 
+            order.status === "PENDING_APPROVAL" || 
+            order.status === "REWORK" || 
+            order.status === "IN_PROGRESS"
+        );
+        setOrders(designerOrders);
+
+        const applicationsMap: Record<number, ClientApplicationResponseDto> = {};
+        for (const order of designerOrders) {
+          if (order.clientApplicationId && !applicationsMap[order.clientApplicationId]) {
+            try {
+              const appResponse = await applicationsService.getApplications({
+                page: 0,
+                size: 1,
+              });
+              const app = appResponse.content?.find(a => a.id === order.clientApplicationId);
+              if (app) {
+                applicationsMap[order.clientApplicationId] = app;
+              }
+            } catch (err) {
+              console.error(`Failed to load application ${order.clientApplicationId}:`, err);
+            }
+          }
+        }
+        setApplications(applicationsMap);
+      } catch (err) {
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка загрузки данных');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+
+  const toggleOrder = async (orderId: number) => {
     setExpandedOrders((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId);
-      } else {
+      const isExpanding = !newSet.has(orderId);
+      
+      if (isExpanding) {
         newSet.add(orderId);
+        // Загружаем файлы при раскрытии заказа
+        const order = orders.find(o => o.id === orderId);
+        if (order && order.clientApplicationId && !applicationFiles[order.clientApplicationId]) {
+          loadApplicationFiles(order.clientApplicationId);
+        }
+      } else {
+        newSet.delete(orderId);
       }
       return newSet;
     });
   };
 
-  const handle3DModelUpload = (orderId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const loadApplicationFiles = async (applicationId: number) => {
+    if (loadingFiles[applicationId] || applicationFiles[applicationId]) {
+      return;
+    }
+
+    try {
+      setLoadingFiles(prev => ({ ...prev, [applicationId]: true }));
+      const files = await applicationsService.getApplicationAttachments(applicationId);
+      setApplicationFiles(prev => ({ ...prev, [applicationId]: files }));
+    } catch (err) {
+      console.error(`Failed to load files for application ${applicationId}:`, err);
+    } finally {
+      setLoadingFiles(prev => ({ ...prev, [applicationId]: false }));
+    }
+  };
+
+  const handleDownloadFile = async (fileId: number, filename: string) => {
+    try {
+      await filesService.downloadFile(fileId, filename);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка загрузки файла');
+      console.error('Failed to download file:', err);
+    }
+  };
+
+  const handleViewFile = async (fileId: number, filename: string, contentType: string) => {
+    try {
+      if (contentType.startsWith('image/')) {
+        const url = await filesService.getFileUrl(fileId);
+        if (url) {
+          window.open(url, '_blank');
+        } else {
+          await handleDownloadFile(fileId, filename);
+        }
+      } else {
+        await handleDownloadFile(fileId, filename);
+      }
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка просмотра файла');
+      console.error('Failed to view file:', err);
+    }
+  };
+
+  const handle3DModelUpload = async (order: ClientOrderResponseDto, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // TODO: Загрузка файла на сервер
-      console.log(`Uploading 3D model for order ${orderId}:`, file.name);
+    if (!file) {
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setError(null);
+      const fileMetadata = await filesService.uploadFile(file);
+      const fileId = fileMetadata.id;
+
+      const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
+      const productName = application 
+        ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
+        : `Заказ #${order.id}`;
+
+      if (order.productDesignId) {
+        const existingDesign = await designsService.getDesignById(order.productDesignId);
+        const existingFileIds = existingDesign.files.map(f => f.id);
+        const updatedFileIds = [...existingFileIds, fileId];
+
+        await designsService.updateDesign(order.productDesignId, {
+          productName: existingDesign.productName,
+          fileIds: updatedFileIds,
+          requiredMaterials: existingDesign.requiredMaterials,
+        });
+      } else {
+        await designsService.createDesign({
+          productName,
+          fileIds: [fileId],
+          requiredMaterials: [],
+        });
+      }
+
+      const allOrders = await ordersService.getOrders();
+      const designerOrders = allOrders.filter(
+        (o) => 
+          o.status === "PENDING_APPROVAL" || 
+          o.status === "REWORK" || 
+          o.status === "IN_PROGRESS"
+      );
+      setOrders(designerOrders);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка загрузки 3D модели');
+      console.error('Failed to upload 3D model:', err);
     }
     event.target.value = "";
   };
 
-  const handleUPGenerate = (orderId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUPGenerate = async (order: ClientOrderResponseDto, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // TODO: Генерация и загрузка УП
-      console.log(`Generating UP for order ${orderId}:`, file.name);
+    if (!file) {
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setError(null);
+      // Загружаем файл
+      const fileMetadata = await filesService.uploadFile(file);
+      const fileId = fileMetadata.id;
+
+      // Получаем информацию о заказе для названия продукта
+      const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
+      const productName = application 
+        ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
+        : `Заказ #${order.id}`;
+
+      if (order.productDesignId) {
+        // Если дизайн уже существует, обновляем его, добавляя новый файл
+        const existingDesign = await designsService.getDesignById(order.productDesignId);
+        const existingFileIds = existingDesign.files.map(f => f.id);
+        const updatedFileIds = [...existingFileIds, fileId];
+
+        await designsService.updateDesign(order.productDesignId, {
+          productName: existingDesign.productName,
+          fileIds: updatedFileIds,
+          requiredMaterials: existingDesign.requiredMaterials,
+        });
+      } else {
+        // Если дизайна нет, создаем новый
+        await designsService.createDesign({
+          productName,
+          fileIds: [fileId],
+          requiredMaterials: [],
+        });
+        // Примечание: связь дизайна с заказом должна быть установлена через обновление заказа менеджером
+        // или автоматически на бэкенде. Здесь мы только создаем дизайн.
+      }
+
+      // Обновляем список заказов, чтобы отобразить изменения
+      const allOrders = await ordersService.getOrders();
+      const designerOrders = allOrders.filter(
+        (o) => 
+          o.status === "PENDING_APPROVAL" || 
+          o.status === "REWORK" || 
+          o.status === "IN_PROGRESS"
+      );
+      setOrders(designerOrders);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка загрузки УП файла');
+      console.error('Failed to upload UP file:', err);
     }
     event.target.value = "";
   };
 
-  const handleFileDownload = (fileName: string) => {
-    // TODO: Реализовать скачивание файла
-    console.log(`Downloading file: ${fileName}`);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-gray-400">{t("catalog.loading")}</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-red-400">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex justify-center">
@@ -150,6 +291,7 @@ function DesignerDashboard() {
                 ) : (
                   orders.map((order) => {
                     const isExpanded = expandedOrders.has(order.id);
+                    const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
                     return (
                       <>
                         <tr
@@ -158,11 +300,11 @@ function DesignerDashboard() {
                           className="cursor-pointer hover:bg-gray-800/50 transition-colors"
                         >
                           <td className="px-3 py-3">
-                            <div className="text-sm font-medium">{order.name}</div>
-                            <div className="text-xs text-gray-500">№ {order.id}</div>
+                            <div className="text-sm font-medium">Заказ #{order.id}</div>
+                            <div className="text-xs text-gray-500">ID: {order.id}</div>
                           </td>
                           <td className="px-3 py-3 text-sm text-gray-300">
-                            {order.clientName}
+                            {application ? `Клиент #${application.clientId}` : `Заявка #${order.clientApplicationId}`}
                           </td>
                           <td className="px-3 py-3 text-right">
                             {isExpanded ? (
@@ -182,45 +324,67 @@ function DesignerDashboard() {
                                       {t("designer.orderDate")}
                                     </div>
                                     <div className="text-sm text-white">
-                                      {order.orderDate}
+                                      {new Date(order.createdAt).toLocaleDateString('ru-RU')}
                                     </div>
                                   </div>
                                   <div>
                                     <div className="text-xs text-gray-500 mb-1">
                                       {t("designer.expectedDate")}
                                     </div>
-                                    <div className="text-sm text-white">
-                                      {order.expectedDate}
-                                    </div>
                                   </div>
                                 </div>
 
-                                {order.attachedFiles.length > 0 && (
-                                  <div>
+                                {order.clientApplicationId && (
+                                  <div className="mt-4">
                                     <div className="text-xs text-gray-500 mb-2">
-                                      {t("designer.attachedFiles")}
+                                      {t("order.attachments")}
                                     </div>
-                                    <div className="space-y-2">
-                                      {order.attachedFiles.map((fileName, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center justify-between bg-stone-700/50 rounded-lg px-3 py-2"
-                                        >
-                                          <span className="text-sm text-gray-300">
-                                            {fileName}
-                                          </span>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleFileDownload(fileName);
-                                            }}
-                                            className="text-gray-400 hover:text-white transition-colors"
+                                    {loadingFiles[order.clientApplicationId] ? (
+                                      <div className="text-sm text-gray-400">
+                                        {t("catalog.loading")}...
+                                      </div>
+                                    ) : applicationFiles[order.clientApplicationId]?.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {applicationFiles[order.clientApplicationId].map((file) => (
+                                          <div
+                                            key={file.id}
+                                            className="flex items-center justify-between bg-stone-800/50 rounded-lg px-3 py-2 border border-gray-700"
                                           >
-                                            <DownloadIcon fontSize="small" />
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                              <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
+                                              <span className="text-sm text-gray-300 truncate" title={file.filename}>
+                                                {file.filename}
+                                              </span>
+                                              <span className="text-xs text-gray-500 flex-shrink-0">
+                                                ({(file.sizeBytes / 1024).toFixed(1)} KB)
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 ml-2">
+                                              {file.contentType.startsWith('image/') && (
+                                                <button
+                                                  onClick={() => handleViewFile(file.id, file.filename, file.contentType)}
+                                                  className="text-gray-400 hover:text-white transition-colors"
+                                                  title={t("order.view")}
+                                                >
+                                                  <VisibilityIcon fontSize="small" />
+                                                </button>
+                                              )}
+                                              <button
+                                                onClick={() => handleDownloadFile(file.id, file.filename)}
+                                                className="text-gray-400 hover:text-white transition-colors"
+                                                title={t("order.download")}
+                                              >
+                                                <DownloadIcon fontSize="small" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-gray-500">
+                                        {t("application.noAttachments") || "Нет прикрепленных файлов"}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
 
@@ -229,7 +393,7 @@ function DesignerDashboard() {
                                     <input
                                       type="file"
                                       accept=".stl,.obj,.3ds,.step,.iges"
-                                      onChange={(e) => handle3DModelUpload(order.id, e)}
+                                      onChange={(e) => handle3DModelUpload(order, e)}
                                       className="hidden"
                                     />
                                     <span className="block w-full rounded-full bg-white text-black text-sm font-medium py-2.5 text-center hover:bg-gray-200 transition-colors cursor-pointer">
@@ -240,7 +404,7 @@ function DesignerDashboard() {
                                     <input
                                       type="file"
                                       accept=".nc,.cnc,.tap"
-                                      onChange={(e) => handleUPGenerate(order.id, e)}
+                                      onChange={(e) => handleUPGenerate(order, e)}
                                       className="hidden"
                                     />
                                     <span className="block w-full rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium py-2.5 text-center hover:bg-gray-900 transition-colors cursor-pointer">

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { applicationsService, filesService, catalogService, extractApiError } from "../../../services/api";
+import { applicationsService, filesService, catalogService, extractApiError, authService } from "../../../services/api";
 import type { ClientApplicationRequestDto, ProductCatalogResponseDto } from "../../../services/api/types";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -20,6 +20,12 @@ function CreateApplication() {
   const [error, setError] = useState<string | null>(null);
   const [catalogProduct, setCatalogProduct] = useState<ProductCatalogResponseDto | null>(null);
   const [loadingProduct, setLoadingProduct] = useState(false);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate("/auth?mode=login", { state: { from: "/applications/create" } });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     if (catalogProductId) {

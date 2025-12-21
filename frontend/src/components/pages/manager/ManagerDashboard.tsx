@@ -1,80 +1,93 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
-import type { Order, OrderStatus, ManagerStats } from "../../../types/orders";
+import { useState, useMemo, useEffect } from "react";
+import { ordersService, applicationsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, OrderStatus, ClientApplicationResponseDto } from "../../../services/api/types";
 
 const statusLabelKeys: Record<OrderStatus, string> = {
-  REQUEST: "profile.request",
   CREATED: "profile.created",
-  PROCESSING: "profile.processing",
-  ON_APPROVAL: "profile.onApproval",
-  REVISION: "profile.revision",
+  IN_PROGRESS: "profile.processing",
+  PENDING_APPROVAL: "profile.onApproval",
+  REWORK: "profile.revision",
   APPROVED: "profile.approved",
-  WAITING_PAYMENT: "profile.waitingPayment",
+  AWAITING_PAYMENT: "profile.waitingPayment",
   PAID: "profile.paid",
   READY_FOR_PRODUCTION: "profile.readyForProduction",
   IN_PRODUCTION: "profile.inProduction",
   COMPLETED: "profile.completed",
-  CANCELLED: "profile.cancelled",
 };
 
 const statusStyles: Record<OrderStatus, string> = {
-  REQUEST: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
   CREATED: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
-  PROCESSING: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/40",
-  ON_APPROVAL: "bg-amber-500/10 text-amber-300 ring-amber-500/40",
-  REVISION: "bg-orange-500/10 text-orange-300 ring-orange-500/40",
+  IN_PROGRESS: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/40",
+  PENDING_APPROVAL: "bg-amber-500/10 text-amber-300 ring-amber-500/40",
+  REWORK: "bg-orange-500/10 text-orange-300 ring-orange-500/40",
   APPROVED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-  WAITING_PAYMENT: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
+  AWAITING_PAYMENT: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
   PAID: "bg-green-500/10 text-green-300 ring-green-500/40",
   READY_FOR_PRODUCTION: "bg-cyan-500/10 text-cyan-300 ring-cyan-500/40",
   IN_PRODUCTION: "bg-purple-500/10 text-purple-300 ring-purple-500/40",
   COMPLETED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-  CANCELLED: "bg-red-500/10 text-red-300 ring-red-500/40",
 };
 
-const mockStats: ManagerStats = {
-  newApplicationsCount: 5,
-  currentApplicationsCount: 12,
-  pendingApprovalCount: 8,
-};
-
-const mockOrders: Order[] = [
-  {
-    id: "ORD-2025-001",
-    name: "Комплект панелей для стенда",
-    clientName: "Иван Петров",
-    createdAt: "12.11.2025",
-    status: "IN_PRODUCTION",
-  },
-  {
-    id: "ORD-2025-002",
-    name: "Логотип из нержавейки 600×300",
-    clientName: "Мария Сидорова",
-    createdAt: "18.11.2025",
-    status: "WAITING_PAYMENT",
-  },
-  {
-    id: "ORD-2025-003",
-    name: "Набор декоративных панелей",
-    clientName: "Алексей Иванов",
-    createdAt: "20.11.2025",
-    status: "PROCESSING",
-  },
-];
+interface ManagerStats {
+  newApplicationsCount: number;
+  currentApplicationsCount: number;
+  pendingApprovalCount: number;
+}
 
 function ManagerDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [stats] = useState<ManagerStats>(mockStats);
-  const [orders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
+  const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
-  // TODO: Загрузка данных с API
-  // useEffect(() => {
-  //   fetchStats().then(setStats);
-  //   fetchOrders().then(setOrders);
-  // }, []);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Загружаем заказы
+        const ordersData = await ordersService.getOrders();
+        setOrders(ordersData);
+        
+        // Загружаем заявки
+        const applicationsData = await applicationsService.getApplications();
+        setApplications(applicationsData.content || []);
+      } catch (err) {
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка загрузки данных');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+
+  const stats = useMemo<ManagerStats>(() => {
+    const newApplicationsCount = applications.filter(
+      (app) => !app.id || !orders.some(order => order.clientApplicationId === app.id)
+    ).length;
+
+    const currentApplicationsCount = orders.filter(
+      (order) => order.status === "CREATED" || order.status === "IN_PROGRESS"
+    ).length;
+
+    const pendingApprovalCount = orders.filter(
+      (order) => order.status === "PENDING_APPROVAL" || order.status === "REWORK"
+    ).length;
+    
+    return {
+      newApplicationsCount,
+      currentApplicationsCount,
+      pendingApprovalCount,
+    };
+  }, [orders, applications]);
 
   const filteredOrders = useMemo(() => {
     if (!activeFilter) {
@@ -84,14 +97,14 @@ function ManagerDashboard() {
     switch (activeFilter) {
       case "current":
         return orders.filter(
-          (order) => order.status === "CREATED" || order.status === "PROCESSING"
+          (order) => order.status === "CREATED" || order.status === "IN_PROGRESS"
         );
       case "approval":
         return orders.filter(
           (order) =>
-            order.status === "PROCESSING" ||
-            order.status === "ON_APPROVAL" ||
-            order.status === "REVISION"
+            order.status === "IN_PROGRESS" ||
+            order.status === "PENDING_APPROVAL" ||
+            order.status === "REWORK"
         );
       default:
         return orders;
@@ -113,6 +126,22 @@ function ManagerDashboard() {
   const handleClearFilter = () => {
     setActiveFilter(null);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-gray-400">{t("catalog.loading")}</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
+        <div className="text-red-400">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex justify-center">
@@ -221,11 +250,11 @@ function ManagerDashboard() {
                   filteredOrders.map((order) => (
                     <tr key={order.id}>
                       <td className="px-3 py-3">
-                        <div className="text-sm font-medium">{order.name}</div>
-                        <div className="text-xs text-gray-500">№ {order.id}</div>
+                        <div className="text-sm font-medium">Заказ #{order.id}</div>
+                        <div className="text-xs text-gray-500">ID: {order.id}</div>
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-300">
-                        {order.clientName}
+                        Клиент #{order.clientApplicationId}
                       </td>
                       <td className="px-3 py-3">
                         <span
@@ -238,11 +267,11 @@ function ManagerDashboard() {
                         </span>
                       </td>
                       <td className="px-3 py-3 text-xs text-gray-300">
-                        {order.createdAt}
+                        {new Date(order.createdAt).toLocaleDateString('ru-RU')}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <Link
-                          to={`/manager/orders/${order.id}`}
+                          to={`/orders/${order.id}`}
                           className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
                         >
                           {t("manager.openOrder")}

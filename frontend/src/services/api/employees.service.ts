@@ -1,30 +1,39 @@
 import { apiClient, extractApiError } from './config';
-import type { EmployeeResponseDto } from './types';
-import { getMockEmployeeById } from './mocks/orders.mock';
-
-const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || !import.meta.env.VITE_API_BASE_URL;
+import type { EmployeeResponseDto, EmployeeRequestDto, EmployeesQueryParams, PagedResponse } from './types';
 
 export const employeesService = {
-  async getEmployeeById(id: number): Promise<EmployeeResponseDto> {
-    if (USE_MOCK_DATA) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const employee = getMockEmployeeById(id);
-      if (!employee) {
-        throw new Error('Employee not found');
-      }
-      return employee;
+  async getEmployees(params?: EmployeesQueryParams): Promise<PagedResponse<EmployeeResponseDto>> {
+    try {
+      const response = await apiClient.get<PagedResponse<EmployeeResponseDto>>('/employees', { params });
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
     }
+  },
 
+  async getEmployeeById(id: number): Promise<EmployeeResponseDto> {
     try {
       const response = await apiClient.get<EmployeeResponseDto>(`/employees/${id}`);
       return response.data;
     } catch (error) {
-      console.warn('API error, using mock data:', error);
-      const employee = getMockEmployeeById(id);
-      if (!employee) {
-        throw extractApiError(error);
-      }
-      return employee;
+      throw extractApiError(error);
+    }
+  },
+
+  async createEmployee(data: EmployeeRequestDto): Promise<EmployeeResponseDto> {
+    try {
+      const response = await apiClient.post<EmployeeResponseDto>('/employees', data);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  async deleteEmployee(id: number): Promise<void> {
+    try {
+      await apiClient.delete(`/employees/${id}`);
+    } catch (error) {
+      throw extractApiError(error);
     }
   },
 };
