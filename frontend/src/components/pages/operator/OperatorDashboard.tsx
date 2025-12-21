@@ -186,37 +186,37 @@ function OperatorDashboard() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border-separate border-spacing-y-2">
               <thead>
-                <tr className="text-xs uppercase text-gray-500">
-                  <th className="text-left px-3 pb-2">{t("operator.task")}</th>
-                  <th className="text-left px-3 pb-2">
-                    {t("operator.material")}
-                  </th>
-                  <th className="text-left px-3 pb-2">
-                    {t("operator.priority")}
-                  </th>
-                </tr>
+              <tr className="text-xs uppercase text-gray-500">
+                <th className="text-left px-3 pb-2">{t("operator.task")}</th>
+                <th className="text-left px-3 pb-2">
+                  {t("operator.material")}
+                </th>
+                <th className="text-left px-3 pb-2">
+                  {t("operator.priority")}
+                </th>
+              </tr>
               </thead>
               <tbody>
-                {taskQueue.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-3 py-8 text-center text-gray-500"
-                    >
-                      {t("operator.noTasks")}
+              {taskQueue.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-3 py-8 text-center text-gray-500"
+                  >
+                    {t("operator.noTasks")}
+                  </td>
+                </tr>
+              ) : (
+                taskQueue.map((task) => (
+                  <tr key={task.id}>
+                    <td className="px-3 py-3">
+                      <div className="text-sm font-medium">{task.name}</div>
+                      <div className="text-xs text-gray-500">№ {task.id}</div>
                     </td>
-                  </tr>
-                ) : (
-                  taskQueue.map((task) => (
-                    <tr key={task.id}>
-                      <td className="px-3 py-3">
-                        <div className="text-sm font-medium">{task.name}</div>
-                        <div className="text-xs text-gray-500">№ {task.id}</div>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {task.material}
-                      </td>
-                      <td className="px-3 py-3">
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {task.material}
+                    </td>
+                    <td className="px-3 py-3">
                         <span
                           className={[
                             "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
@@ -225,10 +225,10 @@ function OperatorDashboard() {
                         >
                           {t(priorityLabelKeys[task.priority])}
                         </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                    </td>
+                  </tr>
+                ))
+              )}
               </tbody>
             </table>
           </div>
@@ -239,4 +239,3 @@ function OperatorDashboard() {
 }
 
 export default OperatorDashboard;
-

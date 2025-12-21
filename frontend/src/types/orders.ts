@@ -46,6 +46,8 @@ export interface DesignerOrder {
 
 export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
 
+export type ProductionTaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+
 export interface MachineTask {
   id: string;
   name: string;
@@ -53,14 +55,14 @@ export interface MachineTask {
   material: string;
   quantity: number;
   priority: TaskPriority;
-  status?: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+  status: ProductionTaskStatus;
 }
 
 export interface MaterialReceipt {
   invoiceNumber: string;
   author: string;
   expectedDate: string;
-  status?: "PENDING" | "REGISTERED";
+  status: string;
 }
 
 export interface ShipmentOrder {
@@ -69,6 +71,6 @@ export interface ShipmentOrder {
   name: string;
   material: string;
   expectedDate: string;
-  status?: "READY" | "SHIPPED";
+  status: string;
 }
 

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Order, OrderStatus, ManagerStats } from "../../../types/orders";
 
 const statusLabelKeys: Record<OrderStatus, string> = {
@@ -68,7 +68,6 @@ function ManagerDashboard() {
   const navigate = useNavigate();
   const [stats] = useState<ManagerStats>(mockStats);
   const [orders] = useState<Order[]>(mockOrders);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>(mockOrders);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   // TODO: Загрузка данных с API
@@ -77,31 +76,26 @@ function ManagerDashboard() {
   //   fetchOrders().then(setOrders);
   // }, []);
 
-  useEffect(() => {
+  const filteredOrders = useMemo(() => {
     if (!activeFilter) {
-      setFilteredOrders(orders);
-      return;
+      return orders;
     }
 
-    let filtered: Order[] = [];
     switch (activeFilter) {
       case "current":
-        filtered = orders.filter(
+        return orders.filter(
           (order) => order.status === "CREATED" || order.status === "PROCESSING"
         );
-        break;
       case "approval":
-        filtered = orders.filter(
+        return orders.filter(
           (order) =>
             order.status === "PROCESSING" ||
             order.status === "ON_APPROVAL" ||
             order.status === "REVISION"
         );
-        break;
       default:
-        filtered = orders;
+        return orders;
     }
-    setFilteredOrders(filtered);
   }, [activeFilter, orders]);
 
   const handleNewApplicationsClick = () => {

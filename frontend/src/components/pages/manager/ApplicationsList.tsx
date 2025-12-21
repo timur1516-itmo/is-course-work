@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Application } from "../../../types/orders";
 
 const mockApplications: Application[] = [
@@ -29,21 +29,17 @@ function ApplicationsList() {
   const [searchParams] = useSearchParams();
   const filter = searchParams.get("filter");
   const [applications] = useState<Application[]>(mockApplications);
-  const [filteredApplications, setFilteredApplications] = useState<Application[]>(mockApplications);
 
   // TODO: Загрузка данных с API
   // useEffect(() => {
   //   fetchApplications(filter).then(setApplications);
   // }, [filter]);
 
-  useEffect(() => {
+  const filteredApplications = useMemo(() => {
     if (filter === "new") {
-      setFilteredApplications(
-        applications.filter((app) => app.status === "REQUEST")
-      );
-    } else {
-      setFilteredApplications(applications);
+      return applications.filter((app) => app.status === "REQUEST");
     }
+    return applications;
   }, [filter, applications]);
 
   return (

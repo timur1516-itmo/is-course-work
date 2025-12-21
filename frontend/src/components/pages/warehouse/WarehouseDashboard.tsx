@@ -90,58 +90,58 @@ function WarehouseDashboard() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border-separate border-spacing-y-2">
               <thead>
-                <tr className="text-xs uppercase text-gray-500">
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.invoiceNumber")}
-                  </th>
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.author")}
-                  </th>
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.expectedDate")}
-                  </th>
-                  <th className="text-right px-3 pb-2">
-                    {t("profile.orderActions")}
-                  </th>
-                </tr>
+              <tr className="text-xs uppercase text-gray-500">
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.invoiceNumber")}
+                </th>
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.author")}
+                </th>
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.expectedDate")}
+                </th>
+                <th className="text-right px-3 pb-2">
+                  {t("profile.orderActions")}
+                </th>
+              </tr>
               </thead>
               <tbody>
-                {receipts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-3 py-8 text-center text-gray-500"
-                    >
-                      {t("warehouse.noReceipts")}
+              {receipts.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-3 py-8 text-center text-gray-500"
+                  >
+                    {t("warehouse.noReceipts")}
+                  </td>
+                </tr>
+              ) : (
+                receipts.map((receipt) => (
+                  <tr key={receipt.invoiceNumber}>
+                    <td className="px-3 py-3">
+                      <div className="text-sm font-medium">
+                        {receipt.invoiceNumber}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {receipt.author}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {receipt.expectedDate}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <button
+                        onClick={() =>
+                          handleRegisterReceipt(receipt.invoiceNumber)
+                        }
+                        className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
+                      >
+                        {t("warehouse.registerReceipt")}
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  receipts.map((receipt) => (
-                    <tr key={receipt.invoiceNumber}>
-                      <td className="px-3 py-3">
-                        <div className="text-sm font-medium">
-                          {receipt.invoiceNumber}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {receipt.author}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {receipt.expectedDate}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          onClick={() =>
-                            handleRegisterReceipt(receipt.invoiceNumber)
-                          }
-                          className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
-                        >
-                          {t("warehouse.registerReceipt")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))
+              )}
               </tbody>
             </table>
           </div>
@@ -157,61 +157,61 @@ function WarehouseDashboard() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border-separate border-spacing-y-2">
               <thead>
-                <tr className="text-xs uppercase text-gray-500">
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.order")}
-                  </th>
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.client")}
-                  </th>
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.material")}
-                  </th>
-                  <th className="text-left px-3 pb-2">
-                    {t("warehouse.expectedDate")}
-                  </th>
-                  <th className="text-right px-3 pb-2">
-                    {t("profile.orderActions")}
-                  </th>
-                </tr>
+              <tr className="text-xs uppercase text-gray-500">
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.order")}
+                </th>
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.client")}
+                </th>
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.material")}
+                </th>
+                <th className="text-left px-3 pb-2">
+                  {t("warehouse.expectedDate")}
+                </th>
+                <th className="text-right px-3 pb-2">
+                  {t("profile.orderActions")}
+                </th>
+              </tr>
               </thead>
               <tbody>
-                {shipmentOrders.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-3 py-8 text-center text-gray-500"
-                    >
-                      {t("warehouse.noOrders")}
+              {shipmentOrders.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-3 py-8 text-center text-gray-500"
+                  >
+                    {t("warehouse.noOrders")}
+                  </td>
+                </tr>
+              ) : (
+                shipmentOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="px-3 py-3">
+                      <div className="text-sm font-medium">{order.name}</div>
+                      <div className="text-xs text-gray-500">№ {order.id}</div>
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {order.clientName}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {order.material}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {order.expectedDate}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <button
+                        onClick={() => handleProcessShipment(order.id)}
+                        className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
+                      >
+                        {t("warehouse.processShipment")}
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  shipmentOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="px-3 py-3">
-                        <div className="text-sm font-medium">{order.name}</div>
-                        <div className="text-xs text-gray-500">№ {order.id}</div>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {order.clientName}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {order.material}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {order.expectedDate}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          onClick={() => handleProcessShipment(order.id)}
-                          className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
-                        >
-                          {t("warehouse.processShipment")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))
+              )}
               </tbody>
             </table>
           </div>
@@ -222,4 +222,3 @@ function WarehouseDashboard() {
 }
 
 export default WarehouseDashboard;
-

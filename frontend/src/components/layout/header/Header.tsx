@@ -11,6 +11,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { IS_STAFF } from "../../../config/app.ts";
+import { authService } from "../../../services/api";
 
 type LangCode = "ru" | "en";
 
@@ -61,8 +62,7 @@ function Header() {
 
   const handleLogout = () => {
     handleStaffMenuClose();
-    // TODO: Реализовать выход
-    console.log("Logout");
+    authService.logout();
   };
 
   const otherLanguages = LANGUAGES.filter((l) => l.code !== currentLang.code);
@@ -71,6 +71,7 @@ function Header() {
 
   const isAuthPage = location.pathname === "/auth";
 
+  const isAuthenticated = IS_STAFF && authService.isAuthenticated();
   const staffName = "Иван";
   const staffLastName = "Петров";
 
@@ -81,16 +82,17 @@ function Header() {
           <img src={MainLogo} alt={"logo"} />
         </div>
         <div className="header-menu flex items-center gap-4">
-          <div className="relative inline-flex">
-            <button
-              onClick={handleStaffMenuClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
-                border border-gray-500 text-white
-                hover:bg-gray-600 transition-colors"
-            >
-              <span className="text-white">{staffName} {staffLastName.charAt(0)}.</span>
-              <ArrowDropDownIcon className="text-white" />
-            </button>
+          {isAuthenticated ? (
+            <div className="relative inline-flex">
+              <button
+                onClick={handleStaffMenuClick}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
+                  border border-gray-500 text-white
+                  hover:bg-gray-600 transition-colors"
+              >
+                <span className="text-white">{staffName} {staffLastName.charAt(0)}.</span>
+                <ArrowDropDownIcon className="text-white" />
+              </button>
 
             <Menu
               anchorEl={staffMenuAnchor}
@@ -138,9 +140,17 @@ function Header() {
               </MenuItem>
             </Menu>
           </div>
+          ) : (
+            <Link
+              to="/auth"
+              className="px-4 py-2 rounded-full text-sm font-medium border border-gray-500 text-white hover:bg-gray-600 transition-colors"
+            >
+              {t("auth.signIn")}
+            </Link>
+          )}
         </div>
       </header>
-    )
+    );
   }
 
   return (

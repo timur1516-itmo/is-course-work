@@ -9,13 +9,13 @@ function Footer() {
     <footer className="bg-stone-950 px-24 py-10 text-white">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
         <div className="space-y-4 text-lg">
-          <Link to="/" className="hover:text-gray-300 transition-colors">
+          <Link to="/about" className="hover:text-gray-300 transition-colors">
             {t("footer.about")}
           </Link>
-          <Link to="/"  className="hover:text-gray-300 transition-colors block">
+          <Link to="/discounts" className="hover:text-gray-300 transition-colors block">
             {t("footer.discounts")}
           </Link>
-          <Link to="/"  className="hover:text-gray-300 transition-colors block">
+          <Link to="/legal" className="hover:text-gray-300 transition-colors block">
             {t("footer.legal")}
           </Link>
         </div>
