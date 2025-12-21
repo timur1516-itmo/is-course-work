@@ -5,7 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.AddAttachmentRequestDto;
+import ru.itmo.se.is.cw.dto.ClientApplicationRequestDto;
+import ru.itmo.se.is.cw.dto.ClientApplicationResponseDto;
+import ru.itmo.se.is.cw.dto.FileMetadataResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ClientApplicationFilter;
+import ru.itmo.se.is.cw.dto.specification.ClientApplicationSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ClientApplicationAttachmentMapper;
 import ru.itmo.se.is.cw.mapper.ClientApplicationMapper;
@@ -14,10 +19,9 @@ import ru.itmo.se.is.cw.model.ClientApplicationAttachmentEntity;
 import ru.itmo.se.is.cw.model.ClientApplicationEntity;
 import ru.itmo.se.is.cw.model.ClientEntity;
 import ru.itmo.se.is.cw.model.FileEntity;
-import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.ClientApplicationAttachmentRepository;
 import ru.itmo.se.is.cw.repository.ClientApplicationRepository;
-import ru.itmo.se.is.cw.specs.ClientApplicationSpecification;
+import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 import java.util.Objects;
@@ -34,10 +38,11 @@ public class ClientApplicationsService {
     private final FilesService filesService;
     private final ClientsService clientsService;
     private final DesignsService designsService;
+    private final CurrentUser currentUser;
 
     @Transactional
     public ClientApplicationResponseDto createApplication(ClientApplicationRequestDto request) {
-        Long accountId = getCurrentAccountId();
+        Long accountId = currentUser.accountId();
 
         ClientApplicationEntity application = clientApplicationMapper.toEntity(request);
         application.setTemplateProductDesign(
@@ -66,8 +71,8 @@ public class ClientApplicationsService {
     public Page<ClientApplicationResponseDto> getApplications(Pageable pageable, ClientApplicationFilter filter) {
         ClientApplicationFilter effective = (filter == null) ? new ClientApplicationFilter() : filter;
 
-        if (getCurrentRole() == AccountRole.CLIENT) {
-            ClientEntity client = clientsService.getByAccountId(getCurrentAccountId());
+        if (currentUser.hasRole("CLIENT")) {
+            ClientEntity client = clientsService.getByAccountId(currentUser.accountId());
             effective.setClientId(client.getId());
         }
 
@@ -108,20 +113,12 @@ public class ClientApplicationsService {
         ClientApplicationEntity application = clientApplicationRepository
                 .findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("ClientApplication with id " + id + " not found"));
-        if (getCurrentRole() == AccountRole.CLIENT) {
-            ClientEntity client = clientsService.getByAccountId(getCurrentAccountId());
+        if (currentUser.hasRole("CLIENT")) {
+            ClientEntity client = clientsService.getByAccountId(currentUser.accountId());
             if (!Objects.equals(application.getClient().getId(), client.getId())) {
                 throw new EntityNotFoundException("ClientApplication with id " + id + " not found");
             }
         }
         return application;
-    }
-
-    private AccountRole getCurrentRole() {
-        return AccountRole.CLIENT; // TODO
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
     }
 }

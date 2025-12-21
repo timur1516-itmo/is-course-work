@@ -13,12 +13,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-import ru.itmo.se.is.cw.dto.EmployeeFilter;
 import ru.itmo.se.is.cw.dto.EmployeeRequestDto;
 import ru.itmo.se.is.cw.dto.EmployeeResponseDto;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
+import ru.itmo.se.is.cw.dto.filter.EmployeeFilter;
 import ru.itmo.se.is.cw.service.EmployeesService;
 
 import java.net.URI;
@@ -59,6 +60,7 @@ public class EmployeesController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_employees.write')")
     public ResponseEntity<EmployeeResponseDto> createEmployee(
             @RequestBody EmployeeRequestDto request,
             UriComponentsBuilder uriBuilder
@@ -97,6 +99,7 @@ public class EmployeesController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_employees.read')")
     public ResponseEntity<Page<EmployeeResponseDto>> getEmployees(
             @ParameterObject @ModelAttribute EmployeeFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
@@ -127,6 +130,7 @@ public class EmployeesController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_employees.read')")
     public ResponseEntity<EmployeeResponseDto> getEmployeeById(@PathVariable Long id) {
         EmployeeResponseDto employee = employeesService.getEmployeeById(id);
         return ResponseEntity.ok(employee);

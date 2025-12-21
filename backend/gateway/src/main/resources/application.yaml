@@ -4,28 +4,29 @@ server:
 spring:
   application:
     name: gateway
+
+  security:
+    oauth2:
+      client:
+        registration:
+          gateway:
+            client-id: ${AUTH_GATEWAY_CLIENT_ID:gateway}
+            client-secret: ${GATEWAY_CLIENT_SECRET:secret}
+            scope:
+              - openid
+              - profile
+        provider:
+          gateway:
+            issuer-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+
   cloud:
     gateway:
       server:
         webmvc:
           routes:
-            - id: auth-service
-              uri: ${AUTH_BASE_URL:http://localhost:8081}
-              predicates:
-                - Path=/auth/**
-            - id: resource-service
-              uri: ${RESOURCE_BASE_URL:http://localhost:8082}
-              predicates:
-                - Path=/resource/**
-
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    disable-swagger-default-url: true
-    urls:
-      - name: Auth service
-        url: /auth/v3/api-docs
-      - name: Resource service
-        url: /resource/v3/api-docs
+          - id: resource-service
+            uri: http://${RESOURCE_HOST:localhost}:${RESOURCE_PORT:8082}
+            predicates:
+              - Path=/resource/**
+            filters:
+              - TokenRelay=

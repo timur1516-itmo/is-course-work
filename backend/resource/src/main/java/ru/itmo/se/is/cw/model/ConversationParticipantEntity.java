@@ -23,10 +23,8 @@ public class ConversationParticipantEntity {
     @JoinColumn(name = "conversation_id", nullable = false)
     private ConversationEntity conversation;
 
-    @ManyToOne(optional = false)
-    @OnDelete(action = OnDeleteAction.RESTRICT)
-    @JoinColumn(name = "user_id", nullable = false)
-    private AccountEntity user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(name = "joined_at", nullable = false)
     private ZonedDateTime joinedAt;

@@ -13,7 +13,7 @@ import ru.itmo.se.is.cw.model.PurchaseOrderEntity;
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrderEntity, Long>, JpaSpecificationExecutor<PurchaseOrderEntity> {
 
     @Modifying
-    @Query(value = "select f_update_purchase_order_status_and_set_current(:poId, :status)", nativeQuery = true)
+    @Query(value = "call p_update_purchase_order_status_and_set_current(:poId, :status)", nativeQuery = true)
     void updateStatusAndSetCurrent(@Param("poId") Long poId, @Param("status") String status);
 
 }

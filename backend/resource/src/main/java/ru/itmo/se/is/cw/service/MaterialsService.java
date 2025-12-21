@@ -6,7 +6,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.MaterialBalanceHistoryResponseDto;
+import ru.itmo.se.is.cw.dto.MaterialConsumptionResponseDto;
+import ru.itmo.se.is.cw.dto.MaterialRequestDto;
+import ru.itmo.se.is.cw.dto.MaterialResponseDto;
+import ru.itmo.se.is.cw.dto.filter.MaterialFilter;
+import ru.itmo.se.is.cw.dto.specification.MaterialSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.MaterialBalanceHistoryMapper;
 import ru.itmo.se.is.cw.mapper.MaterialConsumptionMapper;
@@ -17,7 +22,7 @@ import ru.itmo.se.is.cw.model.MaterialEntity;
 import ru.itmo.se.is.cw.repository.MaterialBalanceRepository;
 import ru.itmo.se.is.cw.repository.MaterialConsumptionRepository;
 import ru.itmo.se.is.cw.repository.MaterialRepository;
-import ru.itmo.se.is.cw.specs.MaterialSpecification;
+import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,6 +40,7 @@ public class MaterialsService {
     private final MaterialMapper materialMapper;
     private final MaterialConsumptionMapper materialConsumptionMapper;
     private final MaterialBalanceHistoryMapper materialBalanceHistoryMapper;
+    private final CurrentUser currentUser;
 
     @Transactional(readOnly = true)
     public Page<MaterialResponseDto> getMaterials(Pageable pageable, MaterialFilter filter) {
@@ -93,7 +99,7 @@ public class MaterialsService {
         materialRepository.updateBalanceAndSetCurrent(
                 materialId,
                 toBigDecimal(newBalance),
-                getCurrentAccountId()
+                currentUser.accountId()
         );
 
         em.refresh(material);
@@ -132,9 +138,5 @@ public class MaterialsService {
 
     private BigDecimal toBigDecimal(Double value) {
         return value == null ? null : BigDecimal.valueOf(value);
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
     }
 }

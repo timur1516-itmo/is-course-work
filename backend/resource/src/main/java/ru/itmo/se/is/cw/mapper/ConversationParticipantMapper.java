@@ -10,6 +10,5 @@ import ru.itmo.se.is.cw.model.ConversationParticipantEntity;
 public interface ConversationParticipantMapper {
 
     @Mapping(target = "conversationId", source = "conversation.id")
-    @Mapping(target = "userId", source = "user.id")
     ConversationParticipantResponseDto toDto(ConversationParticipantEntity entity);
 }

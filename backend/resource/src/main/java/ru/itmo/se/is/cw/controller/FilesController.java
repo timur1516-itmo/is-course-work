@@ -12,11 +12,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import ru.itmo.se.is.cw.dto.FileMetadataResponseDto;
-import ru.itmo.se.is.cw.dto.FileVersion;
+import ru.itmo.se.is.cw.dto.FileVersionResponseDto;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
 import ru.itmo.se.is.cw.service.FilesService;
 
@@ -50,6 +51,7 @@ public class FilesController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_files.write')")
     public ResponseEntity<FileMetadataResponseDto> uploadFile(
             @Parameter(description = "Загружаемый файл", required = true)
             @RequestPart("file") MultipartFile file
@@ -80,6 +82,7 @@ public class FilesController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_files.read')")
     public ResponseEntity<FileMetadataResponseDto> getFileMetadata(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
@@ -108,6 +111,7 @@ public class FilesController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_files.read')")
     public ResponseEntity<StreamingResponseBody> downloadFile(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
@@ -137,7 +141,7 @@ public class FilesController {
                     responseCode = "200",
                     description = "Версии файла",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = FileVersion.class))
+                            array = @ArraySchema(schema = @Schema(implementation = FileVersionResponseDto.class))
                     )
             ),
             @ApiResponse(
@@ -148,7 +152,8 @@ public class FilesController {
                     )
             )
     })
-    public ResponseEntity<List<FileVersion>> getFileVersions(
+    @PreAuthorize("hasAuthority('SCOPE_files.read')")
+    public ResponseEntity<List<FileVersionResponseDto>> getFileVersions(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
         return ResponseEntity.ok(filesService.getFileVersions(id));
@@ -165,7 +170,7 @@ public class FilesController {
                     responseCode = "201",
                     description = "Новая версия создана",
                     content = @Content(
-                            schema = @Schema(implementation = FileVersion.class)
+                            schema = @Schema(implementation = FileVersionResponseDto.class)
                     )
             ),
             @ApiResponse(
@@ -176,13 +181,14 @@ public class FilesController {
                     )
             )
     })
-    public ResponseEntity<FileVersion> uploadNewFileVersion(
+    @PreAuthorize("hasAuthority('SCOPE_files.write')")
+    public ResponseEntity<FileVersionResponseDto> uploadNewFileVersion(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id,
 
             @Parameter(description = "Новая версия файла", required = true)
             @RequestPart("file") MultipartFile file
     ) {
-        FileVersion v = filesService.uploadNewFileVersion(id, file);
+        FileVersionResponseDto v = filesService.uploadNewFileVersion(id, file);
         return ResponseEntity.status(HttpStatus.CREATED).body(v);
     }
 
@@ -208,6 +214,7 @@ public class FilesController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_files.read')")
     public ResponseEntity<StreamingResponseBody> downloadFileVersion(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id,
             @PathVariable @Parameter(description = "Идентификатор версии файла", required = true) Long versionId
@@ -227,6 +234,7 @@ public class FilesController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Soft delete файла", description = "Помечает файл удалённым (deletedAt), физически не удаляет из хранилища.")
+    @PreAuthorize("hasAuthority('SCOPE_files.delete')")
     public ResponseEntity<Void> softDelete(@PathVariable Long id) {
         filesService.softDeleteFile(id);
         return ResponseEntity.noContent().build();

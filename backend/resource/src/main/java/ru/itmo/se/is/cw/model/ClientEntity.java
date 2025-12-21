@@ -24,10 +24,8 @@ public class ClientEntity {
     @JoinColumn(name = "person_id", nullable = false)
     private PersonEntity person;
 
-    @OneToOne(optional = false)
-    @OnDelete(action = OnDeleteAction.RESTRICT)
-    @JoinColumn(name = "account_id", nullable = false)
-    private AccountEntity account;
+    @Column(name = "account_id", nullable = false)
+    private Long accountId;
 
     @Column(name = "phone_number", nullable = false, length = 20)
     private String phoneNumber;

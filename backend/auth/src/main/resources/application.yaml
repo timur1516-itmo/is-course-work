@@ -1,11 +1,53 @@
 server:
   port: ${AUTH_PORT:8081}
   servlet:
-    context-path: /auth
+    session:
+      cookie:
+        name: ${AUTH_COOKIE_NAME:AUTHSESSION}
+        http-only: true
+        secure: ${AUTH_COOKIE_SECURE:false}
+        same-site: ${AUTH_COOKIE_SAMESITE:lax}
+        path: /
+  forward-headers-strategy: framework
 
 spring:
   application:
     name: auth
+
+  security:
+    oauth2:
+      authorization-server:
+        issuer: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+        client:
+          gateway:
+            registration:
+              client-id: ${AUTH_GATEWAY_CLIENT_ID:gateway}
+              client-secret: ${AUTH_GATEWAY_CLIENT_SECRET_HASH:$2a$10$UcOUhlkkH9vz0zQwQqhZfeVTmtRTP6zKlMJi7IJjQ3FA2ILMKJ7gq}
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+              redirect-uris:
+                - http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/login/oauth2/code/gateway
+              scopes:
+                - openid
+                - profile
+            require-authorization-consent: false
+          swagger:
+            registration:
+              client-id: ${AUTH_SWAGGER_CLIENT_ID:swagger}
+              client-authentication-methods:
+                - none
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+              redirect-uris:
+                - http://${RESOURCE_HOST:localhost}:${RESOURCE_PORT:8082}/resource/swagger-ui/oauth2-redirect.html
+              scopes:
+                - openid
+                - profile
+            require-authorization-consent: false
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laserworks}
@@ -19,25 +61,9 @@ spring:
 springdoc:
   api-docs:
     path: /v3/api-docs
-  swagger-ui:
-    enabled: false
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
 
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-springdoc:
-  swagger-ui:
-    enabled: true
-
----
-spring:
-  config:
-    activate:
-      on-profile: server
-springdoc:
-  swagger-ui:
-    enabled: false
+app:
+  cors:
+    allowed-origins: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080},http://${RESOURCE_HOST:localhost}:${RESOURCE_PORT:8082}

@@ -23,8 +23,8 @@ public class EmailTokenEntity {
 
     @ManyToOne(optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "client_id", nullable = false)
-    private ClientEntity client;
+    @JoinColumn(name = "account_id", nullable = false)
+    private AccountEntity account;
 
     @Column(name = "expiration_dt", nullable = false)
     private ZonedDateTime expirationDt;

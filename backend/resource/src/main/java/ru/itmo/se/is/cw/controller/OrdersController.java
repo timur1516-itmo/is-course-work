@@ -15,9 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.filter.ClientOrderFilter;
 import ru.itmo.se.is.cw.service.ConversationsService;
 import ru.itmo.se.is.cw.service.MaterialsService;
 import ru.itmo.se.is.cw.service.OrdersService;
@@ -50,6 +52,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.write')")
     public ResponseEntity<ClientOrderResponseDto> createOrder(
             @RequestBody CreateOrderRequestDto request,
             UriComponentsBuilder uriBuilder
@@ -77,6 +80,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.read')")
     public ResponseEntity<Page<ClientOrderResponseDto>> getOrders(
             @ParameterObject @ModelAttribute ClientOrderFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -106,6 +110,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.read')")
     public ResponseEntity<ClientOrderResponseDto> getOrderById(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
     ) {
@@ -136,6 +141,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.conversation.read')")
     public ResponseEntity<ConversationResponseDto> getConversationByOrderId(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
     ) {
@@ -168,6 +174,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.status.write')")
     public ResponseEntity<Void> changeOrderStatus(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id,
             @RequestBody ClientOrderStatusChangeRequestDto request
@@ -198,6 +205,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.price.write')")
     public ResponseEntity<ClientOrderResponseDto> updateOrderPrice(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id,
             @RequestBody UpdateOrderPriceRequestDto request
@@ -229,6 +237,7 @@ public class OrdersController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_orders.materials.read')")
     public ResponseEntity<List<MaterialConsumptionResponseDto>> getMaterialsConsumption(
             @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
     ) {

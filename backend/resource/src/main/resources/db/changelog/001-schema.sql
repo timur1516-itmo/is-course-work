@@ -1,30 +1,4 @@
 -- ===================== ПОЛЬЗОВАТЕЛИ ======================
-
-CREATE TABLE account
-(
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    username   VARCHAR(50)  NOT NULL UNIQUE,
-    password   VARCHAR(255) NOT NULL,
-    enabled    BOOLEAN      NOT NULL DEFAULT FALSE,
-    role       VARCHAR(255) NOT NULL,
-    updated_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT chk_account_role
-        CHECK (role IN (
-                        'CLIENT',
-                        'SALES_MANAGER',
-                        'CONSTRUCTOR',
-                        'CNC_OPERATOR',
-                        'WAREHOUSE_WORKER',
-                        'SUPPLY_MANAGER',
-                        'ADMIN'
-            )),
-    CONSTRAINT chk_account_timestamps
-        CHECK (
-            created_at <= updated_at
-            )
-);
-
 CREATE TABLE person
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -35,10 +9,17 @@ CREATE TABLE person
 CREATE TABLE employee
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    account_id BIGINT NOT NULL UNIQUE,
-    person_id  BIGINT NOT NULL UNIQUE,
-    CONSTRAINT fk_employee_account
-        FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE RESTRICT,
+    account_id BIGINT       NOT NULL UNIQUE,
+    person_id  BIGINT       NOT NULL UNIQUE,
+    role       VARCHAR(255) NOT NULL,
+    CONSTRAINT chk_employee_role
+        CHECK (role IN (
+                        'SALES_MANAGER',
+                        'CONSTRUCTOR',
+                        'CNC_OPERATOR',
+                        'WAREHOUSE_WORKER',
+                        'SUPPLY_MANAGER'
+            )),
     CONSTRAINT fk_employee_person
         FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT
 );
@@ -51,20 +32,7 @@ CREATE TABLE client
     account_id   BIGINT      NOT NULL UNIQUE,
     phone_number VARCHAR(20) NOT NULL UNIQUE,
     CONSTRAINT fk_client_person
-        FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT,
-    CONSTRAINT fk_client_account
-        FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE RESTRICT
-);
-
-CREATE TABLE email_token
-(
-    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    token         VARCHAR(255) NOT NULL UNIQUE,
-    client_id     BIGINT       NOT NULL,
-    expiration_dt TIMESTAMPTZ  NOT NULL,
-    creation_dt   TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT fk_email_token_client
-        FOREIGN KEY (client_id) REFERENCES client (id) ON DELETE CASCADE
+        FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT
 );
 
 -- ===================== ФАЙЛОВАЯ СИСТЕМА ======================
@@ -79,8 +47,6 @@ CREATE TABLE file
     updated_at         TIMESTAMPTZ  NOT NULL DEFAULT now(),
     deleted_at         TIMESTAMPTZ,
     owner_id           BIGINT       NOT NULL,
-    CONSTRAINT fk_file_owner
-        FOREIGN KEY (owner_id) REFERENCES account (id) ON DELETE RESTRICT,
     CONSTRAINT chk_file_timestamps
         CHECK (
             created_at <= updated_at
@@ -98,8 +64,6 @@ CREATE TABLE file_version
     content_type VARCHAR(255) NOT NULL,
     uploaded_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     file_id      BIGINT       NOT NULL,
-    CONSTRAINT fk_file_version_creator
-        FOREIGN KEY (creator_id) REFERENCES account (id) ON DELETE RESTRICT,
     CONSTRAINT fk_file_version_file
         FOREIGN KEY (file_id) REFERENCES file (id) ON DELETE CASCADE
 );
@@ -133,9 +97,7 @@ CREATE TABLE material_balance
     CONSTRAINT fk_mb_material
         FOREIGN KEY (material_id) REFERENCES material (id) ON DELETE CASCADE,
     CONSTRAINT fk_mb_prev
-        FOREIGN KEY (previous_balance_id) REFERENCES material_balance (id) ON DELETE SET NULL,
-    CONSTRAINT fk_mb_changer
-        FOREIGN KEY (changer_id) REFERENCES account (id) ON DELETE RESTRICT
+        FOREIGN KEY (previous_balance_id) REFERENCES material_balance (id) ON DELETE SET NULL
 );
 
 ALTER TABLE material
@@ -383,8 +345,6 @@ CREATE TABLE conversation_participant
     joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT fk_conversation_participant_conversation_id
         FOREIGN KEY (conversation_id) REFERENCES conversation (id) ON DELETE RESTRICT,
-    CONSTRAINT fk_conversation_participant_user_id
-        FOREIGN KEY (user_id) REFERENCES account (id) ON DELETE RESTRICT,
     CONSTRAINT ux_conversation_participant UNIQUE (conversation_id, user_id)
 );
 

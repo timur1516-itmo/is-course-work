@@ -5,18 +5,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.ProductDesignFilter;
 import ru.itmo.se.is.cw.dto.ProductDesignRequestDto;
 import ru.itmo.se.is.cw.dto.ProductDesignResponseDto;
 import ru.itmo.se.is.cw.dto.RequiredMaterialDto;
+import ru.itmo.se.is.cw.dto.filter.ProductDesignFilter;
+import ru.itmo.se.is.cw.dto.specification.ProductDesignSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ProductDesignFileMapper;
 import ru.itmo.se.is.cw.mapper.ProductDesignMapper;
 import ru.itmo.se.is.cw.mapper.RequiredMaterialMapper;
 import ru.itmo.se.is.cw.model.ProductDesignEntity;
-import ru.itmo.se.is.cw.repository.MaterialRepository;
 import ru.itmo.se.is.cw.repository.ProductDesignRepository;
-import ru.itmo.se.is.cw.specs.ProductDesignSpecification;
+import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,12 +27,12 @@ public class DesignsService {
 
     private final ProductDesignMapper productDesignMapper;
     private final ProductDesignRepository productDesignRepository;
-    private final MaterialRepository materialRepository;
     private final MaterialsService materialsService;
     private final RequiredMaterialMapper requiredMaterialMapper;
     private final FilesService filesService;
     private final ProductDesignFileMapper productDesignFileMapper;
     private final EmployeesService employeesService;
+    private final CurrentUser currentUser;
 
     @Transactional(readOnly = true)
     public ProductDesignResponseDto getDesignById(Long id) {
@@ -45,7 +45,7 @@ public class DesignsService {
         applyFiles(design, request.getFileIds());
         applyRequiredMaterials(design, request.getRequiredMaterials());
         design.setConstructor(
-                employeesService.getByAccountId(getCurrentAccountId())
+                employeesService.getByAccountId(currentUser.accountId())
         );
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)
@@ -66,7 +66,7 @@ public class DesignsService {
         applyFiles(design, request.getFileIds());
         applyRequiredMaterials(design, request.getRequiredMaterials());
         design.setConstructor(
-                employeesService.getByAccountId(getCurrentAccountId())
+                employeesService.getByAccountId(currentUser.accountId())
         );
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)
@@ -126,10 +126,6 @@ public class DesignsService {
                         )
                         .toList()
         );
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
     }
 }
 

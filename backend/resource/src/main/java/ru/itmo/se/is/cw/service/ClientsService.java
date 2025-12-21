@@ -5,13 +5,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.ClientFilter;
 import ru.itmo.se.is.cw.dto.ClientResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ClientFilter;
+import ru.itmo.se.is.cw.dto.specification.ClientSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ClientMapper;
 import ru.itmo.se.is.cw.model.ClientEntity;
 import ru.itmo.se.is.cw.repository.ClientRepository;
-import ru.itmo.se.is.cw.specs.ClientSpecification;
 
 @Service
 @RequiredArgsConstructor

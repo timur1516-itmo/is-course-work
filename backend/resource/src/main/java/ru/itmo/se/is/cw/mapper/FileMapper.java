@@ -8,7 +8,6 @@ import ru.itmo.se.is.cw.model.FileEntity;
 
 @Mapper(config = MapperConfig.class)
 public interface FileMapper {
-    @Mapping(target = "ownerId", source = "owner.id")
     @Mapping(target = "sizeBytes", source = "currentVersion.sizeBytes")
     FileMetadataResponseDto toDto(FileEntity entity);
 }

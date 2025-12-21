@@ -4,8 +4,15 @@ server:
     context-path: /resource
 
 spring:
+
   application:
     name: resource
+
+  security:
+    oauth2:
+      resource-server:
+        jwt:
+          issuer-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laserworks}
@@ -25,24 +32,14 @@ springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
-    enabled: false
+    oauth:
+      client-id: ${AUTH_SWAGGER_CLIENT_ID:swagger}
+      use-pkce-with-authorization-code-grant: true
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
 
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-springdoc:
-  swagger-ui:
-    enabled: true
-
----
-spring:
-  config:
-    activate:
-      on-profile: server
-springdoc:
-  swagger-ui:
-    enabled: false
+app:
+  security:
+    oauth2:
+      authorization-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/authorize
+      token-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/token

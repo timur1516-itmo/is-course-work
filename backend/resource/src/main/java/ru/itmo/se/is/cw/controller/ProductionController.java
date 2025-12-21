@@ -15,10 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
-import ru.itmo.se.is.cw.dto.ProductionTaskFilter;
 import ru.itmo.se.is.cw.dto.ProductionTaskResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ProductionTaskFilter;
 import ru.itmo.se.is.cw.service.ProductionService;
 
 
@@ -44,6 +45,7 @@ public class ProductionController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_production.read')")
     public ResponseEntity<Page<ProductionTaskResponseDto>> getProductionTasks(
             @ParameterObject @ModelAttribute ProductionTaskFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
@@ -74,6 +76,7 @@ public class ProductionController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_production.read')")
     public ResponseEntity<ProductionTaskResponseDto> getProductionTaskById(
             @PathVariable @Parameter(description = "Идентификатор производственной задачи", required = true) Long id
     ) {
@@ -101,6 +104,7 @@ public class ProductionController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_production.execute')")
     public ResponseEntity<Void> startProductionTask(
             @PathVariable @Parameter(description = "Идентификатор задачи", required = true) Long id
     ) {
@@ -128,6 +132,7 @@ public class ProductionController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_production.execute')")
     public ResponseEntity<Void> finishProductionTask(
             @PathVariable @Parameter(description = "Идентификатор задачи", required = true) Long id
     ) {

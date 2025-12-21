@@ -6,121 +6,108 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import ru.itmo.se.is.cw.dto.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import ru.itmo.se.is.cw.dto.AccountRegistrationRequestDto;
+import ru.itmo.se.is.cw.dto.AccountRegistrationResponseDto;
+import ru.itmo.se.is.cw.dto.ClientRegistrationRequestDto;
+import ru.itmo.se.is.cw.dto.VerifyEmailRequestDto;
+import ru.itmo.se.is.cw.service.AuthService;
 
 @RestController
 @RequestMapping
 @Tag(name = "Auth", description = "Операции аутентификации и авторизации")
+@RequiredArgsConstructor
 public class AuthController {
+
+    private final AuthService authService;
 
     @PostMapping("/register")
     @Operation(
-            summary = "Регистрация нового клиента",
-            description = "Создание нового аккаунта клиента и отправка письма для подтверждения email."
+            summary = "Регистрация клиента",
+            description = "Регистрирует нового клиента по логину/паролю."
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
-                    description = "Клиент успешно зарегистрирован",
-                    content = @Content(
-                            schema = @Schema(implementation = ClientRegistrationResponse.class)
-                    )
+                    description = "Клиент зарегистрирован (создан)"
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Некорректные данные",
-                    content = @Content(
-                            schema = @Schema(implementation = ProblemDetail.class)
-                    )
+                    description = "Некорректные данные запроса / нарушены бизнес-правила",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
-    public ResponseEntity<ClientRegistrationResponse> register(
-            @RequestBody ClientRegistrationRequest request
+    public ResponseEntity<Void> register(
+            @RequestBody ClientRegistrationRequestDto request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
-
 
     @PostMapping("/verify-email")
     @Operation(
-            summary = "Подтверждение email по токену",
-            description = "Подтверждает email клиента по токену, присланному на почту."
+            summary = "Подтверждение email",
+            description = "Подтверждает email пользователя по токену подтверждения. (Сейчас эндпоинт не реализован.)"
     )
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "200",
-                    description = "Email подтверждён",
-                    content = @Content()
+                    responseCode = "204",
+                    description = "Email подтвержден"
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Неверный или просроченный токен",
-                    content = @Content(
-                            schema = @Schema(implementation = ProblemDetail.class)
-                    )
+                    description = "Некорректный токен/формат запроса",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Токен не найден / истёк / пользователь не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "501",
+                    description = "Эндпоинт не реализован",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
     public ResponseEntity<Void> verifyEmail(
-            @RequestBody VerifyEmailRequest request
+            @RequestBody VerifyEmailRequestDto request
     ) {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
     }
 
-
-    @PostMapping("/login")
+    @PostMapping("/users")
     @Operation(
-            summary = "Вход пользователя",
-            description = "Проверяет учетные данные и возвращает JWT-токен при успешной аутентификации."
+            summary = "Создание аккаунта",
+            description = "Создает аккаунт (пользователя системы) с указанной ролью."
     )
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "200",
-                    description = "Успешный вход",
-                    content = @Content(
-                            schema = @Schema(implementation = LoginResponse.class)
-                    )
+                    responseCode = "201",
+                    description = "Аккаунт создан",
+                    content = @Content(schema = @Schema(implementation = AccountRegistrationResponseDto.class))
             ),
             @ApiResponse(
-                    responseCode = "401",
-                    description = "Неверные учетные данные",
-                    content = @Content(
-                            schema = @Schema(implementation = ProblemDetail.class)
-                    )
+                    responseCode = "400",
+                    description = "Некорректные данные запроса / нарушены бизнес-правила",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Доступ запрещён",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
-    public ResponseEntity<LoginResponse> login(
-            @RequestBody LoginRequest request
+    public ResponseEntity<AccountRegistrationResponseDto> createAccount(
+            @RequestBody AccountRegistrationRequestDto request
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
-    }
-
-
-    @GetMapping("/me")
-    @Operation(
-            summary = "Информация о текущем пользователе",
-            description = "Возвращает профиль авторизованного пользователя."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Профиль текущего пользователя",
-                    content = @Content(
-                            schema = @Schema(implementation = CurrentUser.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Не авторизован",
-                    content = @Content(
-                            schema = @Schema(implementation = ProblemDetail.class)
-                    )
-            )
-    })
-    public ResponseEntity<CurrentUser> getCurrentUser() {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.createAccount(request));
     }
 }

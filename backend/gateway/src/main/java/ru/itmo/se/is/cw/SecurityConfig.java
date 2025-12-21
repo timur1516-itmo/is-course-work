@@ -14,24 +14,12 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/swagger-ui.html",
-                                "/swagger-ui/**"
-                        ).permitAll()
-                        .requestMatchers(
-                                "/v3/api-docs",
-                                "/v3/api-docs/**"
-                        ).permitAll()
-                        .requestMatchers(
-                                "/auth/v3/api-docs",
-                                "/auth/v3/api-docs.yaml",
-                                "/resource/v3/api-docs",
-                                "/resource/v3/api-docs.yaml"
-                        ).permitAll()
+                .authorizeHttpRequests(a -> a
+                        .requestMatchers("/resource/**").authenticated()
                         .anyRequest().permitAll()
                 )
-                .formLogin(Customizer.withDefaults());
+                .oauth2Login(Customizer.withDefaults())
+                .oauth2Client(Customizer.withDefaults());
 
         return http.build();
     }

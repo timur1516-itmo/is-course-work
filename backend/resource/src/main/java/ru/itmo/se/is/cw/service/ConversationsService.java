@@ -5,7 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.ConversationParticipantResponseDto;
+import ru.itmo.se.is.cw.dto.ConversationResponseDto;
+import ru.itmo.se.is.cw.dto.MessageResponseDto;
+import ru.itmo.se.is.cw.dto.SendMessageRequestDto;
+import ru.itmo.se.is.cw.dto.filter.MessageFilter;
+import ru.itmo.se.is.cw.dto.specification.MessageSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ConversationMapper;
 import ru.itmo.se.is.cw.mapper.ConversationParticipantMapper;
@@ -13,11 +18,10 @@ import ru.itmo.se.is.cw.mapper.MessageMapper;
 import ru.itmo.se.is.cw.model.ConversationEntity;
 import ru.itmo.se.is.cw.model.ConversationParticipantEntity;
 import ru.itmo.se.is.cw.model.MessageEntity;
-import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.ConversationParticipantRepository;
 import ru.itmo.se.is.cw.repository.ConversationRepository;
 import ru.itmo.se.is.cw.repository.MessageRepository;
-import ru.itmo.se.is.cw.specs.MessageSpecification;
+import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 
@@ -31,6 +35,7 @@ public class ConversationsService {
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
     private final ConversationParticipantMapper conversationParticipantMapper;
+    private final CurrentUser currentUser;
 
     @Transactional(readOnly = true)
     public ConversationResponseDto getConversationByOrderId(Long orderId) {
@@ -46,11 +51,6 @@ public class ConversationsService {
         return conversationRepository
                 .findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Conversation with id " + id + " not found"));
-    }
-
-    @Transactional(readOnly = true)
-    public ConversationResponseDto getConversation(Long id) {
-        return conversationMapper.toDto(getById(id));
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +70,7 @@ public class ConversationsService {
         assertCanAccess(conversation);
 
         ConversationParticipantEntity participant = participantRepository
-                .findByConversationIdAndUserId(conversation.getId(), getCurrentAccountId())
+                .findByConversationIdAndUserId(conversation.getId(), currentUser.accountId())
                 .orElseThrow(() -> new RuntimeException("Unexpected state"));
 
         MessageEntity message = new MessageEntity();
@@ -92,17 +92,8 @@ public class ConversationsService {
     }
 
     private void assertCanAccess(ConversationEntity conversation) {
-        if (!participantRepository.existsByConversationIdAndUserId(conversation.getId(), getCurrentAccountId())) {
+        if (!participantRepository.existsByConversationIdAndUserId(conversation.getId(), currentUser.accountId())) {
             throw new EntityNotFoundException("Conversation with id " + conversation.getId() + " not found");
         }
     }
-
-    private AccountRole getCurrentRole() {
-        return AccountRole.CLIENT; // TODO
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
-    }
-
 }

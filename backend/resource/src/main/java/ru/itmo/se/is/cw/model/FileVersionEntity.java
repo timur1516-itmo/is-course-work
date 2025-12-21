@@ -18,10 +18,8 @@ public class FileVersionEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @ManyToOne(optional = false)
-    @OnDelete(action = OnDeleteAction.RESTRICT)
-    @JoinColumn(name = "creator_id", nullable = false)
-    private AccountEntity creator;
+    @Column(name = "creator_id", nullable = false)
+    private Long creatorId;
 
     @Column(name = "bucket", nullable = false, length = 63)
     private String bucket;

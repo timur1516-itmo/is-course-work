@@ -10,6 +10,6 @@ import ru.itmo.se.is.cw.model.MessageEntity;
 public interface MessageMapper {
 
     @Mapping(target = "conversationId", source = "conversationParticipant.conversation.id")
-    @Mapping(target = "authorId", source = "conversationParticipant.user.id")
+    @Mapping(target = "authorId", source = "conversationParticipant.userId")
     MessageResponseDto toDto(MessageEntity entity);
 }

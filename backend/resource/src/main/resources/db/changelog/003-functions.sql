@@ -148,101 +148,115 @@ FROM material m
          LEFT JOIN material_balance mb ON mb.id = m.current_balance_id;
 
 -- Функции для обновления текущего статуса/баланса/версии
-CREATE OR REPLACE FUNCTION f_update_client_order_status_and_set_current(p_client_order_id BIGINT, p_status VARCHAR)
-    RETURNS VOID
+-- 1) client_order: добавить статус и сделать его текущим
+CREATE OR REPLACE PROCEDURE p_update_client_order_status_and_set_current(
+    p_client_order_id BIGINT,
+    p_status VARCHAR
+)
     LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_status_id BIGINT;
 BEGIN
-    -- Вставка нового статуса
     INSERT INTO client_order_status (client_order_id, status)
     VALUES (p_client_order_id, p_status)
     RETURNING id INTO v_new_status_id;
 
-    -- Обновление текущего статуса в заказе
     UPDATE client_order
     SET current_status_id = v_new_status_id
     WHERE id = p_client_order_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION f_update_production_task_status_and_set_current(p_task_id BIGINT, p_status VARCHAR)
-    RETURNS VOID
+
+-- 2) production_task: добавить статус и сделать его текущим
+CREATE OR REPLACE PROCEDURE p_update_production_task_status_and_set_current(
+    p_task_id BIGINT,
+    p_status VARCHAR
+)
     LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_status_id BIGINT;
 BEGIN
-    -- Вставка нового статуса
     INSERT INTO production_task_status (production_task_id, status)
     VALUES (p_task_id, p_status)
     RETURNING id INTO v_new_status_id;
 
-    -- Обновление текущего статуса в задаче
     UPDATE production_task
     SET current_status_id = v_new_status_id
     WHERE id = p_task_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION f_update_purchase_order_status_and_set_current(p_po_id BIGINT, p_status VARCHAR)
-    RETURNS VOID
+
+-- 3) purchase_order: добавить статус и сделать его текущим
+CREATE OR REPLACE PROCEDURE p_update_purchase_order_status_and_set_current(
+    p_po_id BIGINT,
+    p_status VARCHAR
+)
     LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_status_id BIGINT;
 BEGIN
-    -- Вставка нового статуса
     INSERT INTO purchase_order_status (purchase_order_id, status)
     VALUES (p_po_id, p_status)
     RETURNING id INTO v_new_status_id;
 
-    -- Обновление текущего статуса в закупке
     UPDATE purchase_order
     SET current_status_id = v_new_status_id
     WHERE id = p_po_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION f_update_material_balance_and_set_current(p_material_id BIGINT, p_new_balance NUMERIC, p_changer_id BIGINT)
-    RETURNS VOID
+
+-- 4) material: добавить баланс и сделать его текущим
+CREATE OR REPLACE PROCEDURE p_update_material_balance_and_set_current(
+    p_material_id BIGINT,
+    p_new_balance NUMERIC,
+    p_changer_id BIGINT
+)
     LANGUAGE plpgsql
 AS $$
 DECLARE
     v_current_balance_id BIGINT;
     v_new_balance_id BIGINT;
 BEGIN
-    -- Получаем текущий баланс
-    SELECT current_balance_id INTO v_current_balance_id
+    SELECT current_balance_id
+    INTO v_current_balance_id
     FROM material
     WHERE id = p_material_id;
 
-    -- Вставка нового баланса
     INSERT INTO material_balance (material_id, balance, previous_balance_id, changer_id)
     VALUES (p_material_id, p_new_balance, v_current_balance_id, p_changer_id)
     RETURNING id INTO v_new_balance_id;
 
-    -- Обновление текущего баланса в материале
     UPDATE material
     SET current_balance_id = v_new_balance_id
     WHERE id = p_material_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION f_update_file_version_and_set_current(p_file_id BIGINT, p_bucket TEXT, p_object_key TEXT, p_size_bytes BIGINT, p_content_type VARCHAR, p_creator_id BIGINT)
-    RETURNS VOID
+
+-- 5) file: добавить версию файла и сделать её текущей
+CREATE OR REPLACE PROCEDURE p_update_file_version_and_set_current(
+    p_file_id BIGINT,
+    p_bucket TEXT,
+    p_object_key TEXT,
+    p_size_bytes BIGINT,
+    p_content_type VARCHAR,
+    p_creator_id BIGINT
+)
     LANGUAGE plpgsql
 AS $$
 DECLARE
     v_new_version_id BIGINT;
 BEGIN
-    -- Вставка новой версии файла
     INSERT INTO file_version (creator_id, bucket, object_key, size_bytes, content_type, file_id)
     VALUES (p_creator_id, p_bucket, p_object_key, p_size_bytes, p_content_type, p_file_id)
     RETURNING id INTO v_new_version_id;
 
-    -- Обновление текущей версии в файле
     UPDATE file
     SET current_version_id = v_new_version_id
     WHERE id = p_file_id;

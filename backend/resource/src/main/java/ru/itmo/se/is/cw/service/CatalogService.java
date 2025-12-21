@@ -5,18 +5,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.ProductCatalogFilter;
 import ru.itmo.se.is.cw.dto.ProductCatalogRequestDto;
 import ru.itmo.se.is.cw.dto.ProductCatalogResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ProductCatalogFilter;
+import ru.itmo.se.is.cw.dto.specification.ProductCatalogSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
-import ru.itmo.se.is.cw.mapper.FileMapper;
 import ru.itmo.se.is.cw.mapper.ProductCatalogMapper;
 import ru.itmo.se.is.cw.mapper.ProductPhotoMapper;
 import ru.itmo.se.is.cw.model.ProductCatalogEntity;
 import ru.itmo.se.is.cw.model.ProductDesignEntity;
 import ru.itmo.se.is.cw.repository.ProductCatalogRepository;
-import ru.itmo.se.is.cw.repository.ProductPhotoRepository;
-import ru.itmo.se.is.cw.specs.ProductCatalogSpecification;
 
 import java.util.List;
 
@@ -25,11 +23,9 @@ import java.util.List;
 public class CatalogService {
 
     private final ProductCatalogRepository productCatalogRepository;
-    private final ProductPhotoRepository productPhotoRepository;
     private final ProductCatalogMapper productCatalogMapper;
     private final DesignsService designsService;
     private final ProductPhotoMapper productPhotoMapper;
-    private final FileMapper fileMapper;
     private final FilesService filesService;
 
     @Transactional(readOnly = true)

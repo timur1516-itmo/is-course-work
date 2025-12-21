@@ -32,10 +32,8 @@ public class MaterialBalanceEntity {
     @JoinColumn(name = "previous_balance_id")
     private MaterialBalanceEntity previousBalance;
 
-    @ManyToOne(optional = false)
-    @OnDelete(action = OnDeleteAction.RESTRICT)
-    @JoinColumn(name = "changer_id", nullable = false)
-    private AccountEntity changer;
+    @Column(name = "changer_id", nullable = false)
+    private Long changerId;
 
     @Column(name = "changed_at", nullable = false)
     private ZonedDateTime changedAt;

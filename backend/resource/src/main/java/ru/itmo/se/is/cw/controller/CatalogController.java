@@ -14,12 +14,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
-import ru.itmo.se.is.cw.dto.ProductCatalogFilter;
 import ru.itmo.se.is.cw.dto.ProductCatalogRequestDto;
 import ru.itmo.se.is.cw.dto.ProductCatalogResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ProductCatalogFilter;
 import ru.itmo.se.is.cw.service.CatalogService;
 
 import java.net.URI;
@@ -51,6 +52,7 @@ public class CatalogController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_catalog.read')")
     public ResponseEntity<Page<ProductCatalogResponseDto>> getProducts(
             @ParameterObject @ModelAttribute ProductCatalogFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
@@ -81,6 +83,7 @@ public class CatalogController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_catalog.write')")
     public ResponseEntity<ProductCatalogResponseDto> createProduct(
             @RequestBody ProductCatalogRequestDto request,
             UriComponentsBuilder uriBuilder
@@ -115,6 +118,7 @@ public class CatalogController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_catalog.read')")
     public ResponseEntity<ProductCatalogResponseDto> getProductById(
             @PathVariable @Parameter(description = "Идентификатор товара", required = true) Long id
     ) {
@@ -144,6 +148,7 @@ public class CatalogController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_catalog.write')")
     public ResponseEntity<ProductCatalogResponseDto> updateProduct(
             @PathVariable @Parameter(description = "Идентификатор товара", required = true) Long id,
             @RequestBody ProductCatalogRequestDto request
@@ -172,6 +177,7 @@ public class CatalogController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_catalog.write')")
     public ResponseEntity<Void> deleteProduct(
             @PathVariable @Parameter(description = "Идентификатор товара", required = true) Long id
     ) {

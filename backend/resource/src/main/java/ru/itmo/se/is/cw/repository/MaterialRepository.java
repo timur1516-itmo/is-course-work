@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 @Repository
 public interface MaterialRepository extends JpaRepository<MaterialEntity, Long>, JpaSpecificationExecutor<MaterialEntity> {
     @Modifying
-    @Query(value = "select f_update_material_balance_and_set_current(:materialId, :newBalance, :changerId)", nativeQuery = true)
+    @Query(value = "call p_update_material_balance_and_set_current(:materialId, :newBalance, :changerId)", nativeQuery = true)
     void updateBalanceAndSetCurrent(@Param("materialId") Long materialId,
                                     @Param("newBalance") BigDecimal newBalance,
                                     @Param("changerId") Long changerAccountId);

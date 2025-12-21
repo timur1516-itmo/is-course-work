@@ -15,9 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.filter.MaterialFilter;
 import ru.itmo.se.is.cw.service.MaterialsService;
 
 import java.net.URI;
@@ -45,6 +47,7 @@ public class MaterialsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.read')")
     public ResponseEntity<Page<MaterialResponseDto>> getMaterials(
             @ParameterObject @ModelAttribute MaterialFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
@@ -68,6 +71,7 @@ public class MaterialsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.write')")
     public ResponseEntity<MaterialResponseDto> createMaterial(
             @RequestBody MaterialRequestDto request,
             UriComponentsBuilder uriBuilder
@@ -102,6 +106,7 @@ public class MaterialsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.read')")
     public ResponseEntity<MaterialResponseDto> getMaterialById(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {
@@ -131,6 +136,7 @@ public class MaterialsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.write')")
     public ResponseEntity<MaterialResponseDto> updateMaterial(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id,
 
@@ -160,6 +166,7 @@ public class MaterialsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.delete')")
     public ResponseEntity<Void> deleteMaterial(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {
@@ -184,6 +191,7 @@ public class MaterialsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.balance.write')")
     public ResponseEntity<MaterialResponseDto> setBalance(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id,
             @RequestBody MaterialBalanceChangeRequestDto request
@@ -213,6 +221,7 @@ public class MaterialsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_materials.balance.read')")
     public ResponseEntity<MaterialBalanceHistoryResponseDto> getMaterialBalanceHistory(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {

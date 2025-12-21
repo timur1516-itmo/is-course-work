@@ -15,9 +15,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.ConversationParticipantResponseDto;
+import ru.itmo.se.is.cw.dto.MessageResponseDto;
+import ru.itmo.se.is.cw.dto.ProblemDetail;
+import ru.itmo.se.is.cw.dto.SendMessageRequestDto;
+import ru.itmo.se.is.cw.dto.filter.MessageFilter;
 import ru.itmo.se.is.cw.service.ConversationsService;
 
 import java.net.URI;
@@ -32,34 +37,6 @@ public class ConversationsController {
 
 
     private final ConversationsService conversationsService;
-
-    @GetMapping("/{id}")
-    @Operation(
-            summary = "Получить диалог по заказу",
-            description = "Возвращает информацию о диалоге, связанном с указанным заказом."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Диалог найден",
-                    content = @Content(
-                            schema = @Schema(implementation = ConversationResponseDto.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Диалог не найден",
-                    content = @Content(
-                            schema = @Schema(implementation = ProblemDetail.class)
-                    )
-            )
-    })
-    public ResponseEntity<ConversationResponseDto> getConversation(
-            @PathVariable @Parameter(description = "Идентификатор диалога", required = true) Long id
-    ) {
-        return ResponseEntity.ok(conversationsService.getConversation(id));
-    }
-
 
     @GetMapping("/{id}/messages")
     @Operation(
@@ -82,6 +59,7 @@ public class ConversationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_conversations.messages.read')")
     public ResponseEntity<Page<MessageResponseDto>> getMessages(
             @PathVariable @Parameter(description = "Идентификатор диалога", required = true) Long id,
             @ParameterObject @ModelAttribute MessageFilter filter,
@@ -113,6 +91,7 @@ public class ConversationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_conversations.messages.write')")
     public ResponseEntity<MessageResponseDto> sendMessage(
             @PathVariable @Parameter(description = "Идентификатор диалога", required = true) Long id,
             @RequestBody SendMessageRequestDto request,
@@ -148,6 +127,7 @@ public class ConversationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_conversations.patricipants.read')")
     public ResponseEntity<List<ConversationParticipantResponseDto>> getParticipants(
             @PathVariable @Parameter(description = "Идентификатор диалога", required = true) Long id
     ) {

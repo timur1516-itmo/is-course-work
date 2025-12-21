@@ -12,7 +12,7 @@ import ru.itmo.se.is.cw.model.ClientOrderEntity;
 public interface ClientOrderRepository extends JpaRepository<ClientOrderEntity, Long>, JpaSpecificationExecutor<ClientOrderEntity> {
 
     @Modifying
-    @Query(value = "select f_update_client_order_status_and_set_current(:orderId, :status)", nativeQuery = true)
+    @Query(value = "call p_update_client_order_status_and_set_current(:orderId, :status)", nativeQuery = true)
     void updateStatusAndSetCurrent(@Param("orderId") Long orderId, @Param("status") String status);
 
 }

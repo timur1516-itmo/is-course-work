@@ -42,8 +42,6 @@ public class FileEntity {
     @Column(name = "deleted_at")
     private ZonedDateTime deletedAt;
 
-    @ManyToOne(optional = false)
-    @OnDelete(action = OnDeleteAction.RESTRICT)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private AccountEntity owner;
+    @Column(name = "owner_id", nullable = false)
+    private Long ownerId;
 }

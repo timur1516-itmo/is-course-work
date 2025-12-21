@@ -12,7 +12,7 @@ import ru.itmo.se.is.cw.model.ProductionTaskEntity;
 public interface ProductionTaskRepository extends JpaRepository<ProductionTaskEntity, Long>, JpaSpecificationExecutor<ProductionTaskEntity> {
 
     @Modifying
-    @Query(value = "select f_update_production_task_status_and_set_current(:taskId, :status)", nativeQuery = true)
+    @Query(value = "call p_update_production_task_status_and_set_current(:taskId, :status)", nativeQuery = true)
     void updateStatusAndSetCurrent(@Param("taskId") Long taskId,
                                    @Param("status") String status);
 }

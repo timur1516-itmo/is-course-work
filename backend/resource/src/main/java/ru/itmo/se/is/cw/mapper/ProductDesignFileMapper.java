@@ -14,7 +14,7 @@ public interface ProductDesignFileMapper {
     @Mapping(target = "filename", source = "file.filename")
     @Mapping(target = "contentType", source = "file.contentType")
     @Mapping(target = "sizeBytes", source = "file.currentVersion.sizeBytes")
-    @Mapping(target = "ownerId", source = "file.owner.id")
+    @Mapping(target = "ownerId", source = "file.ownerId")
     @Mapping(target = "createdAt", source = "file.createdAt")
     @Mapping(target = "updatedAt", source = "file.updatedAt")
     @Mapping(target = "deletedAt", source = "file.deletedAt")

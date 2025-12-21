@@ -3,17 +3,19 @@ package ru.itmo.se.is.cw.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.EmployeeFilter;
+import ru.itmo.se.is.cw.dto.AccountRequestDto;
+import ru.itmo.se.is.cw.dto.AccountResponseDto;
 import ru.itmo.se.is.cw.dto.EmployeeRequestDto;
 import ru.itmo.se.is.cw.dto.EmployeeResponseDto;
+import ru.itmo.se.is.cw.dto.filter.EmployeeFilter;
+import ru.itmo.se.is.cw.dto.specification.EmployeeSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
+import ru.itmo.se.is.cw.feign.AccountClient;
 import ru.itmo.se.is.cw.mapper.EmployeeMapper;
 import ru.itmo.se.is.cw.model.EmployeeEntity;
 import ru.itmo.se.is.cw.repository.EmployeeRepository;
-import ru.itmo.se.is.cw.specs.EmployeeSpecification;
 
 @Service
 @RequiredArgsConstructor
@@ -21,18 +23,20 @@ public class EmployeesService {
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeMapper employeeMapper;
-    private final PasswordEncoder passwordEncoder;
+    private final AccountClient accountClient;
 
     @Transactional
     public EmployeeResponseDto createEmployee(EmployeeRequestDto request) {
         EmployeeEntity entity = employeeMapper.toEntity(request);
 
-        entity.getAccount().setPassword(
-                passwordEncoder.encode(request.getPassword())
-        );
-        request.setPassword(null);
+        AccountRequestDto accountRequestDto = new AccountRequestDto();
+        accountRequestDto.setPassword(request.getPassword());
+        accountRequestDto.setUsername(request.getUsername());
+        accountRequestDto.setRole(request.getRole());
 
-        entity.getAccount().setEnabled(true);
+        AccountResponseDto responseDto = accountClient.createAccount(accountRequestDto);
+
+        entity.setAccountId(responseDto.getAccountId());
 
         EmployeeEntity savedEntity = employeeRepository.save(entity);
         return employeeMapper.toDto(savedEntity);

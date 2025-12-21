@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.filter.PurchaseOrderFilter;
+import ru.itmo.se.is.cw.dto.specification.PurchaseOrderSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.PurchaseOrderMapper;
 import ru.itmo.se.is.cw.mapper.PurchaseOrderMaterialMapper;
@@ -17,7 +19,7 @@ import ru.itmo.se.is.cw.model.PurchaseOrderReceiptEntity;
 import ru.itmo.se.is.cw.model.value.PurchaseOrderStatus;
 import ru.itmo.se.is.cw.repository.PurchaseOrderReceiptRepository;
 import ru.itmo.se.is.cw.repository.PurchaseOrderRepository;
-import ru.itmo.se.is.cw.specs.PurchaseOrderSpecification;
+import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 
@@ -33,11 +35,12 @@ public class PurchaseOrdersService {
     private final PurchaseOrderReceiptMapper purchaseOrderReceiptMapper;
     private final PurchaseOrderMaterialMapper purchaseOrderMaterialMapper;
     private final EmployeesService employeesService;
+    private final CurrentUser currentUser;
 
     @Transactional
     public PurchaseOrderResponseDto createPurchaseOrder(PurchaseOrderRequestDto request) {
         EmployeeEntity employee = employeesService.getByAccountId(
-                getCurrentAccountId()
+                currentUser.accountId()
         );
         PurchaseOrderEntity purchaseOrder = purchaseOrderMapper.toEntity(request, employee);
         applyMaterials(purchaseOrder, request.getMaterials());
@@ -85,7 +88,7 @@ public class PurchaseOrdersService {
         em.refresh(purchaseOrder);
 
         EmployeeEntity warehouseWorker = employeesService.getByAccountId(
-                getCurrentAccountId()
+                currentUser.accountId()
         );
         PurchaseOrderReceiptEntity receipt = purchaseOrderReceiptMapper.toEntity(request, purchaseOrder, warehouseWorker);
         return purchaseOrderReceiptMapper.toDto(
@@ -123,9 +126,5 @@ public class PurchaseOrdersService {
                         )
                 )
                 .forEach(purchaseOrder::addMaterial);
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
     }
 }

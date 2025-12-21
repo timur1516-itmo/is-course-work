@@ -1,41 +1,56 @@
 package ru.itmo.se.is.cw.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.*;
+import org.springframework.web.server.ResponseStatusException;
+import ru.itmo.se.is.cw.dto.AccountRegistrationRequestDto;
+import ru.itmo.se.is.cw.dto.AccountRegistrationResponseDto;
+import ru.itmo.se.is.cw.dto.ClientRegistrationRequestDto;
+import ru.itmo.se.is.cw.dto.VerifyEmailRequestDto;
+import ru.itmo.se.is.cw.model.AccountEntity;
+import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.AccountRepository;
-import ru.itmo.se.is.cw.repository.ClientRepository;
-import ru.itmo.se.is.cw.repository.EmailTokenRepository;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final AccountRepository accountRepository;
-    private final ClientRepository clientRepository;
-    private final EmailTokenRepository emailTokenRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public ClientRegistrationResponse register(ClientRegistrationRequest request) {
-        // TODO: реализовать регистрацию, создание account + client + emailToken
-        return null;
+    public void register(ClientRegistrationRequestDto request) {
+        if (accountRepository.existsByUsername(request.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username exists");
+        }
+        AccountEntity a = new AccountEntity();
+        a.setUsername(request.getUsername());
+        a.setPassword(passwordEncoder.encode(request.getPassword()));
+        a.setEnabled(true);
+        a.setRole(AccountRole.CLIENT);
+        accountRepository.save(a);
     }
 
     @Transactional
-    public void verifyEmail(VerifyEmailRequest request) {
+    public AccountRegistrationResponseDto createAccount(AccountRegistrationRequestDto request) {
+        AccountEntity a = new AccountEntity();
+        a.setUsername(request.getUsername());
+        a.setPassword(passwordEncoder.encode(request.getPassword()));
+        a.setRole(request.getRole());
+        a.setEnabled(true);
+
+        a = accountRepository.save(a);
+        AccountRegistrationResponseDto response = new AccountRegistrationResponseDto();
+        response.setAccountId(a.getId());
+        return response;
+    }
+
+    @Transactional
+    public void verifyEmail(VerifyEmailRequestDto request) {
         // TODO: проверить токен, активировать аккаунт
     }
 
-    @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest request) {
-        // TODO: проверить пароль, выдать токен
-        return null;
-    }
-
-    @Transactional(readOnly = true)
-    public CurrentUser getCurrentUser() {
-        // TODO: взять текущего из SecurityContext и отдать DTO
-        return null;
-    }
 }

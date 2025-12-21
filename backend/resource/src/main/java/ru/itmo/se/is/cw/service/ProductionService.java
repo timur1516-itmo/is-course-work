@@ -5,14 +5,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.ProductionTaskFilter;
 import ru.itmo.se.is.cw.dto.ProductionTaskResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ProductionTaskFilter;
+import ru.itmo.se.is.cw.dto.specification.ProductionTaskSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ProductionTaskMapper;
 import ru.itmo.se.is.cw.model.ProductionTaskEntity;
 import ru.itmo.se.is.cw.model.value.ProductionTaskStatus;
 import ru.itmo.se.is.cw.repository.ProductionTaskRepository;
-import ru.itmo.se.is.cw.specs.ProductionTaskSpecification;
 
 @Service
 @RequiredArgsConstructor

@@ -6,14 +6,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.ClientOrderResponseDto;
+import ru.itmo.se.is.cw.dto.ClientOrderStatusChangeRequestDto;
+import ru.itmo.se.is.cw.dto.CreateOrderRequestDto;
+import ru.itmo.se.is.cw.dto.UpdateOrderPriceRequestDto;
+import ru.itmo.se.is.cw.dto.filter.ClientOrderFilter;
+import ru.itmo.se.is.cw.dto.specification.ClientOrderSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ClientOrderMapper;
 import ru.itmo.se.is.cw.model.*;
-import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.model.value.ClientOrderStatus;
 import ru.itmo.se.is.cw.repository.ClientOrderRepository;
-import ru.itmo.se.is.cw.specs.ClientOrderSpecification;
+import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -23,18 +27,18 @@ import java.util.Set;
 public class OrdersService {
 
     private final ClientOrderRepository clientOrderRepository;
-    private final MaterialsService materialsService;
     private final ClientApplicationsService clientApplicationsService;
     private final EmployeesService employeesService;
     private final DesignsService designsService;
     private final EntityManager em;
     private final ClientOrderMapper clientOrderMapper;
     private final ClientsService clientsService;
+    private final CurrentUser currentUser;
 
     @Transactional
     public ClientOrderResponseDto createOrder(CreateOrderRequestDto request) {
         ClientApplicationEntity application = clientApplicationsService.getById(request.getClientApplicationId());
-        EmployeeEntity manager = employeesService.getByAccountId(getCurrentAccountId());
+        EmployeeEntity manager = employeesService.getByAccountId(currentUser.accountId());
         ProductDesignEntity design = application.getTemplateProductDesign() == null
                 ? designsService.createEmptyDesign()
                 : application.getTemplateProductDesign();
@@ -56,8 +60,8 @@ public class OrdersService {
     public Page<ClientOrderResponseDto> getOrders(Pageable pageable, ClientOrderFilter filter) {
         ClientOrderFilter effective = (filter == null) ? new ClientOrderFilter() : filter;
 
-        if (getCurrentRole() == AccountRole.CLIENT) {
-            ClientEntity client = clientsService.getByAccountId(getCurrentAccountId());
+        if (currentUser.hasRole("CLIENT")) {
+            ClientEntity client = clientsService.getByAccountId(currentUser.accountId());
             effective.setClientId(client.getId());
         }
 
@@ -122,13 +126,5 @@ public class OrdersService {
             case IN_PRODUCTION -> Set.of(ClientOrderStatus.COMPLETED).contains(to);
             case COMPLETED -> false;
         };
-    }
-
-    private AccountRole getCurrentRole() {
-        return AccountRole.CLIENT; // TODO
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
     }
 }

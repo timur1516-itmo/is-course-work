@@ -16,9 +16,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.*;
+import ru.itmo.se.is.cw.dto.filter.ClientApplicationFilter;
 import ru.itmo.se.is.cw.service.ClientApplicationsService;
 
 import java.net.URI;
@@ -47,6 +49,7 @@ public class ClientApplicationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_applications.write')")
     public ResponseEntity<ClientApplicationResponseDto> createApplication(
             @RequestBody ClientApplicationRequestDto request,
             UriComponentsBuilder uriBuilder
@@ -76,6 +79,7 @@ public class ClientApplicationsController {
                     content = @Content(schema = @Schema(implementation = Page.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_applications.read')")
     public ResponseEntity<Page<ClientApplicationResponseDto>> getApplications(
             @ParameterObject @ModelAttribute ClientApplicationFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -105,6 +109,7 @@ public class ClientApplicationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_applications.read')")
     public ResponseEntity<ClientApplicationResponseDto> getApplicationById(
             @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id
     ) {
@@ -131,6 +136,7 @@ public class ClientApplicationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_applications.attachments.write')")
     public ResponseEntity<Void> addAttachmentToApplication(
             @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id,
 
@@ -162,6 +168,7 @@ public class ClientApplicationsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_applications.attachments.read')")
     public ResponseEntity<List<FileMetadataResponseDto>> getApplicationAttachments(
             @PathVariable @Parameter(description = "Идентификатор заявки", required = true) Long id
     ) {

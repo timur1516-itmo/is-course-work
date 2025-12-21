@@ -10,7 +10,6 @@ import ru.itmo.se.is.cw.model.MaterialBalanceEntity;
 public interface MaterialBalanceMapper {
 
     @Mapping(target = "balance", expression = "java(toDouble(entity.getBalance()))")
-    @Mapping(target = "changerId", source = "changer.id")
     MaterialBalanceHistoryResponseDto.BalanceEntryDto toEntry(MaterialBalanceEntity entity);
 
     default Double toDouble(java.math.BigDecimal value) {

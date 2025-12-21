@@ -14,10 +14,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import ru.itmo.se.is.cw.dto.ClientFilter;
 import ru.itmo.se.is.cw.dto.ClientResponseDto;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
+import ru.itmo.se.is.cw.dto.filter.ClientFilter;
 import ru.itmo.se.is.cw.service.ClientsService;
 
 
@@ -54,6 +55,7 @@ public class ClientsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_clients.read')")
     public ResponseEntity<Page<ClientResponseDto>> getClients(
             @ParameterObject @ModelAttribute ClientFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
@@ -83,6 +85,7 @@ public class ClientsController {
                     )
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_clients.read')")
     public ResponseEntity<ClientResponseDto> getClientById(
             @PathVariable @Parameter(description = "Идентификатор клиента", required = true) Long id
     ) {

@@ -12,7 +12,7 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
 
     @Modifying
     @Query(value = """
-            select f_update_file_version_and_set_current(
+            call p_update_file_version_and_set_current(
                 :fileId, :bucket, :objectKey, :sizeBytes, :contentType, :creatorId
             )
             """, nativeQuery = true)

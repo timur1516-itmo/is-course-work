@@ -14,12 +14,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
-import ru.itmo.se.is.cw.dto.ProductDesignFilter;
 import ru.itmo.se.is.cw.dto.ProductDesignRequestDto;
 import ru.itmo.se.is.cw.dto.ProductDesignResponseDto;
+import ru.itmo.se.is.cw.dto.filter.ProductDesignFilter;
 import ru.itmo.se.is.cw.service.DesignsService;
 
 import java.net.URI;
@@ -49,6 +50,7 @@ public class DesignsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_designs.read')")
     public ResponseEntity<Page<ProductDesignResponseDto>> getDesigns(
             @ParameterObject @ModelAttribute ProductDesignFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
@@ -74,6 +76,7 @@ public class DesignsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_designs.read')")
     public ResponseEntity<ProductDesignResponseDto> getDesignById(
             @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id
     ) {
@@ -98,6 +101,7 @@ public class DesignsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
     public ResponseEntity<ProductDesignResponseDto> createDesign(
             @RequestBody ProductDesignRequestDto request,
             UriComponentsBuilder uriBuilder
@@ -134,6 +138,7 @@ public class DesignsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
     public ResponseEntity<ProductDesignResponseDto> updateDesign(
             @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id,
             @RequestBody ProductDesignRequestDto request
@@ -159,6 +164,7 @@ public class DesignsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
+    @PreAuthorize("hasAuthority('SCOPE_designs.delete')")
     public ResponseEntity<Void> deleteDesign(
             @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id
     ) {

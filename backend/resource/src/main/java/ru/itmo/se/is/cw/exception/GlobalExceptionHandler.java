@@ -5,6 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,6 +24,35 @@ public class GlobalExceptionHandler {
         ProblemDetail pd = ex.toProblemDetail();
         log.debug("Business error: {}", ex.getMessage());
         return ResponseEntity.status(pd.getStatus()).body(pd);
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ProblemDetail> handleAccessDenied(Exception ex) {
+        ProblemDetail pd = ProblemDetail.builder()
+                .title("Forbidden")
+                .detail("Access denied")
+                .status(403)
+                .code(ErrorCode.FORBIDDEN)
+                .build();
+
+        log.debug("Access denied: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatusCode.valueOf(pd.getStatus())).body(pd);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ProblemDetail> handleAuth(AuthenticationException ex) {
+        ProblemDetail pd = ProblemDetail.builder()
+                .title("Unauthorized")
+                .detail("Access denied")
+                .status(401)
+                .code(ErrorCode.UNAUTHORIZED)
+                .build();
+
+        log.debug("Unauthorized: {}", ex.getMessage());
+        pd.setStatus(401);
+        pd.setTitle("Unauthorized");
+        pd.setDetail(ex.getMessage());
+        return ResponseEntity.status(401).body(pd);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)

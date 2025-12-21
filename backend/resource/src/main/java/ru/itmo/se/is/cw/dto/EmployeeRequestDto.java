@@ -2,7 +2,7 @@ package ru.itmo.se.is.cw.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import ru.itmo.se.is.cw.model.value.AccountRole;
+import ru.itmo.se.is.cw.model.value.EmployeeRole;
 
 @Data
 @Schema(description = "Запрос на создание сотрудника")
@@ -20,5 +20,5 @@ public class EmployeeRequestDto {
     private String lastName;
 
     @Schema(description = "Роль сотрудника")
-    private AccountRole role;
+    private EmployeeRole role;
 }

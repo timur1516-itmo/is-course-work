@@ -3,10 +3,8 @@ BEGIN;
 -- 1. Общие индексы по внешним ключам
 
 -- USERS
-CREATE INDEX idx_employee_account_id ON employee (account_id);
 CREATE INDEX idx_employee_person_id  ON employee (person_id);
 CREATE INDEX idx_client_person_id    ON client (person_id);
-CREATE INDEX idx_client_account_id   ON client (account_id);
 
 -- FILES
 CREATE INDEX idx_file_owner_id          ON file (owner_id);

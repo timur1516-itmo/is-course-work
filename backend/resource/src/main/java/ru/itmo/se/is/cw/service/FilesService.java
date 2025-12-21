@@ -7,16 +7,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import ru.itmo.se.is.cw.conf.StorageConfigProperties;
 import ru.itmo.se.is.cw.dto.FileMetadataResponseDto;
-import ru.itmo.se.is.cw.dto.FileVersion;
+import ru.itmo.se.is.cw.dto.FileVersionResponseDto;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.FileMapper;
 import ru.itmo.se.is.cw.mapper.FileVersionMapper;
-import ru.itmo.se.is.cw.model.AccountEntity;
 import ru.itmo.se.is.cw.model.FileEntity;
 import ru.itmo.se.is.cw.model.FileVersionEntity;
-import ru.itmo.se.is.cw.repository.AccountRepository;
 import ru.itmo.se.is.cw.repository.FileRepository;
 import ru.itmo.se.is.cw.repository.FileVersionRepository;
+import ru.itmo.se.is.cw.security.CurrentUser;
 import ru.itmo.se.is.cw.storage.FileStorage;
 
 import java.io.InputStream;
@@ -31,12 +30,12 @@ public class FilesService {
 
     private final FileRepository fileRepository;
     private final FileVersionRepository fileVersionRepository;
-    private final AccountRepository accountRepository;
     private final FileStorage storage;
     private final FileMapper fileMapper;
     private final FileVersionMapper fileVersionMapper;
     private final StorageConfigProperties storageProperties;
-    EntityManager em;
+    private final EntityManager em;
+    private final CurrentUser currentUser;
 
     @Transactional
     public FileMetadataResponseDto uploadFile(MultipartFile file) {
@@ -44,15 +43,12 @@ public class FilesService {
             throw new IllegalArgumentException("File must not be empty");
         }
 
-        Long accountId = getCurrentAccountId();
-        AccountEntity account = accountRepository
-                .findById(accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Account with id  " + accountId + " not found"));
+        Long accountId = currentUser.accountId();
 
         FileEntity entity = new FileEntity();
         entity.setFilename(Objects.requireNonNullElse(file.getOriginalFilename(), "file"));
         entity.setContentType(Objects.requireNonNullElse(file.getContentType(), "application/octet-stream"));
-        entity.setOwner(account);
+        entity.setOwnerId(accountId);
         entity = fileRepository.save(entity);
 
         String objectKey = buildObjectKey(entity.getId(), entity.getFilename());
@@ -82,7 +78,7 @@ public class FilesService {
     }
 
     @Transactional(readOnly = true)
-    public List<FileVersion> getFileVersions(Long id) {
+    public List<FileVersionResponseDto> getFileVersions(Long id) {
         getById(id);
         return fileVersionRepository.findByFileIdOrderByUploadedAtDesc(id)
                 .stream()
@@ -91,7 +87,7 @@ public class FilesService {
     }
 
     @Transactional
-    public FileVersion uploadNewFileVersion(Long id, MultipartFile file) {
+    public FileVersionResponseDto uploadNewFileVersion(Long id, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File must not be empty");
         }
@@ -99,7 +95,7 @@ public class FilesService {
         FileEntity entity = getById(id);
         assertNotDeleted(entity);
 
-        Long accountId = getCurrentAccountId();
+        Long accountId = currentUser.accountId();
 
         String contentType = Objects.requireNonNullElse(file.getContentType(), entity.getContentType());
         String objectKey = buildObjectKey(entity.getId(), Objects.requireNonNullElse(file.getOriginalFilename(), entity.getFilename()));
@@ -185,10 +181,6 @@ public class FilesService {
     private String buildObjectKey(Long fileId, String filename) {
         String safeName = (filename == null ? "file" : filename).replaceAll("[^a-zA-Z0-9._-]", "_");
         return "files/" + fileId + "/" + UUID.randomUUID() + "_" + safeName;
-    }
-
-    private Long getCurrentAccountId() {
-        return 1L; // TODO
     }
 }
 
