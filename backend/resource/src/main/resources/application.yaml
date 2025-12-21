@@ -39,6 +39,8 @@ springdoc:
   default-produces-media-type: application/json
 
 app:
+  feign:
+    auth-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
   security:
     oauth2:
       authorization-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/authorize

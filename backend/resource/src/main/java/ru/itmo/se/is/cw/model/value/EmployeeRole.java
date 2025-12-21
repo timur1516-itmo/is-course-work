@@ -5,5 +5,6 @@ public enum EmployeeRole {
     CONSTRUCTOR,
     CNC_OPERATOR,
     WAREHOUSE_WORKER,
-    SUPPLY_MANAGER
+    SUPPLY_MANAGER,
+    ADMIN
 }

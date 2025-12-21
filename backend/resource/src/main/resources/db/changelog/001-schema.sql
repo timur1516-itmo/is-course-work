@@ -18,7 +18,8 @@ CREATE TABLE employee
                         'CONSTRUCTOR',
                         'CNC_OPERATOR',
                         'WAREHOUSE_WORKER',
-                        'SUPPLY_MANAGER'
+                        'SUPPLY_MANAGER',
+                        'ADMIN'
             )),
     CONSTRAINT fk_employee_person
         FOREIGN KEY (person_id) REFERENCES person (id) ON DELETE RESTRICT

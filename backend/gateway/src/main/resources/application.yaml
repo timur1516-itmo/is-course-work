@@ -11,7 +11,7 @@ spring:
         registration:
           gateway:
             client-id: ${AUTH_GATEWAY_CLIENT_ID:gateway}
-            client-secret: ${GATEWAY_CLIENT_SECRET:secret}
+            client-secret: ${AUTH_GATEWAY_CLIENT_SECRET:secret}
             scope:
               - openid
               - profile

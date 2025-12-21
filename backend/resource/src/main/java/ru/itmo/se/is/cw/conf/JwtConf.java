@@ -27,7 +27,8 @@ public class JwtConf {
                     "orders.conversation.read",
                     "orders.read",
                     "files.read",
-                    "files.write"
+                    "files.write",
+                    "catalog.read"
             ),
             "SALES_MANAGER", Set.of(
                     "orders.read",

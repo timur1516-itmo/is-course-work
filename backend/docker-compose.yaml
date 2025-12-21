@@ -34,8 +34,8 @@ services:
 
   auth:
     build:
-      context: .
-      dockerfile: auth/Dockerfile
+      context: ./auth
+      dockerfile: Dockerfile
     env_file: .env
     depends_on:
       db:
@@ -45,8 +45,8 @@ services:
 
   resource:
     build:
-      context: .
-      dockerfile: resource/Dockerfile
+      context: ./resource
+      dockerfile: Dockerfile
     env_file: .env
     depends_on:
       db:
@@ -58,8 +58,8 @@ services:
 
   gateway:
     build:
-      context: .
-      dockerfile: gateway/Dockerfile
+      context: ./gateway
+      dockerfile: Dockerfile
     env_file: .env
     depends_on:
       auth:
