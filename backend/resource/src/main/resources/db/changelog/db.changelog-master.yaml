@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-schema
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/001-schema.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
+
+  - changeSet:
+      id: 002-indexes
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/002-indexes.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
+
+  - changeSet:
+      id: 003-functions
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/003-functions.sql
+            relativeToChangelogFile: false
+            splitStatements: false
+            stripComments: false

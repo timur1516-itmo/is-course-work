@@ -1,0 +1,47 @@
+server:
+  port: ${RESOURCE_PORT:8082}
+  servlet:
+    context-path: /resource
+
+spring:
+
+  application:
+    name: resource
+
+  security:
+    oauth2:
+      resource-server:
+        jwt:
+          issuer-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laserworks}
+    username: ${POSTGRES_USER:laserworks}
+    password: ${POSTGRES_PASSWORD:laserworks}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+minio:
+  url: http://${MINIO_HOST:localhost}:${MINIO_PORT:9000}
+  accessKey: ${MINIO_ROOT_USER:minioadmin}
+  secretKey: ${MINIO_ROOT_PASSWORD:minioadmin}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    oauth:
+      client-id: ${AUTH_SWAGGER_CLIENT_ID:swagger}
+      use-pkce-with-authorization-code-grant: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+app:
+  feign:
+    auth-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+  security:
+    oauth2:
+      authorization-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/authorize
+      token-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/token

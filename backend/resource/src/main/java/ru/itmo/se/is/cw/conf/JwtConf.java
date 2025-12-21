@@ -1,0 +1,119 @@
+package ru.itmo.se.is.cw.conf;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+@Configuration
+public class JwtConf {
+
+    private static final Map<String, Set<String>> ROLE_TO_SCOPES = Map.of(
+            "CLIENT", Set.of(
+                    "applications.read",
+                    "applications.write",
+                    "applications.attachments.read",
+                    "applications.attachments.write",
+                    "conversations.messages.read",
+                    "conversations.messages.write",
+                    "orders.conversation.read",
+                    "orders.read",
+                    "files.read",
+                    "files.write",
+                    "catalog.read"
+            ),
+            "SALES_MANAGER", Set.of(
+                    "orders.read",
+                    "orders.write",
+                    "orders.status.write",
+                    "orders.price.write",
+                    "clients.read",
+                    "applications.read",
+                    "applications.attachments.read",
+                    "conversations.messages.read",
+                    "conversations.messages.write",
+                    "orders.conversation.read",
+                    "files.read",
+                    "files.write"
+            ),
+            "CONSTRUCTOR", Set.of(
+                    "designs.read",
+                    "designs.write",
+                    "orders.read",
+                    "files.read",
+                    "files.write"
+            ),
+            "CNC_OPERATOR", Set.of(
+                    "production.read",
+                    "production.execute",
+                    "materials.read",
+                    "orders.read",
+                    "files.read"
+            ),
+            "WAREHOUSE_WORKER", Set.of(
+                    "materials.read",
+                    "materials.balance.write",
+                    "po.read",
+                    "po.receive"
+            ),
+            "SUPPLY_MANAGER", Set.of(
+                    "materials.read",
+                    "materials.write",
+                    "materials.balance.write",
+                    "orders.read",
+                    "orders.materials.read",
+                    "po.read",
+                    "po.write",
+                    "po.receive",
+                    "catalog.read"
+            ),
+            "ADMIN", Set.of(
+                    "materials.read", "materials.write", "materials.balance.write", "materials.delete",
+                    "catalog.read", "catalog.write", "catalog.delete",
+                    "po.read", "po.write", "po.receive",
+                    "production.read", "production.execute",
+                    "orders.read", "orders.write", "orders.status.write", "orders.price.write", "orders.conversation.read", "orders.materials.read",
+                    "clients.read",
+                    "designs.read", "designs.write", "designs.delete",
+                    "employees.read", "employees.write",
+                    "conversations.messages.read", "conversations.messages.write", "conversations.patricipants.read",
+                    "files.read", "files.write", "files.delete",
+                    "applications.read", "applications.write",
+                    "applications.attachments.read", "applications.attachments.write"
+            )
+    );
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter base = new JwtGrantedAuthoritiesConverter();
+        base.setAuthoritiesClaimName("roles");
+        base.setAuthorityPrefix("");
+
+        JwtAuthenticationConverter conv = new JwtAuthenticationConverter();
+        conv.setJwtGrantedAuthoritiesConverter(jwt -> {
+            Set<GrantedAuthority> roles = new HashSet<>(base.convert(jwt));
+
+            Set<GrantedAuthority> scopes = roles.stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .map(roleName -> roleName.substring("ROLE_".length()))
+                    .flatMap(roleName -> ROLE_TO_SCOPES.getOrDefault(roleName, Set.of()).stream())
+                    .map(scopeName -> "SCOPE_" + scopeName)
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toSet());
+
+            return Stream
+                    .concat(roles.stream(), scopes.stream())
+                    .collect(Collectors.toSet());
+        });
+
+        return conv;
+    }
+}
