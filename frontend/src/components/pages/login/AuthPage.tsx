@@ -3,21 +3,12 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import {useTranslation} from "react-i18next";
 import type {TFunction} from "i18next";
-import {useSearchParams, useNavigate} from "react-router-dom";
+import {useSearchParams} from "react-router-dom";
 import { authService, extractApiError } from "../../../services/api";
 
 type AuthMode = "login" | "register" | "reset";
 
 const PASSWORD_REGEX = /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/;
-
-const getLoginSchema = (t: TFunction) => Yup.object({
-  identifier: Yup.string()
-    .required(t("auth.requiredField")),
-  password: Yup.string()
-    .required(t("auth.inputPassword"))
-    .min(8, t("auth.minLength"))
-    .matches(PASSWORD_REGEX, t("auth.invalidPassword")),
-});
 
 const getRegisterSchema = (t: TFunction) => Yup.object({
   firstName: Yup.string().required(t("auth.enterName")),
@@ -43,14 +34,12 @@ const getResetSchema = (t: TFunction) => Yup.object({
 
 function AuthPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlMode = searchParams.get("mode");
   const [mode, setMode] = useState<AuthMode>(
     urlMode === "register" ? "register" : "login"
   );
   // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,8 +48,6 @@ function AuthPage() {
   const isRegister: boolean = mode === "register";
   const isReset: boolean = mode === "reset";
 
-
-  const loginSchema = useMemo(() => getLoginSchema(t), [t]);
   const registerSchema = useMemo(() => getRegisterSchema(t), [t]);
   const resetSchema = useMemo(() => getResetSchema(t), [t]);
 
@@ -103,91 +90,32 @@ function AuthPage() {
 
           <div className="mt-2">
             {isLogin && (
-              <Formik
-                key="login"
-                initialValues={{ identifier: "", password: "" }}
-                validationSchema={loginSchema}
-                onSubmit={async (values) => {
-                  try {
-                    setLoading(true);
-                    setError(null);
-                    await authService.login({
-                      username: values.identifier,
-                      password: values.password,
-                    });
-                    navigate("/", { replace: true });
-                  } catch (err) {
-                    const apiError = extractApiError(err);
-                    setError(apiError.message || t("auth.loginError"));
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-              >
-                {({ isSubmitting }) => (
-                  <Form className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">
-                        {t("auth.emailOrPhone")}
-                      </label>
-                      <Field
-                        name="identifier"
-                        type="text"
-                        autoComplete="username"
-                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                        placeholder="example@domain.com / +7 999 000 00 00"
-                      />
-                      <div className="min-h-[18px]">
-                        <ErrorMessage
-                          name="identifier"
-                          component="div"
-                          className="mt-1 text-xs text-red-400"
-                        />
-                      </div>
-                    </div>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-300">
+                    {t("auth.signInAccount")}
+                  </p>
 
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">
-                        {t("auth.password")}
-                      </label>
-                      <Field
-                        name="password"
-                        type="password"
-                        autoComplete="current-password"
-                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                        placeholder={t("auth.inputPassword")}
-                      />
-                      <div className="min-h-[18px]">
-                        <ErrorMessage
-                          name="password"
-                          component="div"
-                          className="mt-1 text-xs text-red-400"
-                        />
+                  {error && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
+                        {error}
                       </div>
+                  )}
 
-                      <div className="mt-1 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={(): void => setMode("reset")}
-                          className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
-                        >
-                          {t("auth.forgotPassword")}
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmitting || loading}
+                  <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => {
+                        setLoading(true);
+                        setError(null);
+                        // BFF login = redirect
+                        authService.login();
+                      }}
                       className="mt-4 w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-70"
-                    >
-                      {loading ? t("auth.loggingIn") : t("login")}
-                    </button>
-                  </Form>
-                )}
-              </Formik>
+                  >
+                    {loading ? t("auth.loggingIn") : t("auth.signIn")}
+                  </button>
+                </div>
             )}
-
             {isRegister && (
               <Formik
                 key="register"

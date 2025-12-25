@@ -1,33 +1,37 @@
-import axios, {type AxiosInstance, AxiosError } from 'axios';
+import axios, {AxiosError, type AxiosInstance} from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/resource';
+export const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || 'http://localhost:8080';
+
+const API_BASE_URL = `${GATEWAY_BASE_URL}/resource`;
+
+export const LOGIN_URL = `${GATEWAY_BASE_URL}/oauth2/authorization/gateway`;
+
+export const gatewayClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+let redirectingToLogin = false;
 
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      window.location.href = '/auth?mode=login';
+      if (!redirectingToLogin)
+        redirectingToLogin = true;
+      const returnTo = window.location.href;
+      window.location.href = `${LOGIN_URL}?returnTo=${encodeURIComponent(returnTo)}`;
     }
     return Promise.reject(error);
   }

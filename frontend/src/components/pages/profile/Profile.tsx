@@ -48,32 +48,46 @@ function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate("/auth?mode=login", { state: { from: "/profile" } });
-      return;
-    }
+    let alive = true;
 
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const [ordersData, userData] = await Promise.all([
-          ordersService.getOrders(),
-          authService.getCurrentUser(),
-        ]);
-        
+
+        // 1) проверяем сессию через /me
+        const userData = await authService.getCurrentUser();
+
+        if (!alive) return;
+
+        // 2) параллельно грузим заказы (после того как точно есть юзер)
+        const ordersData = await ordersService.getOrders();
+
+        if (!alive) return;
+
         setOrders(ordersData);
         setCurrentUser(userData);
-      } catch (err) {
+      } catch (err: any) {
+        if (!alive) return;
+
+        // если не залогинен — запускаем oauth2 login через gateway
+        if (err?.status === 401) {
+          authService.login();
+          return;
+        }
+
         const apiError = extractApiError(err);
-        setError(apiError.message || 'Ошибка загрузки данных');
+        setError(apiError.message || "Ошибка загрузки данных");
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     };
-    
+
     loadData();
+
+    return () => {
+      alive = false;
+    };
   }, [navigate]);
 
   const currentOrders = orders.filter(
@@ -84,8 +98,8 @@ function ProfilePage() {
   );
 
   const profileInitialValues = {
-    firstName: currentUser?.client?.person?.firstName || currentUser?.person?.firstName || "",
-    lastName: currentUser?.client?.person?.lastName || currentUser?.person?.lastName || "",
+    firstName: currentUser?.client?.person?.firstName || currentUser?.employee?.person?.firstName || "",
+    lastName: currentUser?.client?.person?.lastName || currentUser?.employee?.person?.lastName || "",
     email: currentUser?.client?.email || "",
     phoneNumber: currentUser?.client?.phoneNumber || "",
   };

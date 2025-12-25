@@ -1,5 +1,12 @@
 server:
   port: ${GATEWAY_PORT:8080}
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
 
 spring:
   application:
@@ -12,21 +19,36 @@ spring:
           gateway:
             client-id: ${AUTH_GATEWAY_CLIENT_ID:gateway}
             client-secret: ${AUTH_GATEWAY_CLIENT_SECRET:secret}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope:
               - openid
               - profile
         provider:
           gateway:
-            issuer-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+            authorization-uri: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/auth/oauth2/authorize
+            token-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/auth/oauth2/token
+            jwk-set-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/auth/oauth2/jwks
+            user-info-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/auth/userinfo
+            user-name-attribute: sub
 
   cloud:
     gateway:
       server:
         webmvc:
           routes:
-          - id: resource-service
-            uri: http://${RESOURCE_HOST:localhost}:${RESOURCE_PORT:8082}
-            predicates:
-              - Path=/resource/**
-            filters:
-              - TokenRelay=
+            - id: auth-service
+              uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+              predicates:
+                - Path=/auth/**
+              filters:
+                - AddRequestHeader=X-Forwarded-Proto,http
+                - AddRequestHeader=X-Forwarded-Host,${GATEWAY_HOST:localhost}
+                - AddRequestHeader=X-Forwarded-Port,${GATEWAY_PORT:8080}
+
+            - id: resource-service
+              uri: http://${RESOURCE_HOST:localhost}:${RESOURCE_PORT:8082}
+              predicates:
+                - Path=/resource/**
+              filters:
+                - TokenRelay=

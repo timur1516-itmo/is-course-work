@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { employeesService, authService, extractApiError, type AccountRole } from "../../../services/api";
-import type { EmployeeResponseDto, EmployeeRequestDto } from "../../../services/api/types";
+import type { EmployeeResponseDto, EmployeeRequestDto } from "../../../services/api";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 
@@ -29,12 +29,43 @@ function AdminDashboard() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    const role = authService.getRole();
-    if (role !== 'ADMIN') {
-      navigate('/auth', { replace: true });
-      return;
-    }
-    loadEmployees();
+    let alive = true;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const me = await authService.getCurrentUser();
+
+        if (!alive) return;
+
+        if (me.role !== 'ADMIN') {
+          // не админ — уводим (выбери куда тебе логичнее)
+          navigate('/', { replace: true });
+          return;
+        }
+
+        await loadEmployees();
+      } catch (err: any) {
+        if (!alive) return;
+
+        // если не залогинен — запускаем oauth2 login через gateway
+        if (err?.status === 401) {
+          authService.login();
+          return;
+        }
+
+        const apiError = extractApiError(err);
+        setError(apiError.message || 'Ошибка проверки авторизации');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, [selectedRole, navigate]);
 
   const loadEmployees = async () => {

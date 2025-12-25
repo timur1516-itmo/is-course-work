@@ -3,6 +3,12 @@ server:
   servlet:
     context-path: /resource
 
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
+
 spring:
 
   application:
@@ -12,7 +18,7 @@ spring:
     oauth2:
       resource-server:
         jwt:
-          issuer-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+          issuer-uri: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/auth
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laserworks}
@@ -35,13 +41,16 @@ springdoc:
     oauth:
       client-id: ${AUTH_SWAGGER_CLIENT_ID:swagger}
       use-pkce-with-authorization-code-grant: true
+    oauth2-redirect-url: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/resource/swagger-ui/oauth2-redirect.html
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
 
 app:
   feign:
-    auth-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}
+    auth-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/auth
+  swagger:
+    server-url: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/resource
   security:
     oauth2:
-      authorization-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/authorize
-      token-url: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/oauth2/token
+      authorization-url: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/auth/oauth2/authorize
+      token-url: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/auth/oauth2/token
