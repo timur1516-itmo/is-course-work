@@ -22,7 +22,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public void register(ClientRegistrationRequestDto request) {
+    public AccountRegistrationResponseDto register(ClientRegistrationRequestDto request) {
         if (accountRepository.existsByUsername(request.getUsername())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username exists");
         }
@@ -31,11 +31,19 @@ public class AuthService {
         a.setPassword(passwordEncoder.encode(request.getPassword()));
         a.setEnabled(true);
         a.setRole(AccountRole.CLIENT);
-        accountRepository.save(a);
+        a = accountRepository.save(a);
+        AccountRegistrationResponseDto response = new AccountRegistrationResponseDto();
+        response.setAccountId(a.getId());
+        return response;
     }
 
     @Transactional
     public AccountRegistrationResponseDto createAccount(AccountRegistrationRequestDto request) {
+
+        if (accountRepository.existsByUsername(request.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username exists");
+        }
+
         AccountEntity a = new AccountEntity();
         a.setUsername(request.getUsername());
         a.setPassword(passwordEncoder.encode(request.getPassword()));

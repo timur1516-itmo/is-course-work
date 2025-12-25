@@ -32,7 +32,7 @@ public class EmployeesService {
         AccountRequestDto accountRequestDto = new AccountRequestDto();
         accountRequestDto.setPassword(request.getPassword());
         accountRequestDto.setUsername(request.getUsername());
-        accountRequestDto.setRole(request.getRole());
+        accountRequestDto.setRole(request.getRole().name());
 
         AccountResponseDto responseDto = accountClient.createAccount(accountRequestDto);
 

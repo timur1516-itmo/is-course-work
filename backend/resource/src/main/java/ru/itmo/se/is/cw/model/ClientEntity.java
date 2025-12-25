@@ -19,7 +19,7 @@ public class ClientEntity {
     @Column(name = "email", nullable = false, length = 50)
     private String email;
 
-    @OneToOne(optional = false)
+    @OneToOne(optional = false, cascade = CascadeType.ALL)
     @OnDelete(action = OnDeleteAction.RESTRICT)
     @JoinColumn(name = "person_id", nullable = false)
     private PersonEntity person;

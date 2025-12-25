@@ -44,11 +44,10 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
-    public ResponseEntity<Void> register(
+    public ResponseEntity<AccountRegistrationResponseDto> register(
             @RequestBody ClientRegistrationRequestDto request
     ) {
-        authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
     @PostMapping("/verify-email")
