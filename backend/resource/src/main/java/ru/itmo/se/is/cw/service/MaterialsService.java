@@ -22,7 +22,6 @@ import ru.itmo.se.is.cw.model.MaterialEntity;
 import ru.itmo.se.is.cw.repository.MaterialBalanceRepository;
 import ru.itmo.se.is.cw.repository.MaterialConsumptionRepository;
 import ru.itmo.se.is.cw.repository.MaterialRepository;
-import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -40,7 +39,7 @@ public class MaterialsService {
     private final MaterialMapper materialMapper;
     private final MaterialConsumptionMapper materialConsumptionMapper;
     private final MaterialBalanceHistoryMapper materialBalanceHistoryMapper;
-    private final CurrentUser currentUser;
+    private final CurrentUserService currentUserService;
 
     @Transactional(readOnly = true)
     public Page<MaterialResponseDto> getMaterials(Pageable pageable, MaterialFilter filter) {
@@ -99,7 +98,7 @@ public class MaterialsService {
         materialRepository.updateBalanceAndSetCurrent(
                 materialId,
                 toBigDecimal(newBalance),
-                currentUser.accountId()
+                currentUserService.getAccountId()
         );
 
         em.refresh(material);

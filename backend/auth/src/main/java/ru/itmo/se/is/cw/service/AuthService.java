@@ -6,12 +6,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import ru.itmo.se.is.cw.dto.AccountRegistrationRequestDto;
-import ru.itmo.se.is.cw.dto.AccountRegistrationResponseDto;
-import ru.itmo.se.is.cw.dto.ClientRegistrationRequestDto;
+import ru.itmo.se.is.cw.dto.AccountRequestDto;
+import ru.itmo.se.is.cw.dto.AccountResponseDto;
+import ru.itmo.se.is.cw.dto.UpdatePasswordRequestDto;
 import ru.itmo.se.is.cw.dto.VerifyEmailRequestDto;
+import ru.itmo.se.is.cw.mapper.AccountMapper;
 import ru.itmo.se.is.cw.model.AccountEntity;
-import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.AccountRepository;
 
 @Service
@@ -20,45 +20,52 @@ public class AuthService {
 
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccountMapper accountMapper;
 
     @Transactional
-    public AccountRegistrationResponseDto register(ClientRegistrationRequestDto request) {
-        if (accountRepository.existsByUsername(request.getUsername())) {
+    public AccountResponseDto createAccount(AccountRequestDto request) {
+        if (accountRepository.existsByUsername(request.getUsername()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username exists");
-        }
-        AccountEntity a = new AccountEntity();
-        a.setUsername(request.getUsername());
-        a.setPassword(passwordEncoder.encode(request.getPassword()));
-        a.setEnabled(true);
-        a.setRole(AccountRole.CLIENT);
-        a = accountRepository.save(a);
-        AccountRegistrationResponseDto response = new AccountRegistrationResponseDto();
-        response.setAccountId(a.getId());
-        return response;
+        AccountEntity account = accountMapper.toEntity(request);
+        account.setPassword(passwordEncoder.encode(request.getPassword()));
+        account.setEnabled(false);
+        return accountMapper.toDto(accountRepository.save(account));
     }
 
     @Transactional
-    public AccountRegistrationResponseDto createAccount(AccountRegistrationRequestDto request) {
+    public void updatePassword(Long id, UpdatePasswordRequestDto request) {
+        AccountEntity account = getById(id);
+        if (!passwordEncoder.matches(request.getOldPassword(), account.getPassword()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Old password is incorrect");
+        account.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        accountRepository.save(account);
+    }
 
-        if (accountRepository.existsByUsername(request.getUsername())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username exists");
-        }
+    @Transactional
+    public void enableAccount(Long id) {
+        AccountEntity account = getById(id);
+        account.setEnabled(true);
+        accountRepository.save(account);
+    }
 
-        AccountEntity a = new AccountEntity();
-        a.setUsername(request.getUsername());
-        a.setPassword(passwordEncoder.encode(request.getPassword()));
-        a.setRole(request.getRole());
-        a.setEnabled(true);
+    @Transactional
+    public void disableAccount(Long id) {
+        AccountEntity account = getById(id);
+        account.setEnabled(false);
+        accountRepository.save(account);
+    }
 
-        a = accountRepository.save(a);
-        AccountRegistrationResponseDto response = new AccountRegistrationResponseDto();
-        response.setAccountId(a.getId());
-        return response;
+    @Transactional(readOnly = true)
+    public AccountEntity getById(Long id) {
+        return accountRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Account with id " + id + " not found")
+                );
     }
 
     @Transactional
     public void verifyEmail(VerifyEmailRequestDto request) {
         // TODO: проверить токен, активировать аккаунт
     }
-
 }

@@ -52,3 +52,7 @@ spring:
                 - Path=/resource/**
               filters:
                 - TokenRelay=
+
+app:
+  cors:
+    allowed-origins: http://${SPA_HOST:localhost}:${SPA_PORT:5173}

@@ -4,30 +4,39 @@ import feign.RequestInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.oauth2.client.*;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 
 @Configuration
 public class FeignConfig {
     @Bean
-    public RequestInterceptor oauth2FeignRequestInterceptor() {
-        return template -> {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null) return;
+    public RequestInterceptor oauth2FeignRequestInterceptor(OAuth2AuthorizedClientManager manager) {
+        return requestTemplate -> {
+            OAuth2AuthorizeRequest authorizeRequest =
+                    OAuth2AuthorizeRequest.withClientRegistrationId("resource")
+                            .principal("internal")
+                            .build();
 
-            String token = null;
+            OAuth2AuthorizedClient client =
+                    manager.authorize(authorizeRequest);
 
-            if (auth instanceof JwtAuthenticationToken jwt) {
-                token = jwt.getToken().getTokenValue();
-            } else if (auth instanceof BearerTokenAuthentication bearer) {
-                token = bearer.getToken().getTokenValue();
-            }
-
-            if (token != null && !token.isBlank()) {
-                template.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
-            }
+            assert client != null;
+            String token = client.getAccessToken().getTokenValue();
+            requestTemplate.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         };
+    }
+
+    @Bean
+    public OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager(
+            ClientRegistrationRepository registrations,
+            OAuth2AuthorizedClientService authorizedClientService
+    ) {
+        OAuth2AuthorizedClientProvider provider = OAuth2AuthorizedClientProviderBuilder.builder()
+                .clientCredentials()
+                .build();
+
+        var manager = new AuthorizedClientServiceOAuth2AuthorizedClientManager(registrations, authorizedClientService);
+        manager.setAuthorizedClientProvider(provider);
+        return manager;
     }
 }

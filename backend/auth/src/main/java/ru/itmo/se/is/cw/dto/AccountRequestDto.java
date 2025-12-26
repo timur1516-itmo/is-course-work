@@ -5,7 +5,7 @@ import ru.itmo.se.is.cw.model.value.AccountRole;
 
 @Data
 public class AccountRequestDto {
-    String username;
-    String password;
-    AccountRole role;
+    private String username;
+    private String password;
+    private AccountRole role;
 }

@@ -15,9 +15,9 @@ import ru.itmo.se.is.cw.dto.specification.ClientOrderSpecification;
 import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ClientOrderMapper;
 import ru.itmo.se.is.cw.model.*;
+import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.model.value.ClientOrderStatus;
 import ru.itmo.se.is.cw.repository.ClientOrderRepository;
-import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -33,12 +33,12 @@ public class OrdersService {
     private final EntityManager em;
     private final ClientOrderMapper clientOrderMapper;
     private final ClientsService clientsService;
-    private final CurrentUser currentUser;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public ClientOrderResponseDto createOrder(CreateOrderRequestDto request) {
         ClientApplicationEntity application = clientApplicationsService.getById(request.getClientApplicationId());
-        EmployeeEntity manager = employeesService.getByAccountId(currentUser.accountId());
+        EmployeeEntity manager = employeesService.getByAccountId(currentUserService.getAccountId());
         ProductDesignEntity design = application.getTemplateProductDesign() == null
                 ? designsService.createEmptyDesign()
                 : application.getTemplateProductDesign();
@@ -60,8 +60,8 @@ public class OrdersService {
     public Page<ClientOrderResponseDto> getOrders(Pageable pageable, ClientOrderFilter filter) {
         ClientOrderFilter effective = (filter == null) ? new ClientOrderFilter() : filter;
 
-        if (currentUser.hasRole("CLIENT")) {
-            ClientEntity client = clientsService.getByAccountId(currentUser.accountId());
+        if (currentUserService.hasRole(AccountRole.CLIENT)) {
+            ClientEntity client = clientsService.getByAccountId(currentUserService.getAccountId());
             effective.setClientId(client.getId());
         }
 

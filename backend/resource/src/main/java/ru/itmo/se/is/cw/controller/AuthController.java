@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -14,17 +15,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.itmo.se.is.cw.dto.ClientRegistrationRequestDto;
-import ru.itmo.se.is.cw.service.RegistrationService;
+import ru.itmo.se.is.cw.service.ClientsService;
 
 @RestController
 @Tag(name = "Auth", description = "Регистрация клиентов")
 @RequestMapping("/register")
-public class RegistrationController {
-    private final RegistrationService registrationService;
+@RequiredArgsConstructor
+public class AuthController {
 
-    public RegistrationController(RegistrationService registrationService) {
-        this.registrationService = registrationService;
-    }
+    private final ClientsService clientsService;
 
     @PostMapping
     @Operation(
@@ -45,7 +44,7 @@ public class RegistrationController {
     public ResponseEntity<Void> register(
             @RequestBody ClientRegistrationRequestDto request
     ) {
-        registrationService.register(request);
+        clientsService.registerClient(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

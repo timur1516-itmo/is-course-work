@@ -17,17 +17,18 @@ public class LoginConfig {
     SecurityFilterChain jsonLoginChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults())
+                .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers(
-                                "/v3/api-docs", "/v3/api-docs/**",
-                                "/v3/api-docs.yaml", "/swagger-ui/**"
-                        ).permitAll()
-                        .requestMatchers("/register", "/error").permitAll()
-                        .requestMatchers("/users").hasRole("ADMIN")
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/login.html", "/css/**", "/js/**", "/assets/**").permitAll()
+                        .requestMatchers("/accounts/**").hasAuthority("SCOPE_internal")
                         .anyRequest().authenticated()
                 )
-                .formLogin(Customizer.withDefaults())
+                .formLogin(f -> f
+                        .loginPage("/login.html")
+                        .loginProcessingUrl("/login")
+                        .permitAll()
+                )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(Customizer.withDefaults())
                 );

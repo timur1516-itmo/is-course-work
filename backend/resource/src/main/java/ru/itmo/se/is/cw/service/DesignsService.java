@@ -16,7 +16,6 @@ import ru.itmo.se.is.cw.mapper.ProductDesignMapper;
 import ru.itmo.se.is.cw.mapper.RequiredMaterialMapper;
 import ru.itmo.se.is.cw.model.ProductDesignEntity;
 import ru.itmo.se.is.cw.repository.ProductDesignRepository;
-import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,7 +31,7 @@ public class DesignsService {
     private final FilesService filesService;
     private final ProductDesignFileMapper productDesignFileMapper;
     private final EmployeesService employeesService;
-    private final CurrentUser currentUser;
+    private final CurrentUserService currentUserService;
 
     @Transactional(readOnly = true)
     public ProductDesignResponseDto getDesignById(Long id) {
@@ -45,7 +44,7 @@ public class DesignsService {
         applyFiles(design, request.getFileIds());
         applyRequiredMaterials(design, request.getRequiredMaterials());
         design.setConstructor(
-                employeesService.getByAccountId(currentUser.accountId())
+                employeesService.getByAccountId(currentUserService.getAccountId())
         );
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)
@@ -66,7 +65,7 @@ public class DesignsService {
         applyFiles(design, request.getFileIds());
         applyRequiredMaterials(design, request.getRequiredMaterials());
         design.setConstructor(
-                employeesService.getByAccountId(currentUser.accountId())
+                employeesService.getByAccountId(currentUserService.getAccountId())
         );
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)

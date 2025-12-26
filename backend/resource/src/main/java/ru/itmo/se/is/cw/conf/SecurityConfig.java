@@ -14,11 +14,13 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
-                                "/swagger-ui.html", "/swagger-ui/**", "/register"
+                                "/v3/api-docs", "/v3/api-docs/**",
+                                "/v3/api-docs.yaml", "/swagger-ui/**"
                         ).permitAll()
+                        .requestMatchers("/register").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()))

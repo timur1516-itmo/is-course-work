@@ -19,9 +19,9 @@ import ru.itmo.se.is.cw.model.ClientApplicationAttachmentEntity;
 import ru.itmo.se.is.cw.model.ClientApplicationEntity;
 import ru.itmo.se.is.cw.model.ClientEntity;
 import ru.itmo.se.is.cw.model.FileEntity;
+import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.ClientApplicationAttachmentRepository;
 import ru.itmo.se.is.cw.repository.ClientApplicationRepository;
-import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 import java.util.Objects;
@@ -38,11 +38,11 @@ public class ClientApplicationsService {
     private final FilesService filesService;
     private final ClientsService clientsService;
     private final DesignsService designsService;
-    private final CurrentUser currentUser;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public ClientApplicationResponseDto createApplication(ClientApplicationRequestDto request) {
-        Long accountId = currentUser.accountId();
+        Long accountId = currentUserService.getAccountId();
 
         ClientApplicationEntity application = clientApplicationMapper.toEntity(request);
         application.setTemplateProductDesign(
@@ -71,8 +71,8 @@ public class ClientApplicationsService {
     public Page<ClientApplicationResponseDto> getApplications(Pageable pageable, ClientApplicationFilter filter) {
         ClientApplicationFilter effective = (filter == null) ? new ClientApplicationFilter() : filter;
 
-        if (currentUser.hasRole("CLIENT")) {
-            ClientEntity client = clientsService.getByAccountId(currentUser.accountId());
+        if (currentUserService.hasRole(AccountRole.CLIENT)) {
+            ClientEntity client = clientsService.getByAccountId(currentUserService.getAccountId());
             effective.setClientId(client.getId());
         }
 
@@ -113,8 +113,8 @@ public class ClientApplicationsService {
         ClientApplicationEntity application = clientApplicationRepository
                 .findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("ClientApplication with id " + id + " not found"));
-        if (currentUser.hasRole("CLIENT")) {
-            ClientEntity client = clientsService.getByAccountId(currentUser.accountId());
+        if (currentUserService.hasRole(AccountRole.CLIENT)) {
+            ClientEntity client = clientsService.getByAccountId(currentUserService.getAccountId());
             if (!Objects.equals(application.getClient().getId(), client.getId())) {
                 throw new EntityNotFoundException("ClientApplication with id " + id + " not found");
             }

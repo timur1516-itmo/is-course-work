@@ -19,7 +19,6 @@ import ru.itmo.se.is.cw.model.PurchaseOrderReceiptEntity;
 import ru.itmo.se.is.cw.model.value.PurchaseOrderStatus;
 import ru.itmo.se.is.cw.repository.PurchaseOrderReceiptRepository;
 import ru.itmo.se.is.cw.repository.PurchaseOrderRepository;
-import ru.itmo.se.is.cw.security.CurrentUser;
 
 import java.util.List;
 
@@ -35,12 +34,12 @@ public class PurchaseOrdersService {
     private final PurchaseOrderReceiptMapper purchaseOrderReceiptMapper;
     private final PurchaseOrderMaterialMapper purchaseOrderMaterialMapper;
     private final EmployeesService employeesService;
-    private final CurrentUser currentUser;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public PurchaseOrderResponseDto createPurchaseOrder(PurchaseOrderRequestDto request) {
         EmployeeEntity employee = employeesService.getByAccountId(
-                currentUser.accountId()
+                currentUserService.getAccountId()
         );
         PurchaseOrderEntity purchaseOrder = purchaseOrderMapper.toEntity(request, employee);
         applyMaterials(purchaseOrder, request.getMaterials());
@@ -88,7 +87,7 @@ public class PurchaseOrdersService {
         em.refresh(purchaseOrder);
 
         EmployeeEntity warehouseWorker = employeesService.getByAccountId(
-                currentUser.accountId()
+                currentUserService.getAccountId()
         );
         PurchaseOrderReceiptEntity receipt = purchaseOrderReceiptMapper.toEntity(request, purchaseOrder, warehouseWorker);
         return purchaseOrderReceiptMapper.toDto(

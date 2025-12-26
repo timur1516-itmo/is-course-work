@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Login</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 40px; }
+        .card { max-width: 420px; border: 1px solid #ddd; padding: 20px; border-radius: 10px; }
+        .row { margin: 12px 0; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; }
+        button { padding: 10px 14px; cursor: pointer; }
+        .err { background: #fee; border: 1px solid #f99; padding: 10px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Sign in</h2>
+
+    <div id="errorBox" class="err" style="display:none;">
+        Неверный логин или пароль
+    </div>
+
+    <!-- ВАЖНО: context-path /auth -->
+    <form method="post" action="/auth/login">
+        <div class="row">
+            <label>
+                Username
+                <input name="username" autocomplete="username" required />
+            </label>
+        </div>
+
+        <div class="row">
+            <label>
+                Password
+                <input name="password" type="password" autocomplete="current-password" required />
+            </label>
+        </div>
+
+        <button type="submit">Login</button>
+    </form>
+</div>
+
+<script>
+    // показать ошибку при /login.html?error (Spring Security так редиректит)
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('error')) {
+        document.getElementById('errorBox').style.display = 'block';
+    }
+</script>
+</body>
+</html>

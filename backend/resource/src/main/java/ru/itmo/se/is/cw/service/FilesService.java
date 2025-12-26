@@ -15,7 +15,6 @@ import ru.itmo.se.is.cw.model.FileEntity;
 import ru.itmo.se.is.cw.model.FileVersionEntity;
 import ru.itmo.se.is.cw.repository.FileRepository;
 import ru.itmo.se.is.cw.repository.FileVersionRepository;
-import ru.itmo.se.is.cw.security.CurrentUser;
 import ru.itmo.se.is.cw.storage.FileStorage;
 
 import java.io.InputStream;
@@ -35,7 +34,7 @@ public class FilesService {
     private final FileVersionMapper fileVersionMapper;
     private final StorageConfigProperties storageProperties;
     private final EntityManager em;
-    private final CurrentUser currentUser;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public FileMetadataResponseDto uploadFile(MultipartFile file) {
@@ -43,7 +42,7 @@ public class FilesService {
             throw new IllegalArgumentException("File must not be empty");
         }
 
-        Long accountId = currentUser.accountId();
+        Long accountId = currentUserService.getAccountId();
 
         FileEntity entity = new FileEntity();
         entity.setFilename(Objects.requireNonNullElse(file.getOriginalFilename(), "file"));
@@ -95,7 +94,7 @@ public class FilesService {
         FileEntity entity = getById(id);
         assertNotDeleted(entity);
 
-        Long accountId = currentUser.accountId();
+        Long accountId = currentUserService.getAccountId();
 
         String contentType = Objects.requireNonNullElse(file.getContentType(), entity.getContentType());
         String objectKey = buildObjectKey(entity.getId(), Objects.requireNonNullElse(file.getOriginalFilename(), entity.getFilename()));

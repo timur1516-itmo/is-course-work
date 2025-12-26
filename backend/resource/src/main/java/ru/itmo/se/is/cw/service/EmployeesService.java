@@ -15,6 +15,7 @@ import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.feign.AccountClient;
 import ru.itmo.se.is.cw.mapper.EmployeeMapper;
 import ru.itmo.se.is.cw.model.EmployeeEntity;
+import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.EmployeeRepository;
 
 @Service
@@ -32,7 +33,7 @@ public class EmployeesService {
         AccountRequestDto accountRequestDto = new AccountRequestDto();
         accountRequestDto.setPassword(request.getPassword());
         accountRequestDto.setUsername(request.getUsername());
-        accountRequestDto.setRole(request.getRole().name());
+        accountRequestDto.setRole(AccountRole.valueOf(request.getRole().name()));
 
         AccountResponseDto responseDto = accountClient.createAccount(accountRequestDto);
 
