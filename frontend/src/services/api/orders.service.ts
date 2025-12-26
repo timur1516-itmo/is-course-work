@@ -1,7 +1,16 @@
 import { apiClient, extractApiError } from './config';
-import type { ClientOrderResponseDto } from './types';
+import type { ClientOrderResponseDto, CreateOrderRequestDto } from './types';
 
 export const ordersService = {
+  createOrder: async (data: CreateOrderRequestDto): Promise<ClientOrderResponseDto> => {
+    try {
+      const response = await apiClient.post<ClientOrderResponseDto>('/orders', data);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
   getOrderById: async (id: number): Promise<ClientOrderResponseDto> => {
     try {
       const response = await apiClient.get<ClientOrderResponseDto>(`/orders/${id}`);
@@ -22,8 +31,12 @@ export const ordersService = {
     sort?: string[];
   }): Promise<ClientOrderResponseDto[]> => {
     try {
-      const response = await apiClient.get<ClientOrderResponseDto[]>('/orders', { params });
-      return response.data;
+      const response = await apiClient.get<{ content: ClientOrderResponseDto[] } | ClientOrderResponseDto[]>('/orders', { params });
+      const data = response.data;
+      if (data && typeof data === 'object' && 'content' in data && Array.isArray(data.content)) {
+        return data.content;
+      }
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       throw extractApiError(error);
     }

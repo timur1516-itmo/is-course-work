@@ -59,8 +59,22 @@ export interface ApiError {
 
 export function extractApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
-    return error.response?.data as ApiError || {
+    const responseData = error.response?.data;
+    if (responseData && typeof responseData === 'object') {
+      return {
+        ...(responseData as ApiError),
+        status: error.response?.status,
+        message: (responseData as ApiError).message || (responseData as ApiError).detail || error.message || 'Произошла ошибка при выполнении запроса',
+      };
+    }
+    return {
       message: error.message || 'Произошла ошибка при выполнении запроса',
+      status: error.response?.status,
+    };
+  }
+  if (error instanceof Error) {
+    return {
+      message: error.message || 'Произошла ошибка',
     };
   }
   return {

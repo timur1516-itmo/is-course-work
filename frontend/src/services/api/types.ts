@@ -110,6 +110,10 @@ export type OrderStatus =
   | "IN_PRODUCTION"
   | "COMPLETED";
 
+export interface CreateOrderRequestDto {
+  clientApplicationId: number;
+}
+
 export interface ClientOrderResponseDto {
   id: number;
   clientApplicationId: number;

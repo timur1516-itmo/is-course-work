@@ -16,6 +16,15 @@ export const applicationsService = {
     }
   },
 
+  async getApplicationById(id: number): Promise<ClientApplicationResponseDto> {
+    try {
+      const response = await apiClient.get<ClientApplicationResponseDto>(`/client-applications/${id}`);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
   async getApplicationAttachments(applicationId: number): Promise<FileMetadataResponseDto[]> {
     try {
       const response = await apiClient.get<FileMetadataResponseDto[]>(

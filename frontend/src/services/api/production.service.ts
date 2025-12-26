@@ -28,8 +28,15 @@ export const productionService = {
     sort?: string[];
   }): Promise<ProductionTaskResponseDto[]> {
     try {
-      const response = await apiClient.get<ProductionTaskResponseDto[]>('/production-tasks', { params });
-      return response.data;
+      // Бэкенд может возвращать Page<ProductionTaskResponseDto>, извлекаем content
+      const response = await apiClient.get<{ content: ProductionTaskResponseDto[] } | ProductionTaskResponseDto[]>('/production-tasks', { params });
+      const data = response.data;
+      // Проверяем, является ли ответ пагинированным
+      if (data && typeof data === 'object' && 'content' in data && Array.isArray(data.content)) {
+        return data.content;
+      }
+      // Или это простой массив
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       throw extractApiError(error);
     }

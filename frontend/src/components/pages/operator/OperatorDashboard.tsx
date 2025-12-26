@@ -15,23 +15,29 @@ function OperatorDashboard() {
       try {
         setLoading(true);
         setError(null);
-        const employeeId = authService.getEmployeeId();
+
+        const currentUser = await authService.getCurrentUser();
+        const employeeId = currentUser?.employee?.id;
+        
         if (!employeeId) {
-          throw new Error('Employee ID not found');
+          setError('Не удалось получить ID сотрудника. Пожалуйста, обновите страницу.');
+          setLoading(false);
+          return;
         }
 
         const tasks = await productionService.getProductionTasks({
           cncOperatorId: employeeId,
         });
 
-        const inProgress = tasks.find(t => t.status === 'IN_PROGRESS');
+        const tasksArray = Array.isArray(tasks) ? tasks : [];
+        const inProgress = tasksArray.find(t => t.status === 'IN_PROGRESS');
         setCurrentTask(inProgress || null);
 
-        const queued = tasks.filter(t => t.status === 'QUEUED');
+        const queued = tasksArray.filter(t => t.status === 'QUEUED');
         setTaskQueue(queued);
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || 'Ошибка загрузки задач');
+        setError(apiError.message || apiError.detail || 'Ошибка загрузки задач');
       } finally {
         setLoading(false);
       }
@@ -57,19 +63,22 @@ function OperatorDashboard() {
       try {
         await productionService.finishTask(currentTask.id);
         setCurrentTask(null);
-        const employeeId = authService.getEmployeeId();
+
+        const currentUser = await authService.getCurrentUser();
+        const employeeId = currentUser?.employee?.id;
         if (employeeId) {
           const tasks = await productionService.getProductionTasks({
             cncOperatorId: employeeId,
           });
-          const inProgress = tasks.find(t => t.status === 'IN_PROGRESS');
+          const tasksArray = Array.isArray(tasks) ? tasks : [];
+          const inProgress = tasksArray.find(t => t.status === 'IN_PROGRESS');
           setCurrentTask(inProgress || null);
-          const queued = tasks.filter(t => t.status === 'QUEUED');
+          const queued = tasksArray.filter(t => t.status === 'QUEUED');
           setTaskQueue(queued);
         }
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || 'Ошибка завершения задачи');
+        setError(apiError.message || apiError.detail || 'Ошибка завершения задачи');
       }
     }
   };

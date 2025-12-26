@@ -8,6 +8,7 @@ import Catalog from "./components/pages/catalog/Catalog.tsx";
 import ProductCard from "./components/pages/catalog/ProductCard.tsx";
 import HomePage from "./components/pages/home/HomePage.tsx";
 import CreateApplication from "./components/pages/application/CreateApplication.tsx";
+import ApplicationDetails from "./components/pages/application/ApplicationDetails.tsx";
 import OrderDetails from "./components/pages/order/OrderDetails.tsx";
 import ProtectedRoute from "./components/common/ProtectedRoute.tsx";
 import AboutPage from "./components/pages/about/AboutPage.tsx";
@@ -67,6 +68,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <StaffDashboard/>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/applications/:id"
+                  element={
+                    <ProtectedRoute>
+                      <ApplicationDetails/>
                     </ProtectedRoute>
                   }
                 />

@@ -38,6 +38,7 @@ public class ConversationsController {
 
     private final ConversationsService conversationsService;
 
+    // TODO: Не создает диалоги автоматически при создании заказа. Из-за этого при открытии заказа вылезает http://localhost:8080/resource/orders/1/conversation 404 (Not Found)
     @GetMapping("/{id}/messages")
     @Operation(
             summary = "Сообщения диалога",

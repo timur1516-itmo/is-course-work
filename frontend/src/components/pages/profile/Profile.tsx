@@ -4,33 +4,8 @@ import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { ordersService, authService, extractApiError, type CurrentUserDto } from "../../../services/api";
-import type { ClientOrderResponseDto, OrderStatus } from "../../../services/api/types";
-
-const statusLabelKeys: Record<OrderStatus, string> = {
-  CREATED: "profile.created",
-  IN_PROGRESS: "profile.processing",
-  PENDING_APPROVAL: "profile.onApproval",
-  REWORK: "profile.revision",
-  APPROVED: "profile.approved",
-  AWAITING_PAYMENT: "profile.waitingPayment",
-  PAID: "profile.paid",
-  READY_FOR_PRODUCTION: "profile.readyForProduction",
-  IN_PRODUCTION: "profile.inProduction",
-  COMPLETED: "profile.completed",
-};
-
-const statusStyles: Record<OrderStatus, string> = {
-  CREATED: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
-  IN_PROGRESS: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/40",
-  PENDING_APPROVAL: "bg-amber-500/10 text-amber-300 ring-amber-500/40",
-  REWORK: "bg-orange-500/10 text-orange-300 ring-orange-500/40",
-  APPROVED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-  AWAITING_PAYMENT: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
-  PAID: "bg-green-500/10 text-green-300 ring-green-500/40",
-  READY_FOR_PRODUCTION: "bg-cyan-500/10 text-cyan-300 ring-cyan-500/40",
-  IN_PRODUCTION: "bg-purple-500/10 text-purple-300 ring-purple-500/40",
-  COMPLETED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-};
+import type { ClientOrderResponseDto } from "../../../services/api/types";
+import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 
 const PASSWORD_REGEX = /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/;
 
@@ -63,7 +38,7 @@ function ProfilePage() {
 
         if (!alive) return;
 
-        setOrders(ordersData);
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
         setCurrentUser(userData);
       } catch (err: any) {
         if (!alive) return;
@@ -87,12 +62,12 @@ function ProfilePage() {
     };
   }, [navigate]);
 
-  const currentOrders = orders.filter(
+  const currentOrders = Array.isArray(orders) ? orders.filter(
     (order) => order.status !== "COMPLETED"
-  );
-  const historyOrders = orders.filter(
+  ) : [];
+  const historyOrders = Array.isArray(orders) ? orders.filter(
     (order) => order.status === "COMPLETED"
-  );
+  ) : [];
 
   const profileInitialValues = {
     firstName: currentUser?.client?.person?.firstName || currentUser?.employee?.person?.firstName || "",
@@ -194,6 +169,14 @@ function ProfilePage() {
                   {historyOrders.filter((o) => o.status === "COMPLETED").length}
                 </div>
               </div>
+              <button
+                onClick={() => {
+                  authService.logout();
+                }}
+                className="rounded-full bg-red-500/10 text-red-400 border border-red-500/40 text-sm font-medium px-4 py-2 hover:bg-red-500/20 transition-colors"
+              >
+                {t("header.logout")}
+              </button>
             </div>
           </div>
         </div>
@@ -255,9 +238,9 @@ function ProfilePage() {
                           <td className="px-3 py-3">
                           <span className={[
                             "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                            statusStyles[order.status],
+                            getOrderStatusStyle(order.status),
                           ].join(" ")}>
-                            {t(statusLabelKeys[order.status])}
+                            {t(getOrderStatusTranslationKey(order.status))}
                           </span>
                           </td>
                           <td className="px-3 py-3 text-right">
@@ -332,10 +315,10 @@ function ProfilePage() {
                             <span
                               className={[
                                 "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                                statusStyles[order.status],
+                                getOrderStatusStyle(order.status),
                               ].join(" ")}
                             >
-                              {t(statusLabelKeys[order.status])}
+                              {t(getOrderStatusTranslationKey(order.status))}
                             </span>
                         </td>
                         <td className="px-3 py-1 text-right">
@@ -364,12 +347,14 @@ function ProfilePage() {
               <h2 className="text-lg font-semibold">
                 {t("profile.profileAndContacts")}
               </h2>
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium px-4 py-2 hover:bg-gray-900 transition-colors"
-              >
-                {t("profile.closeProfileSettings")}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium px-4 py-2 hover:bg-gray-900 transition-colors"
+                >
+                  {t("profile.closeProfileSettings")}
+                </button>
+              </div>
             </div>
             <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
               <p className="text-xs text-gray-400 mb-4">

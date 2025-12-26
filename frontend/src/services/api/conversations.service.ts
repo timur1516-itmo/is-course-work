@@ -23,11 +23,18 @@ export const conversationsService = {
     params?: MessagesQueryParams
   ): Promise<MessageResponseDto[]> {
     try {
-      const response = await apiClient.get<MessageResponseDto[]>(
+      // Бэкенд может возвращать Page<MessageResponseDto>, извлекаем content
+      const response = await apiClient.get<{ content: MessageResponseDto[] } | MessageResponseDto[]>(
         `/conversations/${conversationId}/messages`,
         { params }
       );
-      return response.data;
+      const data = response.data;
+      // Проверяем, является ли ответ пагинированным
+      if (data && typeof data === 'object' && 'content' in data && Array.isArray(data.content)) {
+        return data.content;
+      }
+      // Или это простой массив
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       throw extractApiError(error);
     }

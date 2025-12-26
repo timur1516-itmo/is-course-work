@@ -3,6 +3,7 @@ import ManagerDashboard from "../manager/ManagerDashboard.tsx";
 import DesignerDashboard from "../designer/DesignerDashboard.tsx";
 import OperatorDashboard from "../operator/OperatorDashboard.tsx";
 import WarehouseDashboard from "../warehouse/WarehouseDashboard.tsx";
+import SupplyManagerDashboard from "../supply/SupplyManagerDashboard.tsx";
 import AdminDashboard from "../admin/AdminDashboard.tsx";
 import ApplicationsList from "../manager/ApplicationsList.tsx";
 import { useLocation } from "react-router-dom";
@@ -31,8 +32,9 @@ function StaffDashboard() {
     case "CNC_OPERATOR":
       return <OperatorDashboard />;
     case "WAREHOUSE_WORKER":
-    case "SUPPLY_MANAGER":
       return <WarehouseDashboard />;
+    case "SUPPLY_MANAGER":
+      return <SupplyManagerDashboard />;
     case "ADMIN":
       return <AdminDashboard />;
     default:

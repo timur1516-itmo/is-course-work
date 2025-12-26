@@ -24,7 +24,18 @@ function DesignerDashboard() {
         setLoading(true);
         setError(null);
 
-        const allOrders = await ordersService.getOrders();
+        let allOrders: ClientOrderResponseDto[] = [];
+        try {
+          const ordersData = await ordersService.getOrders();
+          allOrders = Array.isArray(ordersData) ? ordersData : [];
+        } catch (err) {
+          const apiError = extractApiError(err);
+          console.error('Failed to load orders:', apiError);
+          if (apiError.status !== 403) {
+            setError(apiError.message || apiError.detail || 'Ошибка загрузки заказов');
+          }
+        }
+
         const designerOrders = allOrders.filter(
           (order) => 
             order.status === "PENDING_APPROVAL" || 
@@ -39,7 +50,7 @@ function DesignerDashboard() {
             try {
               const appResponse = await applicationsService.getApplications({
                 page: 0,
-                size: 1,
+                size: 100,
               });
               const app = appResponse.content?.find(a => a.id === order.clientApplicationId);
               if (app) {
@@ -53,7 +64,7 @@ function DesignerDashboard() {
         setApplications(applicationsMap);
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || 'Ошибка загрузки данных');
+        setError(apiError.message || apiError.detail || 'Ошибка загрузки данных');
       } finally {
         setLoading(false);
       }
@@ -69,7 +80,6 @@ function DesignerDashboard() {
       
       if (isExpanding) {
         newSet.add(orderId);
-        // Загружаем файлы при раскрытии заказа
         const order = orders.find(o => o.id === orderId);
         if (order && order.clientApplicationId && !applicationFiles[order.clientApplicationId]) {
           loadApplicationFiles(order.clientApplicationId);
@@ -186,18 +196,15 @@ function DesignerDashboard() {
 
     try {
       setError(null);
-      // Загружаем файл
       const fileMetadata = await filesService.uploadFile(file);
       const fileId = fileMetadata.id;
 
-      // Получаем информацию о заказе для названия продукта
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
       const productName = application 
         ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : `Заказ #${order.id}`;
 
       if (order.productDesignId) {
-        // Если дизайн уже существует, обновляем его, добавляя новый файл
         const existingDesign = await designsService.getDesignById(order.productDesignId);
         const existingFileIds = existingDesign.files.map(f => f.id);
         const updatedFileIds = [...existingFileIds, fileId];
@@ -208,17 +215,13 @@ function DesignerDashboard() {
           requiredMaterials: existingDesign.requiredMaterials,
         });
       } else {
-        // Если дизайна нет, создаем новый
         await designsService.createDesign({
           productName,
           fileIds: [fileId],
           requiredMaterials: [],
         });
-        // Примечание: связь дизайна с заказом должна быть установлена через обновление заказа менеджером
-        // или автоматически на бэкенде. Здесь мы только создаем дизайн.
       }
 
-      // Обновляем список заказов, чтобы отобразить изменения
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
         (o) => 
@@ -243,14 +246,6 @@ function DesignerDashboard() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
-        <div className="text-red-400">{error}</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex justify-center">
       <div className="w-full max-w-7xl space-y-8">
@@ -259,6 +254,12 @@ function DesignerDashboard() {
             {t("designer.dashboard")}
           </h1>
         </div>
+
+        {error && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
 
         <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
           <div className="flex items-center justify-between mb-4">
@@ -392,7 +393,7 @@ function DesignerDashboard() {
                                   <label className="flex-1">
                                     <input
                                       type="file"
-                                      accept=".stl,.obj,.3ds,.step,.iges"
+                                      // accept=".stl,.obj,.3ds,.step,.iges"
                                       onChange={(e) => handle3DModelUpload(order, e)}
                                       className="hidden"
                                     />
@@ -403,7 +404,7 @@ function DesignerDashboard() {
                                   <label className="flex-1">
                                     <input
                                       type="file"
-                                      accept=".nc,.cnc,.tap"
+                                      // accept=".nc,.cnc,.tap"
                                       onChange={(e) => handleUPGenerate(order, e)}
                                       className="hidden"
                                     />

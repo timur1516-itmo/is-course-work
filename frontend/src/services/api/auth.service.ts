@@ -1,4 +1,5 @@
 import { apiClient, extractApiError, gatewayClient, LOGIN_URL, setSkipRedirect } from './config';
+import axios from 'axios';
 
 export type AccountRole =
     | 'CLIENT'
@@ -10,6 +11,7 @@ export type AccountRole =
     | 'ADMIN';
 
 export interface ClientRegistrationRequestDto {
+    username: string;
     email: string;
     password: string;
     firstName: string;
@@ -70,10 +72,17 @@ export const authService = {
 
     async register(data: ClientRegistrationRequestDto): Promise<ClientRegistrationResponseDto> {
         try {
+            if (!data.email || !data.password || !data.firstName || !data.lastName || !data.phoneNumber) {
+                throw new Error('Все поля обязательны для заполнения');
+            }
             const response = await apiClient.post<ClientRegistrationResponseDto>('/register', data);
             return response.data;
         } catch (error) {
-            throw extractApiError(error);
+            const apiError = extractApiError(error);
+            if (axios.isAxiosError(error) && error.response) {
+                apiError.status = error.response.status;
+            }
+            throw apiError;
         }
     },
 

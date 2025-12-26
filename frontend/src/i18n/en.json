@@ -77,7 +77,9 @@
     "confirmNewPasswordPlaceholder": "Confirm New Password",
     "updatePassword": "Update Password",
     "success": "successfully",
-    "request": "Request"
+    "request": "Request",
+    "closeProfileSettings": "Close Settings",
+    "openProfileSettings": "Open Settings"
   },
   "admin": {
     "dashboard": "Admin Dashboard",
@@ -113,7 +115,7 @@
   "manager": {
     "dashboard": "Manager Dashboard",
     "newApplications": "New Applications",
-    "currentApplications": "Current Applications",
+    "currentApplications": "Current Orders",
     "pendingApproval": "Pending Approval",
     "ordersList": "Orders List",
     "applicationsList": "Applications List",
@@ -126,7 +128,11 @@
     "openOrder": "Open Order",
     "openApplication": "Open Application",
     "noOrders": "No orders",
-    "noApplications": "No applications"
+    "noApplications": "No applications",
+    "createOrder": "Create Order",
+    "confirmCreateOrder": "Create an order from this application?",
+    "creating": "Creating...",
+    "orderAlreadyExists": "Order already exists for this application"
   },
   "designer": {
     "dashboard": "Designer Dashboard",
@@ -172,6 +178,39 @@
     "client": "Client",
     "order": "Order",
     "material": "Material"
+  },
+  "supply": {
+    "dashboard": "Supply Manager Dashboard",
+    "dashboardDescription": "Manage purchase orders for materials",
+    "createOrder": "Create Purchase Order",
+    "orderId": "Order ID",
+    "status": "Status",
+    "createdAt": "Created At",
+    "materialsCount": "Materials Count",
+    "actions": "Actions",
+    "noOrders": "No orders",
+    "viewDetails": "View Details",
+    "approveOrder": "Approve Order",
+    "created": "Created",
+    "completed": "Completed",
+    "material": "Material",
+    "materialId": "Material ID",
+    "amount": "Amount",
+    "priceForUnit": "Price per Unit",
+    "supplier": "Supplier",
+    "addMaterial": "Add Material",
+    "create": "Create",
+    "approve": "Approve",
+    "orderDetails": "Order Details",
+    "materials": "Materials",
+    "noMaterials": "No materials",
+    "materialRequired": "Select material",
+    "amountRequired": "Enter amount",
+    "amountMin": "Amount must be greater than 0",
+    "priceRequired": "Enter price",
+    "priceMin": "Price must be non-negative",
+    "supplierRequired": "Enter supplier",
+    "atLeastOneMaterial": "Add at least one material"
   },
   "catalog": {
     "title": "Product Catalog",
@@ -303,6 +342,9 @@
     "view": "View",
     "loadingFiles": "Loading files...",
     "cannotSendToCompleted": "Cannot send messages to completed orders",
+    "startProcessing": "Start Processing",
+    "changingStatus": "Changing...",
+    "statusChangeError": "Error changing status",
     "status": {
       "created": "Created",
       "inProgress": "In Progress",

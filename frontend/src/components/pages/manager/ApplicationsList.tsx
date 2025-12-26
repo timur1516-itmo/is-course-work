@@ -1,14 +1,19 @@
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
-import { applicationsService, extractApiError } from "../../../services/api";
-import type { ClientApplicationResponseDto } from "../../../services/api/types";
+import {
+  applicationsService,
+  type ClientApplicationResponseDto,
+  type ClientResponseDto, clientsService,
+  extractApiError
+} from "../../../services/api";
 
 function ApplicationsList() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const filter = searchParams.get("filter");
   const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
+  const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +23,17 @@ function ApplicationsList() {
         setLoading(true);
         setError(null);
         const response = await applicationsService.getApplications();
-        setApplications(response.content || []);
+        const apps = response.content || [];
+        setApplications(apps);
+
+        const clientsMap = new Map<number, ClientResponseDto>();
+        for (const app of apps) {
+          if (!clientsMap.has(app.clientId)) {
+            const client = await clientsService.getClientById(app.clientId);
+            clientsMap.set(app.clientId, client);
+          }
+        }
+        setClients(clientsMap);
       } catch (err) {
         const apiError = extractApiError(err);
         setError(apiError.message || 'Ошибка загрузки заявок');
@@ -106,7 +121,14 @@ function ApplicationsList() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-300">
-                        Клиент #{application.clientId}
+                        {clients.get(application.clientId) ? (
+                          <>
+                            {clients.get(application.clientId)!.person.firstName}{' '}
+                            {clients.get(application.clientId)!.person.lastName}
+                          </>
+                        ) : (
+                          <span className="text-gray-500">{t("catalog.loading")}</span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-xs text-gray-300">
                         {new Date(application.createdAt).toLocaleDateString('ru-RU')}

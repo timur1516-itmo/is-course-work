@@ -81,7 +81,6 @@ function AuthPage() {
                       onClick={() => {
                         setLoading(true);
                         setError(null);
-                        // BFF login = redirect
                         authService.login();
                       }}
                       className="mt-4 w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-70"
@@ -107,6 +106,7 @@ function AuthPage() {
                     setLoading(true);
                     setError(null);
                     await authService.register({
+                      username: values.email, // Используем email как username
                       email: values.email,
                       password: values.password,
                       firstName: values.firstName,
@@ -117,7 +117,13 @@ function AuthPage() {
                     setError(null);
                   } catch (err) {
                     const apiError = extractApiError(err);
-                    setError(apiError.message || t("auth.loginError"));
+                    let errorMessage = apiError.message || t("auth.loginError");
+                    if (apiError.status === 500) {
+                      errorMessage = "Ошибка сервера при регистрации. Пожалуйста, попробуйте позже или обратитесь в поддержку.";
+                    } else if (apiError.status === 400) {
+                      errorMessage = "Проверьте правильность введенных данных.";
+                    }
+                    setError(errorMessage);
                   } finally {
                     setLoading(false);
                   }

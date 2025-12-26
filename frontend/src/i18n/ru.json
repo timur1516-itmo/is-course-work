@@ -77,7 +77,9 @@
     "confirmNewPasswordPlaceholder": "Повторите новый пароль",
     "updatePassword": "Обновить пароль",
     "success": "успешно",
-    "request": "Заявка"
+    "request": "Заявка",
+    "closeProfileSettings": "Закрыть настройки профиля",
+    "openProfileSettings": "Открыть настройки профиля"
   },
   "admin": {
     "dashboard": "Панель администратора",
@@ -113,7 +115,7 @@
   "manager": {
     "dashboard": "Панель менеджера",
     "newApplications": "Новые заявки",
-    "currentApplications": "Текущие заявки",
+    "currentApplications": "Текущие заказы",
     "pendingApproval": "Требуют согласования",
     "ordersList": "Список заказов",
     "applicationsList": "Список заявок",
@@ -126,7 +128,11 @@
     "openOrder": "Открыть заказ",
     "openApplication": "Открыть заявку",
     "noOrders": "Заказы отсутствуют",
-    "noApplications": "Заявки отсутствуют"
+    "noApplications": "Заявки отсутствуют",
+    "createOrder": "Создать заказ",
+    "confirmCreateOrder": "Создать заказ на основе этой заявки?",
+    "creating": "Создание...",
+    "orderAlreadyExists": "Заказ для этой заявки уже существует"
   },
   "designer": {
     "dashboard": "Панель конструктора",
@@ -172,6 +178,39 @@
     "client": "Покупатель",
     "order": "Заказ",
     "material": "Материал"
+  },
+  "supply": {
+    "dashboard": "Панель менеджера по снабжению",
+    "dashboardDescription": "Управление заявками на закупку материалов",
+    "createOrder": "Создать заявку на закупку",
+    "orderId": "ID заявки",
+    "status": "Статус",
+    "createdAt": "Дата создания",
+    "materialsCount": "Количество материалов",
+    "actions": "Действия",
+    "noOrders": "Заявки отсутствуют",
+    "viewDetails": "Просмотр деталей",
+    "approveOrder": "Утвердить заявку",
+    "created": "Создана",
+    "completed": "Завершена",
+    "material": "Материал",
+    "materialId": "ID материала",
+    "amount": "Количество",
+    "priceForUnit": "Цена за единицу",
+    "supplier": "Поставщик",
+    "addMaterial": "Добавить материал",
+    "create": "Создать",
+    "approve": "Утвердить",
+    "orderDetails": "Детали заявки",
+    "materials": "Материалы",
+    "noMaterials": "Материалы отсутствуют",
+    "materialRequired": "Выберите материал",
+    "amountRequired": "Укажите количество",
+    "amountMin": "Количество должно быть больше 0",
+    "priceRequired": "Укажите цену",
+    "priceMin": "Цена должна быть неотрицательной",
+    "supplierRequired": "Укажите поставщика",
+    "atLeastOneMaterial": "Добавьте хотя бы один материал"
   },
   "catalog": {
     "title": "Каталог товаров",
@@ -303,6 +342,9 @@
     "view": "Просмотреть",
     "loadingFiles": "Загрузка файлов...",
     "cannotSendToCompleted": "Нельзя отправлять сообщения в завершенные заказы",
+    "startProcessing": "Начать обработку",
+    "changingStatus": "Изменение...",
+    "statusChangeError": "Ошибка изменения статуса",
     "status": {
       "created": "Создан",
       "inProgress": "В обработке",

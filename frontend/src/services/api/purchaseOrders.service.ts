@@ -17,7 +17,20 @@ export interface PurchaseOrderResponseDto {
   materials: PurchaseOrderMaterialDto[];
 }
 
+export interface PurchaseOrderRequestDto {
+  materials: PurchaseOrderMaterialDto[];
+}
+
 export const purchaseOrdersService = {
+  createPurchaseOrder: async (data: PurchaseOrderRequestDto): Promise<PurchaseOrderResponseDto> => {
+    try {
+      const response = await apiClient.post<PurchaseOrderResponseDto>('/purchase-orders', data);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
   getPurchaseOrders: async (params?: {
     supplyManagerId?: number;
     currentStatusId?: number;
@@ -30,8 +43,8 @@ export const purchaseOrdersService = {
     sort?: string[];
   }): Promise<PurchaseOrderResponseDto[]> => {
     try {
-      const response = await apiClient.get<PurchaseOrderResponseDto[]>('/purchase-orders', { params });
-      return response.data;
+      const response = await apiClient.get<{ content: PurchaseOrderResponseDto[] }>('/purchase-orders', { params });
+      return response.data.content || [];
     } catch (error) {
       throw extractApiError(error);
     }
@@ -40,6 +53,21 @@ export const purchaseOrdersService = {
   getPurchaseOrderById: async (id: number): Promise<PurchaseOrderResponseDto> => {
     try {
       const response = await apiClient.get<PurchaseOrderResponseDto>(`/purchase-orders/${id}`);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  updateMaterialsInPurchaseOrder: async (
+    id: number,
+    materials: PurchaseOrderMaterialDto[]
+  ): Promise<PurchaseOrderResponseDto> => {
+    try {
+      const response = await apiClient.post<PurchaseOrderResponseDto>(
+        `/purchase-orders/${id}/materials`,
+        materials
+      );
       return response.data;
     } catch (error) {
       throw extractApiError(error);

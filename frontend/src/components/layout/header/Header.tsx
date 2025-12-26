@@ -115,7 +115,10 @@ function Header() {
                   hover:bg-gray-600 transition-colors"
               >
                 <span className="text-white">
-                  {currentUser?.client?.person?.firstName || currentUser?.client?.person?.firstName || ""} {currentUser?.employee?.person?.lastName?.charAt(0) || currentUser?.client?.person?.lastName?.charAt(0) || ""}.
+                  {currentUser?.role === 'ADMIN'
+                    ? "admin"
+                    : `${currentUser?.client?.person?.firstName || currentUser?.employee?.person?.firstName || ""} ${(currentUser?.employee?.person?.lastName?.charAt(0) || currentUser?.client?.person?.lastName?.charAt(0) || "") + "."}`
+                  }
                 </span>
                 <ArrowDropDownIcon className="text-white" />
               </button>
@@ -131,27 +134,6 @@ function Header() {
                   "py-1 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 shadow-lg",
               }}
             >
-              {currentUser?.role === 'ADMIN' && (
-                <MenuItem
-                  component={Link}
-                  to="/"
-                  onClick={handleStaffMenuClose}
-                  className="
-                    flex items-center
-                    hover:bg-gray-100 dark:hover:bg-gray-800
-                    px-3
-                  "
-                >
-                  <ListItemIcon className="min-w-0 mr-3">
-                    <AccountCircleIcon className="text-gray-700 dark:text-gray-300" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{t("admin.dashboard")}</span>
-                    }
-                  />
-                </MenuItem>
-              )}
               <MenuItem
                 onClick={handleLogout}
                 className="

@@ -2,33 +2,8 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
 import { ordersService, applicationsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, OrderStatus, ClientApplicationResponseDto } from "../../../services/api/types";
-
-const statusLabelKeys: Record<OrderStatus, string> = {
-  CREATED: "profile.created",
-  IN_PROGRESS: "profile.processing",
-  PENDING_APPROVAL: "profile.onApproval",
-  REWORK: "profile.revision",
-  APPROVED: "profile.approved",
-  AWAITING_PAYMENT: "profile.waitingPayment",
-  PAID: "profile.paid",
-  READY_FOR_PRODUCTION: "profile.readyForProduction",
-  IN_PRODUCTION: "profile.inProduction",
-  COMPLETED: "profile.completed",
-};
-
-const statusStyles: Record<OrderStatus, string> = {
-  CREATED: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
-  IN_PROGRESS: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/40",
-  PENDING_APPROVAL: "bg-amber-500/10 text-amber-300 ring-amber-500/40",
-  REWORK: "bg-orange-500/10 text-orange-300 ring-orange-500/40",
-  APPROVED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-  AWAITING_PAYMENT: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
-  PAID: "bg-green-500/10 text-green-300 ring-green-500/40",
-  READY_FOR_PRODUCTION: "bg-cyan-500/10 text-cyan-300 ring-cyan-500/40",
-  IN_PRODUCTION: "bg-purple-500/10 text-purple-300 ring-purple-500/40",
-  COMPLETED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-};
+import type { ClientOrderResponseDto, ClientApplicationResponseDto } from "../../../services/api/types";
+import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 
 interface ManagerStats {
   newApplicationsCount: number;
@@ -52,7 +27,7 @@ function ManagerDashboard() {
         setError(null);
 
         const ordersData = await ordersService.getOrders();
-        setOrders(ordersData);
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
 
         const applicationsData = await applicationsService.getApplications();
         setApplications(applicationsData.content || []);
@@ -68,15 +43,18 @@ function ManagerDashboard() {
   }, []);
 
   const stats = useMemo<ManagerStats>(() => {
-    const newApplicationsCount = applications.filter(
-      (app) => !app.id || !orders.some(order => order.clientApplicationId === app.id)
+    const ordersArray = Array.isArray(orders) ? orders : [];
+    const applicationsArray = Array.isArray(applications) ? applications : [];
+    
+    const newApplicationsCount = applicationsArray.filter(
+      (app) => !app.id || !ordersArray.some(order => order.clientApplicationId === app.id)
     ).length;
 
-    const currentApplicationsCount = orders.filter(
+    const currentApplicationsCount = ordersArray.filter(
       (order) => order.status === "CREATED" || order.status === "IN_PROGRESS"
     ).length;
 
-    const pendingApprovalCount = orders.filter(
+    const pendingApprovalCount = ordersArray.filter(
       (order) => order.status === "PENDING_APPROVAL" || order.status === "REWORK"
     ).length;
     
@@ -258,10 +236,10 @@ function ManagerDashboard() {
                         <span
                           className={[
                             "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                            statusStyles[order.status],
+                            getOrderStatusStyle(order.status),
                           ].join(" ")}
                         >
-                          {t(statusLabelKeys[order.status])}
+                          {t(getOrderStatusTranslationKey(order.status))}
                         </span>
                       </td>
                       <td className="px-3 py-3 text-xs text-gray-300">

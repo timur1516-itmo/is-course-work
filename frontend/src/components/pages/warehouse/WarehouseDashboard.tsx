@@ -25,15 +25,31 @@ function WarehouseDashboard() {
         setLoading(true);
         setError(null);
 
-        const purchaseOrdersData = await purchaseOrdersService.getPurchaseOrders({
-          status: 'CREATED',
-        });
-        setPurchaseOrders(purchaseOrdersData);
+        try {
+          const purchaseOrdersData = await purchaseOrdersService.getPurchaseOrders({
+            status: 'CREATED',
+          });
+          setPurchaseOrders(Array.isArray(purchaseOrdersData) ? purchaseOrdersData : []);
+        } catch (err) {
+          const apiError = extractApiError(err);
+          console.error('Failed to load purchase orders:', apiError);
+          if (apiError.status !== 403) {
+            setError(apiError.message || 'Ошибка загрузки заявок на закупку');
+          }
+        }
 
-        const ordersData = await ordersService.getOrders({
-          status: 'READY_FOR_PRODUCTION',
-        });
-        setReadyOrders(ordersData);
+        try {
+          const ordersData = await ordersService.getOrders({
+            status: 'READY_FOR_PRODUCTION',
+          });
+          setReadyOrders(Array.isArray(ordersData) ? ordersData : []);
+        } catch (err) {
+          const apiError = extractApiError(err);
+          console.error('Failed to load ready orders:', apiError);
+          if (apiError.status !== 403 && apiError.code !== 'FORBIDDEN') {
+            setError(apiError.message || apiError.detail || 'Ошибка загрузки заказов');
+          }
+        }
       } catch (err) {
         const apiError = extractApiError(err);
         setError(apiError.message || 'Ошибка загрузки данных');
@@ -189,14 +205,6 @@ function WarehouseDashboard() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
-        <div className="text-red-400">{error}</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex justify-center">
       <div className="w-full max-w-7xl space-y-8">
@@ -205,6 +213,12 @@ function WarehouseDashboard() {
             {t("warehouse.dashboard")}
           </h1>
         </div>
+
+        {error && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
 
         <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
           <div className="flex items-center justify-between mb-4">

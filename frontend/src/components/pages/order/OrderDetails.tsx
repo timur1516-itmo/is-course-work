@@ -9,7 +9,7 @@ import {
   filesService,
   applicationsService,
   extractApiError,
-  chatWebSocket,
+  chatWebSocket, type OrderStatus,
 } from "../../../services/api";
 import type {
   ClientOrderResponseDto,
@@ -20,6 +20,7 @@ import type {
   FileMetadataResponseDto,
 } from "../../../services/api/types";
 import { useUserRole } from "../../../hooks/useUserRole.ts";
+import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 import SendIcon from "@mui/icons-material/Send";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -31,7 +32,7 @@ function OrderDetails() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const orderId = id ? Number(id) : null;
-  const { isClient, isStaff } = useUserRole();
+  const { isClient, isStaff, role } = useUserRole();
 
   const [order, setOrder] = useState<ClientOrderResponseDto | null>(null);
   const [conversation, setConversation] = useState<ConversationResponseDto | null>(null);
@@ -48,6 +49,7 @@ function OrderDetails() {
   const [authorNames, setAuthorNames] = useState<Record<number, string>>({});
   const [orderFiles, setOrderFiles] = useState<FileMetadataResponseDto[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,10 +74,11 @@ function OrderDetails() {
           const messageData = data as { message: MessageResponseDto };
           if (messageData.message) {
             setMessages((prev) => {
-              if (prev.some((m) => m.id === messageData.message.id)) {
-                return prev;
+              const prevArray = Array.isArray(prev) ? prev : [];
+              if (prevArray.some((m) => m.id === messageData.message.id)) {
+                return prevArray;
               }
-              return [...prev, messageData.message];
+              return [...prevArray, messageData.message];
             });
             loadAuthorName(messageData.message.authorId);
           }
@@ -96,6 +99,7 @@ function OrderDetails() {
   }, [messages]);
 
   useEffect(() => {
+    if (!Array.isArray(messages)) return;
     const authorIds = new Set(messages.map((m) => m.authorId));
     authorIds.forEach((authorId) => {
       if (!authorNames[authorId]) {
@@ -275,9 +279,28 @@ function OrderDetails() {
       const messagesData = await conversationsService.getMessages(conversation.id, {
         sort: ["sentAt,ASC"],
       });
-      setMessages(messagesData);
+      // Убеждаемся, что messagesData - это массив
+      setMessages(Array.isArray(messagesData) ? messagesData : []);
     } catch (err) {
       console.error("Failed to load messages:", err);
+      setMessages([]); // Устанавливаем пустой массив при ошибке
+    }
+  };
+
+  const handleChangeStatusToInProgress = async () => {
+    if (!order) return;
+
+    try {
+      setChangingStatus(true);
+      setError(null);
+      await ordersService.changeOrderStatus(order.id, "IN_PROGRESS");
+      // Обновляем статус заказа локально
+      setOrder({ ...order, status: "IN_PROGRESS" });
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || t("order.statusChangeError"));
+    } finally {
+      setChangingStatus(false);
     }
   };
 
@@ -354,35 +377,11 @@ function OrderDetails() {
   };
 
   const getStatusLabel = (status: string): string => {
-    const statusMap: Record<string, string> = {
-      CREATED: t("order.status.created"),
-      IN_PROGRESS: t("order.status.inProgress"),
-      PENDING_APPROVAL: t("order.status.pendingApproval"),
-      REWORK: t("order.status.rework"),
-      APPROVED: t("order.status.approved"),
-      AWAITING_PAYMENT: t("order.status.awaitingPayment"),
-      PAID: t("order.status.paid"),
-      READY_FOR_PRODUCTION: t("order.status.readyForProduction"),
-      IN_PRODUCTION: t("order.status.inProduction"),
-      COMPLETED: t("order.status.completed"),
-    };
-    return statusMap[status] || status;
+    return t(getOrderStatusTranslationKey(status as OrderStatus));
   };
 
   const getStatusStyle = (status: string): string => {
-    const styleMap: Record<string, string> = {
-      CREATED: "bg-sky-500/10 text-sky-300 ring-sky-500/40",
-      IN_PROGRESS: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/40",
-      PENDING_APPROVAL: "bg-amber-500/10 text-amber-300 ring-amber-500/40",
-      REWORK: "bg-orange-500/10 text-orange-300 ring-orange-500/40",
-      APPROVED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-      AWAITING_PAYMENT: "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
-      PAID: "bg-green-500/10 text-green-300 ring-green-500/40",
-      READY_FOR_PRODUCTION: "bg-cyan-500/10 text-cyan-300 ring-cyan-500/40",
-      IN_PRODUCTION: "bg-purple-500/10 text-purple-300 ring-purple-500/40",
-      COMPLETED: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/40",
-    };
-    return styleMap[status] || "bg-gray-500/10 text-gray-300 ring-gray-500/40";
+    return getOrderStatusStyle(status as OrderStatus);
   };
 
   const formatDate = (dateString: string): string => {
@@ -434,11 +433,22 @@ function OrderDetails() {
                 <label className="text-xs text-gray-500 uppercase mb-1 block">
                   {t("order.statusLabel")}
                 </label>
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ${getStatusStyle(order.status)}`}
-                >
-                  {getStatusLabel(order.status)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ${getStatusStyle(order.status)}`}
+                  >
+                    {getStatusLabel(order.status)}
+                  </span>
+                  {role === "SALES_MANAGER" && order.status === "CREATED" && (
+                    <button
+                      onClick={handleChangeStatusToInProgress}
+                      disabled={changingStatus}
+                      className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {changingStatus ? t("order.changingStatus") : t("order.startProcessing")}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -446,7 +456,9 @@ function OrderDetails() {
                   {t("order.price")}
                 </label>
                 <p className="text-white font-semibold">
-                  {order.price.toLocaleString("ru-RU")} ₽
+                  {order.price !== null && order.price !== undefined
+                    ? `${order.price.toLocaleString("ru-RU")} ₽`
+                    : "—"}
                 </p>
               </div>
 
@@ -568,7 +580,7 @@ function OrderDetails() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.length === 0 ? (
+            {!Array.isArray(messages) || messages.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
                 {t("order.noMessages")}
               </div>

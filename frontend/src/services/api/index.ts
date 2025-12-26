@@ -12,9 +12,7 @@ export { authService } from './auth.service';
 export { productionService } from './production.service';
 export { purchaseOrdersService } from './purchaseOrders.service';
 
-export type { 
-  LoginRequestDto, 
-  LoginResponseDto, 
+export type {
   ClientRegistrationRequestDto,
   ClientRegistrationResponseDto,
   AccountRole,
@@ -25,10 +23,9 @@ export type {
 
 export type * from './types';
 
-// Explicitly export ProductDesignRequestDto to ensure it's available
 export type { ProductDesignRequestDto, ProductDesignResponseDto } from './types';
 
 export type { ProductionTaskResponseDto, ProductionTaskStatus } from './production.service';
 
-export type { PurchaseOrderResponseDto, PurchaseOrderStatus, PurchaseOrderMaterialDto, PurchaseOrderReceiptResponseDto } from './purchaseOrders.service';
+export type { PurchaseOrderResponseDto, PurchaseOrderStatus, PurchaseOrderMaterialDto, PurchaseOrderReceiptResponseDto, PurchaseOrderRequestDto } from './purchaseOrders.service';
 

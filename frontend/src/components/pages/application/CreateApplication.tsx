@@ -23,10 +23,6 @@ function CreateApplication() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (!authService.hasToken()) {
-        navigate("/auth?mode=login", { state: { from: "/applications/create" } });
-        return;
-      }
       try {
         const authenticated = await authService.isAuthenticated();
         if (!authenticated) {
@@ -116,9 +112,19 @@ function CreateApplication() {
       setError(null);
 
       const requestData: ClientApplicationRequestDto = {
-        ...values,
-        attachmentFileIds: uploadedFileIds.length > 0 ? uploadedFileIds : undefined,
+        description: values.description,
+        amount: values.amount,
       };
+
+      if (values.catalogProductId) {
+        requestData.catalogProductId = values.catalogProductId;
+      }
+      if (values.templateProductDesignId) {
+        requestData.templateProductDesignId = values.templateProductDesignId;
+      }
+      if (uploadedFileIds && uploadedFileIds.length > 0) {
+        requestData.attachmentFileIds = uploadedFileIds;
+      }
 
       const response = await applicationsService.createApplication(requestData);
 
