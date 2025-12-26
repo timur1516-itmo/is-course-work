@@ -180,7 +180,7 @@ export interface EmployeeResponseDto {
 }
 
 export interface EmployeesQueryParams {
-  role?: AccountRole; // AccountRole imported from auth.service
+  role?: AccountRole;
   page?: number;
   size?: number;
   sort?: string[];
@@ -196,6 +196,4 @@ export interface MessageAttachmentDto {
   fileId: number;
   messageId: number;
 }
-
-// AccountRole is exported from auth.service.ts to avoid duplication
 

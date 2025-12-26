@@ -22,9 +22,21 @@ function CreateApplication() {
   const [loadingProduct, setLoadingProduct] = useState(false);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate("/auth?mode=login", { state: { from: "/applications/create" } });
-    }
+    const checkAuth = async () => {
+      if (!authService.hasToken()) {
+        navigate("/auth?mode=login", { state: { from: "/applications/create" } });
+        return;
+      }
+      try {
+        const authenticated = await authService.isAuthenticated();
+        if (!authenticated) {
+          navigate("/auth?mode=login", { state: { from: "/applications/create" } });
+        }
+      } catch {
+        navigate("/auth?mode=login", { state: { from: "/applications/create" } });
+      }
+    };
+    checkAuth();
   }, [navigate]);
 
   useEffect(() => {

@@ -50,12 +50,10 @@ function ManagerDashboard() {
       try {
         setLoading(true);
         setError(null);
-        
-        // Загружаем заказы
+
         const ordersData = await ordersService.getOrders();
         setOrders(ordersData);
-        
-        // Загружаем заявки
+
         const applicationsData = await applicationsService.getApplications();
         setApplications(applicationsData.content || []);
       } catch (err) {
@@ -112,7 +110,7 @@ function ManagerDashboard() {
   }, [activeFilter, orders]);
 
   const handleNewApplicationsClick = () => {
-    navigate("/manager/applications?filter=new");
+    navigate("/applications?filter=new");
   };
 
   const handleCurrentApplicationsClick = () => {

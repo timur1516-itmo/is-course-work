@@ -19,7 +19,7 @@ import type {
   EmployeeResponseDto,
   FileMetadataResponseDto,
 } from "../../../services/api/types";
-import { IS_CLIENT, IS_STAFF } from "../../../config/app.ts";
+import { useUserRole } from "../../../hooks/useUserRole.ts";
 import SendIcon from "@mui/icons-material/Send";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -31,6 +31,7 @@ function OrderDetails() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const orderId = id ? Number(id) : null;
+  const { isClient, isStaff } = useUserRole();
 
   const [order, setOrder] = useState<ClientOrderResponseDto | null>(null);
   const [conversation, setConversation] = useState<ConversationResponseDto | null>(null);
@@ -122,7 +123,7 @@ function OrderDetails() {
         loadOrderFiles(orderData.clientApplicationId);
       }
 
-      if (IS_CLIENT) {
+      if (isClient) {
         if (orderData.managerId) {
           try {
             const manager = await employeesService.getEmployeeById(orderData.managerId);
@@ -131,7 +132,7 @@ function OrderDetails() {
             console.error("Failed to load manager info:", err);
           }
         }
-      } else if (IS_STAFF) {
+      } else if (isStaff) {
         try {
           const applicationToClientMap: Record<number, number> = {
             801: 456,
@@ -456,7 +457,7 @@ function OrderDetails() {
                 <p className="text-gray-300">{formatDate(order.createdAt)}</p>
               </div>
 
-              {IS_CLIENT && managerInfo && (
+              {isClient && managerInfo && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase mb-1 block">
                     {t("order.manager")}
@@ -467,7 +468,7 @@ function OrderDetails() {
                 </div>
               )}
 
-              {IS_STAFF && clientInfo && (
+              {isStaff && clientInfo && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase mb-1 block">
                     {t("order.client")}
@@ -478,7 +479,7 @@ function OrderDetails() {
                 </div>
               )}
 
-              {IS_STAFF && order.clientApplicationId && (
+              {isStaff && order.clientApplicationId && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase mb-1 block">
                     {t("order.clientApplication")}
@@ -492,7 +493,7 @@ function OrderDetails() {
                 </div>
               )}
 
-              {IS_STAFF && order.productDesignId && (
+              {isStaff && order.productDesignId && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase mb-1 block">
                     {t("order.productDesign")}

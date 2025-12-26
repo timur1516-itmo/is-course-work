@@ -24,14 +24,25 @@ export const apiClient: AxiosInstance = axios.create({
 
 let redirectingToLogin = false;
 
+let skipRedirect = false;
+
+export function setSkipRedirect(value: boolean) {
+  skipRedirect = value;
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      if (!redirectingToLogin)
+    if (error.response?.status === 401 && !skipRedirect && !redirectingToLogin) {
+      const path = window.location.pathname;
+      const publicPaths = ['/', '/catalog', '/about', '/discounts', '/legal', '/auth'];
+      const isPublicPath = publicPaths.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'));
+
+      if (!isPublicPath) {
         redirectingToLogin = true;
-      const returnTo = window.location.href;
-      window.location.href = `${LOGIN_URL}?returnTo=${encodeURIComponent(returnTo)}`;
+        const returnTo = window.location.href;
+        window.location.href = `${LOGIN_URL}?returnTo=${encodeURIComponent(returnTo)}`;
+      }
     }
     return Promise.reject(error);
   }

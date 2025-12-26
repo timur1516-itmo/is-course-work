@@ -1,4 +1,4 @@
-import { apiClient, extractApiError, gatewayClient, LOGIN_URL } from './config';
+import { apiClient, extractApiError, gatewayClient, LOGIN_URL, setSkipRedirect } from './config';
 
 export type AccountRole =
     | 'CLIENT'
@@ -62,9 +62,6 @@ export interface ChangePasswordRequestDto {
 }
 
 export const authService = {
-    /**
-     * BFF login: не XHR, а навигация.
-     */
     login(): never {
         const returnTo = window.location.href;
         window.location.href = `${LOGIN_URL}?returnTo=${encodeURIComponent(returnTo)}`;
@@ -80,37 +77,35 @@ export const authService = {
         }
     },
 
-    /**
-     * BFF logout: POST /logout на gateway (cookie-сессия).
-     * В идеале gateway сам редиректит на FRONTEND_BASE_URL.
-     * Но даже если нет — после успешного вызова мы вернём пользователя на фронт сами.
-     */
     async logout(): Promise<void> {
         try {
             await gatewayClient.post('/logout', null, {
-                // На некоторых окружениях axios может пытаться “сходить” за редиректом как XHR.
-                // Нам это не надо — мы сами сделаем навигацию.
                 maxRedirects: 0,
                 validateStatus: (s) => (s >= 200 && s < 400) || s === 401,
             });
         } catch {
-            // даже если упало — всё равно делаем навигацию, чтобы пользователь не завис
         } finally {
-            // сюда поставь свой фронтовый URL, если нужно (например import.meta.env.VITE_FRONTEND_BASE_URL)
             window.location.href = `${import.meta.env.VITE_FRONTEND_BASE_URL || window.location.origin}/`;
         }
     },
 
-    /**
-     * BFF: только через /me.
-     */
+    hasToken(): boolean {
+        if (typeof window === 'undefined') return false;
+        const token = localStorage.getItem('accessToken');
+        if (token) return true;
+        return false;
+    },
+
     async isAuthenticated(): Promise<boolean> {
+        setSkipRedirect(true);
         try {
             await this.getCurrentUser();
             return true;
         } catch (e: any) {
             if (e?.status === 401) return false;
             return false;
+        } finally {
+            setSkipRedirect(false);
         }
     },
 
@@ -141,11 +136,14 @@ export const authService = {
     },
 
     async getRole(): Promise<AccountRole | null> {
+        setSkipRedirect(true);
         try {
             const me = await this.getCurrentUser();
             return me.role ?? null;
         } catch {
             return null;
+        } finally {
+            setSkipRedirect(false);
         }
     },
 };

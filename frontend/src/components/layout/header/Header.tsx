@@ -10,8 +10,8 @@ import ListItemText from "@mui/material/ListItemText";
 import HomeIcon from "@mui/icons-material/Home";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { IS_STAFF } from "../../../config/app.ts";
-import { authService, type CurrentUserDto } from "../../../services/api";
+import { authService, type CurrentUserDto, LOGIN_URL } from "../../../services/api";
+import { useUserRole } from "../../../hooks/useUserRole.ts";
 
 type LangCode = "ru" | "en";
 
@@ -69,25 +69,41 @@ function Header() {
 
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isStaff } = useUserRole();
 
   const isAuthPage = location.pathname === "/auth";
 
-  const isAuthenticated = authService.isAuthenticated();
-
   useEffect(() => {
-    if (isAuthenticated && IS_STAFF) {
-      authService.getCurrentUser()
-        .then(setCurrentUser)
-        .catch(() => {
-        });
-    }
-  }, [isAuthenticated]);
+    const checkAuth = async () => {
+      try {
+        const authenticated = await authService.isAuthenticated();
+        setIsAuthenticated(authenticated);
+        if (authenticated && isStaff) {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+    checkAuth();
+  }, [isStaff, location.pathname]);
 
-  if (IS_STAFF) {
+  if (isStaff) {
     return (
       <header className="header bg-gray-700 px-24 py-4 sticky top-0 z-50 flex row justify-between items-center">
         <div className="header-logo">
-          <img src={MainLogo} alt={"logo"} />
+          {isAuthenticated ? (
+              <Link to="/">
+                <img src={MainLogo} alt={"logo"} />
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <img src={MainLogo} alt={"logo"} />
+              </Link>
+            )
+          }
         </div>
         <div className="header-menu flex items-center gap-4">
           {isAuthenticated ? (
@@ -99,7 +115,7 @@ function Header() {
                   hover:bg-gray-600 transition-colors"
               >
                 <span className="text-white">
-                  {currentUser?.person?.firstName || currentUser?.client?.person?.firstName || ""} {currentUser?.person?.lastName?.charAt(0) || currentUser?.client?.person?.lastName?.charAt(0) || ""}.
+                  {currentUser?.client?.person?.firstName || currentUser?.client?.person?.firstName || ""} {currentUser?.employee?.person?.lastName?.charAt(0) || currentUser?.client?.person?.lastName?.charAt(0) || ""}.
                 </span>
                 <ArrowDropDownIcon className="text-white" />
               </button>
@@ -118,7 +134,7 @@ function Header() {
               {currentUser?.role === 'ADMIN' && (
                 <MenuItem
                   component={Link}
-                  to="/admin"
+                  to="/"
                   onClick={handleStaffMenuClose}
                   className="
                     flex items-center
@@ -153,12 +169,12 @@ function Header() {
             </Menu>
           </div>
           ) : (
-            <Link
-              to="/auth"
+            <a
+              href={`${LOGIN_URL}?returnTo=${encodeURIComponent(window.location.href)}`}
               className="px-4 py-2 rounded-full text-sm font-medium border border-gray-500 text-white hover:bg-gray-600 transition-colors"
             >
               {t("auth.signIn")}
-            </Link>
+            </a>
           )}
         </div>
       </header>
@@ -167,21 +183,28 @@ function Header() {
 
   return (
     <header className="header bg-stone-950 px-24 py-4 sticky top-0 z-50 flex row justify-between items-center">
-      <div className="header-logo">
-        <img src={MainLogo} alt={"logo"} />
-      </div>
+      {isAuthenticated ? (
+        <Link to="/">
+          <img src={MainLogo} alt={"logo"} />
+        </Link>
+      ) : (
+        <Link to="/auth">
+          <img src={MainLogo} alt={"logo"} />
+        </Link>
+      )
+      }
       <div className="header-menu flex items-center gap-4">
         {!isAuthPage && !isAuthenticated && (
           <>
             <div>
-              <Link
-                to="/auth?mode=login"
+              <a
+                href={`${LOGIN_URL}?returnTo=${encodeURIComponent(window.location.href)}`}
                 className="px-4 py-2 rounded-full text-sm font-medium
               border border-gray-500 text-white
               hover:bg-gray-800 transition-colors"
               >
                 {t("login")}
-              </Link>
+              </a>
             </div>
 
             <div>

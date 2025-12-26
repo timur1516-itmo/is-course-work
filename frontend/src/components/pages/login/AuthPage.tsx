@@ -54,32 +54,6 @@ function AuthPage() {
   return (
     <div className="min-h-[calc(100vh-72px-72px)] flex items-center justify-center bg-stone-950 px-4">
       <div className="w-full max-w-md">
-        <div className="mb-6 flex rounded-full bg-stone-900 border border-gray-700 p-1">
-          <button
-            type="button"
-            onClick={(): void => setMode("login")}
-            className={
-              "flex-1 px-4 py-2 text-sm font-medium rounded-full transition-colors " +
-              (isLogin
-                ? "bg-white text-black"
-                : "text-gray-300 hover:bg-stone-800")
-            }
-          >
-            {t("auth.signIn")}
-          </button>
-          <button
-            type="button"
-            onClick={(): void => setMode("register")}
-            className={
-              "flex-1 px-4 py-2 text-sm font-medium rounded-full transition-colors " +
-              (isRegister
-                ? "bg-white text-black"
-                : "text-gray-300 hover:bg-stone-800")
-            }
-          >
-            {t("auth.signUp")}
-          </button>
-        </div>
 
         <div className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] backdrop-blur-md p-8">
           <h1 className="text-2xl font-semibold text-white mb-4">

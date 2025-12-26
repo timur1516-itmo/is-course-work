@@ -55,12 +55,10 @@ function ProfilePage() {
         setLoading(true);
         setError(null);
 
-        // 1) проверяем сессию через /me
         const userData = await authService.getCurrentUser();
 
         if (!alive) return;
 
-        // 2) параллельно грузим заказы (после того как точно есть юзер)
         const ordersData = await ordersService.getOrders();
 
         if (!alive) return;
@@ -70,7 +68,6 @@ function ProfilePage() {
       } catch (err: any) {
         if (!alive) return;
 
-        // если не залогинен — запускаем oauth2 login через gateway
         if (err?.status === 401) {
           authService.login();
           return;

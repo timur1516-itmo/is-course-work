@@ -7,6 +7,8 @@ import { employeesService, authService, extractApiError, type AccountRole } from
 import type { EmployeeResponseDto, EmployeeRequestDto } from "../../../services/api";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 
 const PASSWORD_REGEX = /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/;
 
@@ -41,7 +43,6 @@ function AdminDashboard() {
         if (!alive) return;
 
         if (me.role !== 'ADMIN') {
-          // не админ — уводим (выбери куда тебе логичнее)
           navigate('/', { replace: true });
           return;
         }
@@ -50,7 +51,6 @@ function AdminDashboard() {
       } catch (err: any) {
         if (!alive) return;
 
-        // если не залогинен — запускаем oauth2 login через gateway
         if (err?.status === 401) {
           authService.login();
           return;
@@ -73,11 +73,13 @@ function AdminDashboard() {
       setLoading(true);
       setError(null);
       const response = await employeesService.getEmployees({
-        role: selectedRole,
         page: 0,
         size: 100,
       });
-      setEmployees(response.content || []);
+      const filteredEmployees = selectedRole
+        ? (response.content || []).filter(emp => emp.role === selectedRole)
+        : (response.content || []);
+      setEmployees(filteredEmployees);
     } catch (err) {
       const apiError = extractApiError(err);
       setError(apiError.message || 'Ошибка загрузки сотрудников');
@@ -107,12 +109,33 @@ function AdminDashboard() {
     }
 
     try {
-      // Примечание: DELETE эндпоинт может быть не реализован на бэкенде
       await employeesService.deleteEmployee(id);
       await loadEmployees();
     } catch (err) {
       const apiError = extractApiError(err);
       setError(apiError.message || 'Ошибка удаления сотрудника. Возможно, эндпоинт еще не реализован на бэкенде.');
+    }
+  };
+
+  const handleEnableAccount = async (accountId: number) => {
+    try {
+      setError(null);
+      await employeesService.enableAccount(accountId);
+      await loadEmployees();
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка активации аккаунта');
+    }
+  };
+
+  const handleDisableAccount = async (accountId: number) => {
+    try {
+      setError(null);
+      await employeesService.disableAccount(accountId);
+      await loadEmployees();
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка деактивации аккаунта');
     }
   };
 
@@ -378,13 +401,29 @@ function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right">
-                        <button
-                          onClick={() => handleDeleteEmployee(employee.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
-                          title={t("admin.delete")}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEnableAccount(employee.accountId)}
+                            className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                            title={t("admin.enable")}
+                          >
+                            <CheckCircleIcon fontSize="small" />
+                          </button>
+                          <button
+                            onClick={() => handleDisableAccount(employee.accountId)}
+                            className="text-amber-400 hover:text-amber-300 transition-colors"
+                            title={t("admin.disable")}
+                          >
+                            <CancelIcon fontSize="small" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEmployee(employee.id)}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                            title={t("admin.delete")}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

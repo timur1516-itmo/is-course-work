@@ -113,7 +113,7 @@ function ApplicationsList() {
                       </td>
                       <td className="px-3 py-3 text-right">
                         <Link
-                          to={`/manager/applications/${application.id}`}
+                          to={`/applications/${application.id}`}
                           className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
                         >
                           {t("manager.openApplication")}
