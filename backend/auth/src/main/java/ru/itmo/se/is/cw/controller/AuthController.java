@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.itmo.se.is.cw.dto.AccountRequestDto;
 import ru.itmo.se.is.cw.dto.AccountResponseDto;
-import ru.itmo.se.is.cw.dto.UpdatePasswordRequestDto;
+import ru.itmo.se.is.cw.dto.ChangePasswordRequestDto;
 import ru.itmo.se.is.cw.dto.VerifyEmailRequestDto;
 import ru.itmo.se.is.cw.service.AuthService;
 
@@ -43,9 +43,9 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/accounts/{id}/update-password")
-    public ResponseEntity<Void> enableAccount(@PathVariable Long id, UpdatePasswordRequestDto request) {
-        authService.updatePassword(id, request);
+    @PostMapping("/accounts/{id}/change-password")
+    public ResponseEntity<Void> changePassword(@PathVariable Long id, @RequestBody ChangePasswordRequestDto request) {
+        authService.changePassword(id, request);
         return ResponseEntity.ok().build();
     }
 }

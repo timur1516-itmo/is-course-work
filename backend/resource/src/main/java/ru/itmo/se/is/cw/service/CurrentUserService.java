@@ -6,10 +6,16 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.itmo.se.is.cw.dto.ClientUpdateRequestDto;
 import ru.itmo.se.is.cw.dto.CurrentUserResponseDto;
+import ru.itmo.se.is.cw.dto.ChangePasswordRequestDto;
+import ru.itmo.se.is.cw.feign.AccountClient;
 import ru.itmo.se.is.cw.mapper.ClientMapper;
 import ru.itmo.se.is.cw.mapper.EmployeeMapper;
+import ru.itmo.se.is.cw.model.ClientEntity;
 import ru.itmo.se.is.cw.model.value.AccountRole;
+import ru.itmo.se.is.cw.repository.ClientRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -19,7 +25,10 @@ public class CurrentUserService {
     private final ClientMapper clientMapper;
     private final EmployeesService employeesService;
     private final EmployeeMapper employeeMapper;
+    private final ClientRepository clientRepository;
+    private final AccountClient accountClient;
 
+    @Transactional
     public CurrentUserResponseDto getCurrentUser() {
         CurrentUserResponseDto currentUserResponseDto = new CurrentUserResponseDto();
         Long accountId = getAccountId();
@@ -79,5 +88,16 @@ public class CurrentUserService {
             throw new IllegalStateException("No JWT authentication");
         }
         return jwtAuth;
+    }
+
+    @Transactional
+    public void updateCurrentUser(ClientUpdateRequestDto request) {
+        ClientEntity client = clientsService.getByAccountId(getAccountId());
+        clientMapper.updateEntity(request, client);
+        clientRepository.save(client);
+    }
+
+    public void changePassword(ChangePasswordRequestDto request) {
+        accountClient.changePassword(getAccountId(), request);
     }
 }

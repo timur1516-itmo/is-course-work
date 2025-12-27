@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import ru.itmo.se.is.cw.dto.AccountRequestDto;
 import ru.itmo.se.is.cw.dto.AccountResponseDto;
-import ru.itmo.se.is.cw.dto.UpdatePasswordRequestDto;
+import ru.itmo.se.is.cw.dto.ChangePasswordRequestDto;
 import ru.itmo.se.is.cw.dto.VerifyEmailRequestDto;
 import ru.itmo.se.is.cw.mapper.AccountMapper;
 import ru.itmo.se.is.cw.model.AccountEntity;
@@ -33,9 +33,9 @@ public class AuthService {
     }
 
     @Transactional
-    public void updatePassword(Long id, UpdatePasswordRequestDto request) {
+    public void changePassword(Long id, ChangePasswordRequestDto request) {
         AccountEntity account = getById(id);
-        if (!passwordEncoder.matches(request.getOldPassword(), account.getPassword()))
+        if (!passwordEncoder.matches(request.getCurrentPassword(), account.getPassword()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Old password is incorrect");
         account.setPassword(passwordEncoder.encode(request.getNewPassword()));
         accountRepository.save(account);

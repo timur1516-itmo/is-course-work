@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import ru.itmo.se.is.cw.dto.AccountRequestDto;
 import ru.itmo.se.is.cw.dto.AccountResponseDto;
-import ru.itmo.se.is.cw.dto.UpdatePasswordRequestDto;
+import ru.itmo.se.is.cw.dto.ChangePasswordRequestDto;
 
 @FeignClient(name = "account-client", url = "${app.feign.auth-url}")
 public interface AccountClient {
@@ -20,6 +20,6 @@ public interface AccountClient {
     @PostMapping("/accounts/{id}/disable")
     void disableAccount(@PathVariable Long id);
 
-    @PostMapping("/accounts/{id}/update-password")
-    void enableAccount(@PathVariable Long id, UpdatePasswordRequestDto request);
+    @PostMapping("/accounts/{id}/change-password")
+    void changePassword(@PathVariable Long id, @RequestBody ChangePasswordRequestDto request);
 }
