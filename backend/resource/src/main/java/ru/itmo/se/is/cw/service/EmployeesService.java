@@ -68,4 +68,12 @@ public class EmployeesService {
                 .findByAccountId(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Employee with accountId " + accountId + " not found"));
     }
+
+    public void enableEmployee(Long id) {
+        accountClient.enableAccount(id);
+    }
+
+    public void disableEmployee(Long id) {
+        accountClient.disableAccount(id);
+    }
 }

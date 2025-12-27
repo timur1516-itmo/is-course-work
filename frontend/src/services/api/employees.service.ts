@@ -37,17 +37,17 @@ export const employeesService = {
     }
   },
 
-  async enableAccount(accountId: number): Promise<void> {
+  async enableAccount(id: number): Promise<void> {
     try {
-      await apiClient.patch(`/accounts/${accountId}/enable`);
+      await apiClient.post(`/employees/${id}/enable`);
     } catch (error) {
       throw extractApiError(error);
     }
   },
 
-  async disableAccount(accountId: number): Promise<void> {
+  async disableAccount(id: number): Promise<void> {
     try {
-      await apiClient.patch(`/accounts/${accountId}/disable`);
+      await apiClient.post(`/employees/${id}/disable`);
     } catch (error) {
       throw extractApiError(error);
     }

@@ -135,4 +135,58 @@ public class EmployeesController {
         EmployeeResponseDto employee = employeesService.getEmployeeById(id);
         return ResponseEntity.ok(employee);
     }
+
+    @PostMapping("/{id}/enable")
+    @Operation(
+            summary = "Активация аккаунта сотрудника",
+            description = "Активирует учетную запись сотрудника по идентификатору."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Аккаунт сотрудника активирован"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Сотрудник не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Доступ запрещён",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_employees.write')")
+    public ResponseEntity<Void> enableEmployee(@PathVariable Long id) {
+        employeesService.enableEmployee(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/disable")
+    @Operation(
+            summary = "Деактивация аккаунта сотрудника",
+            description = "Деактивирует учетную запись сотрудника по идентификатору."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Аккаунт сотрудника деактивирован"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Сотрудник не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Доступ запрещён",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_employees.write')")
+    public ResponseEntity<Void> disableEmployee(@PathVariable Long id) {
+        employeesService.disableEmployee(id);
+        return ResponseEntity.ok().build();
+    }
 }

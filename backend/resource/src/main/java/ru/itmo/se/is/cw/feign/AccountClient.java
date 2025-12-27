@@ -1,7 +1,6 @@
 package ru.itmo.se.is.cw.feign;
 
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,12 +14,12 @@ public interface AccountClient {
     @PostMapping("/accounts")
     AccountResponseDto createAccount(@RequestBody AccountRequestDto request);
 
-    @PatchMapping("/accounts/{id}/enable")
+    @PostMapping("/accounts/{id}/enable")
     void enableAccount(@PathVariable Long id);
 
-    @PatchMapping("/accounts/{id}/disable")
+    @PostMapping("/accounts/{id}/disable")
     void disableAccount(@PathVariable Long id);
 
-    @PatchMapping("/accounts/{id}/update-password")
+    @PostMapping("/accounts/{id}/update-password")
     void enableAccount(@PathVariable Long id, UpdatePasswordRequestDto request);
 }

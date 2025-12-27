@@ -31,19 +31,19 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.createAccount(request));
     }
 
-    @PatchMapping("/accounts/{id}/enable")
+    @PostMapping("/accounts/{id}/enable")
     public ResponseEntity<Void> enableAccount(@PathVariable Long id) {
         authService.enableAccount(id);
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/accounts/{id}/disable")
+    @PostMapping("/accounts/{id}/disable")
     public ResponseEntity<Void> disableAccount(@PathVariable Long id) {
         authService.disableAccount(id);
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/accounts/{id}/update-password")
+    @PostMapping("/accounts/{id}/update-password")
     public ResponseEntity<Void> enableAccount(@PathVariable Long id, UpdatePasswordRequestDto request) {
         authService.updatePassword(id, request);
         return ResponseEntity.ok().build();
