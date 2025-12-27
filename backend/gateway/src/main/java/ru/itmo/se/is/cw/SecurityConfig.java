@@ -1,13 +1,12 @@
 package ru.itmo.se.is.cw;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
@@ -16,7 +15,11 @@ import org.springframework.security.web.authentication.logout.LogoutSuccessHandl
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, LogoutSuccessHandler logoutSuccessHandler) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            LogoutSuccessHandler logoutSuccessHandler,
+            @Value("${app.spa-url}") String spaUrl
+    ) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -37,7 +40,9 @@ public class SecurityConfig {
                                 request -> true
                         )
                 )
-                .oauth2Login(Customizer.withDefaults())
+                .oauth2Login(o -> o
+                        .defaultSuccessUrl(spaUrl)
+                )
                 .oauth2Client(Customizer.withDefaults())
                 .logout(l -> l
                         .logoutUrl("/logout")
@@ -45,13 +50,5 @@ public class SecurityConfig {
                 );
 
         return http.build();
-    }
-
-    @Bean
-    LogoutSuccessHandler oidcLogoutSuccessHandler(ClientRegistrationRepository clients) {
-        OidcClientInitiatedLogoutSuccessHandler handler =
-                new OidcClientInitiatedLogoutSuccessHandler(clients);
-        handler.setPostLogoutRedirectUri("{baseUrl}/");
-        return handler;
     }
 }

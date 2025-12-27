@@ -1,4 +1,4 @@
-import { apiClient, extractApiError, gatewayClient, LOGIN_URL, setSkipRedirect } from './config';
+import { apiClient, extractApiError, LOGIN_URL, setSkipRedirect } from './config';
 import axios from 'axios';
 
 export type AccountRole =
@@ -87,15 +87,12 @@ export const authService = {
     },
 
     async logout(): Promise<void> {
-        try {
-            await gatewayClient.post('/logout', null, {
-                maxRedirects: 0,
-                validateStatus: (s) => (s >= 200 && s < 400) || s === 401,
-            });
-        } catch {
-        } finally {
-            window.location.href = `${import.meta.env.VITE_FRONTEND_BASE_URL || window.location.origin}/`;
-        }
+        const gateway = import.meta.env.VITE_GATEWAY_BASE_URL || "http://localhost:8080";
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = `${gateway}/logout`;
+        document.body.appendChild(form);
+        form.submit();
     },
 
     hasToken(): boolean {

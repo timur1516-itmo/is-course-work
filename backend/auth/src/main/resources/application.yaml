@@ -29,6 +29,8 @@ spring:
               authorization-grant-types:
                 - authorization_code
                 - refresh_token
+              post-logout-redirect-uris:
+                - http://${SPA_HOST:localhost}:${SPA_PORT:5173}
               redirect-uris:
                 - http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/login/oauth2/code/gateway
               scopes:
