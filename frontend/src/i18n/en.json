@@ -1,6 +1,7 @@
 {
   "login": "Sign In",
   "register": "Sign Up",
+  "cancel": "Cancel",
   "header": {
     "home": "Home",
     "profile": "Profile",
@@ -144,7 +145,26 @@
     "generateUP": "Generate UP",
     "noOrders": "No orders",
     "file": "File",
-    "download": "Download"
+    "download": "Download",
+    "enterMaterialNorms": "Enter Material Consumption Norms",
+    "materialConsumptionNorms": "Material Consumption Norms",
+    "materialId": "Material ID",
+    "materialIdPlaceholder": "Enter material ID",
+    "amount": "Amount",
+    "amountPlaceholder": "Enter amount",
+    "materialRequired": "Select material",
+    "amountRequired": "Enter amount",
+    "amountMin": "Amount must be greater than 0",
+    "atLeastOneMaterial": "Add at least one material",
+    "addMaterial": "Add Material",
+    "removeMaterial": "Remove Material",
+    "saveAndSendForApproval": "Save and Send for Approval",
+    "saving": "Saving...",
+    "sendForRework": "Send for Rework",
+    "reworkComment": "Rework Comment",
+    "commentPlaceholder": "Describe what needs to be reworked...",
+    "commentRequired": "Enter comment",
+    "sending": "Sending..."
   },
   "operator": {
     "dashboard": "Machine Operator Dashboard",
@@ -314,7 +334,8 @@
     "cancel": "Cancel",
     "submit": "Submit Application",
     "submitting": "Submitting...",
-    "createError": "Error creating application"
+    "createError": "Error creating application",
+    "noAttachments": "No files attached"
   },
   "order": {
     "title": "Order",

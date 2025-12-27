@@ -14,7 +14,7 @@ function WarehouseDashboard() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState<PurchaseOrderResponseDto | null>(null);
   const [receiptInvoiceNumber, setReceiptInvoiceNumber] = useState("");
-  const [receiptItems, setReceiptItems] = useState<Array<{ materialId: number; amount: number; originalAmount: number }>>([]);
+  const [receiptItems, setReceiptItems] = useState<Array<{ materialId: number; materialName: string; amount: number; originalAmount: number }>>([]);
   const [showShipmentModal, setShowShipmentModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ClientOrderResponseDto | null>(null);
   const [shipmentMaterials, setShipmentMaterials] = useState<Array<{ materialId: number; materialName: string; amount: number; originalAmount: number }>>([]);
@@ -68,13 +68,30 @@ function WarehouseDashboard() {
 
       setSelectedPurchaseOrder(order);
       setReceiptInvoiceNumber("");
-      setReceiptItems(
-        order.materials.map(m => ({
-          materialId: m.materialId,
-          amount: m.amount,
-          originalAmount: m.amount,
-        }))
+      
+      // Загружаем названия материалов
+      const itemsWithNames = await Promise.all(
+        order.materials.map(async (m) => {
+          try {
+            const material = await materialsService.getMaterialById(m.materialId);
+            return {
+              materialId: m.materialId,
+              materialName: material.name,
+              amount: m.amount,
+              originalAmount: m.amount,
+            };
+          } catch {
+            return {
+              materialId: m.materialId,
+              materialName: `Материал #${m.materialId}`,
+              amount: m.amount,
+              originalAmount: m.amount,
+            };
+          }
+        })
       );
+      
+      setReceiptItems(itemsWithNames);
       setShowReceiptModal(true);
     } catch (err) {
       const apiError = extractApiError(err);
@@ -390,7 +407,7 @@ function WarehouseDashboard() {
                     >
                       <div className="flex-1">
                         <div className="text-sm text-white">
-                          Материал #{item.materialId}
+                          {item.materialName || `Материал #${item.materialId}`}
                         </div>
                         <div className="text-xs text-gray-400">
                           Ожидалось: {item.originalAmount}

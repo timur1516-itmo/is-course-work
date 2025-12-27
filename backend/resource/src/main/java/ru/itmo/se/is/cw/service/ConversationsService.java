@@ -15,9 +15,11 @@ import ru.itmo.se.is.cw.exception.EntityNotFoundException;
 import ru.itmo.se.is.cw.mapper.ConversationMapper;
 import ru.itmo.se.is.cw.mapper.ConversationParticipantMapper;
 import ru.itmo.se.is.cw.mapper.MessageMapper;
+import ru.itmo.se.is.cw.model.ClientOrderEntity;
 import ru.itmo.se.is.cw.model.ConversationEntity;
 import ru.itmo.se.is.cw.model.ConversationParticipantEntity;
 import ru.itmo.se.is.cw.model.MessageEntity;
+import ru.itmo.se.is.cw.model.value.ConversationStatus;
 import ru.itmo.se.is.cw.repository.ConversationParticipantRepository;
 import ru.itmo.se.is.cw.repository.ConversationRepository;
 import ru.itmo.se.is.cw.repository.MessageRepository;
@@ -35,6 +37,22 @@ public class ConversationsService {
     private final MessageMapper messageMapper;
     private final ConversationParticipantMapper conversationParticipantMapper;
     private final CurrentUserService currentUserService;
+
+    @Transactional
+    public ConversationEntity createConversationForOrder(ClientOrderEntity order) {
+        ConversationEntity conversation = new ConversationEntity();
+        conversation.setOrder(order);
+        conversation.setStatus(ConversationStatus.ACTIVE);
+        return conversationRepository.save(conversation);
+    }
+
+    @Transactional
+    public void addParticipantToConversation(ConversationEntity conversation, Long userId) {
+        ConversationParticipantEntity participant = new ConversationParticipantEntity();
+        participant.setConversation(conversation);
+        participant.setUserId(userId);
+        participantRepository.save(participant);
+    }
 
     @Transactional(readOnly = true)
     public ConversationResponseDto getConversationByOrderId(Long orderId) {

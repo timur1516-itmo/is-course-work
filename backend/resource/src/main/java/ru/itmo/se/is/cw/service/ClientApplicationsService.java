@@ -45,9 +45,13 @@ public class ClientApplicationsService {
         Long accountId = currentUserService.getAccountId();
 
         ClientApplicationEntity application = clientApplicationMapper.toEntity(request);
-        application.setTemplateProductDesign(
-                designsService.getById(request.getTemplateProductDesignId())
-        );
+
+        if (request.getTemplateProductDesignId() != null) {
+            application.setTemplateProductDesign(
+                    designsService.getById(request.getTemplateProductDesignId())
+            );
+        }
+
         application.setClient(
                 clientsService.getByAccountId(accountId)
         );

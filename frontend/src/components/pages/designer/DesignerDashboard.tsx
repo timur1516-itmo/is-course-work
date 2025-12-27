@@ -1,12 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { ordersService, applicationsService, filesService, designsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto } from "../../../services/api/types";
+import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
+import * as Yup from "yup";
+import { ordersService, applicationsService, filesService, designsService, materialsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto } from "../../../services/api/types";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 function DesignerDashboard() {
   const { t } = useTranslation();
@@ -17,6 +21,14 @@ function DesignerDashboard() {
   const [loadingFiles, setLoadingFiles] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMaterialForm, setShowMaterialForm] = useState<Record<number, boolean>>({});
+  const [showReworkComment, setShowReworkComment] = useState<Record<number, boolean>>({});
+  const [savingMaterials, setSavingMaterials] = useState<Record<number, boolean>>({});
+  const [sendingRework, setSendingRework] = useState<Record<number, boolean>>({});
+  const [materialsMap, setMaterialsMap] = useState<Map<number, MaterialResponseDto>>(new Map());
+  const [materialFormInitialValues, setMaterialFormInitialValues] = useState<Record<number, RequiredMaterialDto[]>>({});
+  const [allMaterials, setAllMaterials] = useState<MaterialResponseDto[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,11 +60,7 @@ function DesignerDashboard() {
         for (const order of designerOrders) {
           if (order.clientApplicationId && !applicationsMap[order.clientApplicationId]) {
             try {
-              const appResponse = await applicationsService.getApplications({
-                page: 0,
-                size: 100,
-              });
-              const app = appResponse.content?.find(a => a.id === order.clientApplicationId);
+              const app = await applicationsService.getApplicationById(order.clientApplicationId);
               if (app) {
                 applicationsMap[order.clientApplicationId] = app;
               }
@@ -71,6 +79,29 @@ function DesignerDashboard() {
     };
     
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const loadMaterials = async () => {
+      try {
+        setLoadingMaterials(true);
+        setError(null);
+        const materials = await materialsService.getMaterials({ size: 1000 });
+        setAllMaterials(materials);
+        if (materials.length === 0) {
+          console.warn('No materials found in the database');
+        }
+      } catch (err) {
+        const apiError = extractApiError(err);
+        console.error('Failed to load materials:', apiError);
+        if (apiError.status !== 403) {
+          setError(apiError.message || apiError.detail || 'Ошибка загрузки материалов');
+        }
+      } finally {
+        setLoadingMaterials(false);
+      }
+    };
+    loadMaterials();
   }, []);
 
   const toggleOrder = async (orderId: number) => {
@@ -236,6 +267,95 @@ function DesignerDashboard() {
       console.error('Failed to upload UP file:', err);
     }
     event.target.value = "";
+  };
+
+  const loadMaterial = async (materialId: number) => {
+    if (materialsMap.has(materialId)) return;
+    try {
+      const material = await materialsService.getMaterialById(materialId);
+      setMaterialsMap(prev => new Map(prev).set(materialId, material));
+    } catch (err) {
+      console.error(`Failed to load material ${materialId}:`, err);
+    }
+  };
+
+  const handleSaveMaterials = async (orderId: number, materials: RequiredMaterialDto[]) => {
+    try {
+      setSavingMaterials(prev => ({ ...prev, [orderId]: true }));
+      setError(null);
+
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        throw new Error('Заказ не найден');
+      }
+
+      for (const mat of materials) {
+        await loadMaterial(mat.materialId);
+      }
+
+      const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
+      const productName = application 
+        ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
+        : `Заказ #${order.id}`;
+
+      if (order.productDesignId) {
+        const existingDesign = await designsService.getDesignById(order.productDesignId);
+        await designsService.updateDesign(order.productDesignId, {
+          productName: existingDesign.productName,
+          fileIds: existingDesign.files.map(f => f.id),
+          requiredMaterials: materials,
+        });
+      } else {
+        await designsService.createDesign({
+          productName,
+          fileIds: [],
+          requiredMaterials: materials,
+        });
+      }
+
+      await ordersService.changeOrderStatus(orderId, "PENDING_APPROVAL");
+
+      const allOrders = await ordersService.getOrders();
+      const designerOrders = allOrders.filter(
+        (o) => 
+          o.status === "PENDING_APPROVAL" || 
+          o.status === "REWORK" || 
+          o.status === "IN_PROGRESS"
+      );
+      setOrders(designerOrders);
+      setShowMaterialForm(prev => ({ ...prev, [orderId]: false }));
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка сохранения норм материалов');
+      console.error('Failed to save materials:', err);
+    } finally {
+      setSavingMaterials(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleSendReworkComment = async (orderId: number, comment: string) => {
+    try {
+      setSendingRework(prev => ({ ...prev, [orderId]: true }));
+      setError(null);
+
+      await ordersService.changeOrderStatus(orderId, "REWORK", comment);
+
+      const allOrders = await ordersService.getOrders();
+      const designerOrders = allOrders.filter(
+        (o) => 
+          o.status === "PENDING_APPROVAL" || 
+          o.status === "REWORK" || 
+          o.status === "IN_PROGRESS"
+      );
+      setOrders(designerOrders);
+      setShowReworkComment(prev => ({ ...prev, [orderId]: false }));
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка отправки комментария на доработку');
+      console.error('Failed to send rework comment:', err);
+    } finally {
+      setSendingRework(prev => ({ ...prev, [orderId]: false }));
+    }
   };
 
   if (loading) {
@@ -413,6 +533,207 @@ function DesignerDashboard() {
                                     </span>
                                   </label>
                                 </div>
+
+                                {order.status === "IN_PROGRESS" && (
+                                  <div className="mt-4 pt-4 border-t border-gray-700">
+                                    {!showMaterialForm[order.id] ? (
+                                      <button
+                                        onClick={async () => {
+                                          let initialMaterials: RequiredMaterialDto[] = [{ materialId: 0, amount: 0 }];
+                                          if (order.productDesignId) {
+                                            try {
+                                              const design = await designsService.getDesignById(order.productDesignId);
+                                              if (design.requiredMaterials.length > 0) {
+                                                initialMaterials = design.requiredMaterials;
+                                              }
+                                            } catch (err) {
+                                              console.error('Failed to load design:', err);
+                                            }
+                                          }
+                                          setMaterialFormInitialValues(prev => ({ ...prev, [order.id]: initialMaterials }));
+                                          setShowMaterialForm(prev => ({ ...prev, [order.id]: true }));
+                                        }}
+                                        className="w-full rounded-full bg-emerald-500 text-white text-sm font-medium py-2.5 hover:bg-emerald-600 transition-colors"
+                                      >
+                                        {t("designer.enterMaterialNorms")}
+                                      </button>
+                                    ) : (
+                                      <Formik
+                                        initialValues={{
+                                          materials: materialFormInitialValues[order.id] || [{ materialId: 0, amount: 0 }],
+                                        }}
+                                        enableReinitialize
+                                        validationSchema={Yup.object({
+                                          materials: Yup.array()
+                                            .of(
+                                              Yup.object({
+                                                materialId: Yup.number().min(1, t("designer.materialRequired")).required(t("designer.materialRequired")),
+                                                amount: Yup.number().min(0.01, t("designer.amountMin")).required(t("designer.amountRequired")),
+                                              })
+                                            )
+                                            .min(1, t("designer.atLeastOneMaterial")),
+                                        })}
+                                        onSubmit={(values) => handleSaveMaterials(order.id, values.materials)}
+                                      >
+                                        {({ values, isSubmitting }) => (
+                                          <Form className="space-y-4">
+                                            <div className="text-sm font-medium text-white mb-2">
+                                              {t("designer.materialConsumptionNorms")}
+                                            </div>
+                                            <FieldArray name="materials">
+                                              {({ push, remove }) => (
+                                                <div className="space-y-3">
+                                                  {values.materials.map((material: RequiredMaterialDto, index: number) => {
+                                                    const selectedMaterial = allMaterials.find(m => m.id === material.materialId);
+                                                    return (
+                                                      <div key={index} className="grid grid-cols-2 gap-3 p-3 bg-stone-900/50 rounded-lg border border-gray-700">
+                                                        <div>
+                                                          <label className="block text-xs text-gray-400 mb-1">
+                                                            {t("designer.material")}
+                                                          </label>
+                                                          <Field
+                                                            name={`materials.${index}.materialId`}
+                                                            as="select"
+                                                            className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white"
+                                                          >
+                                                            <option value={0}>{t("designer.selectMaterial")}</option>
+                                                            {allMaterials.map((mat) => (
+                                                              <option key={mat.id} value={mat.id}>
+                                                                {mat.name} ({mat.unitOfMeasure})
+                                                              </option>
+                                                            ))}
+                                                          </Field>
+                                                          <ErrorMessage
+                                                            name={`materials.${index}.materialId`}
+                                                            component="div"
+                                                            className="text-xs text-red-400 mt-1"
+                                                          />
+                                                          {selectedMaterial && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                              {t("designer.unitOfMeasure")}: {selectedMaterial.unitOfMeasure}
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                        <div>
+                                                          <label className="block text-xs text-gray-400 mb-1">
+                                                            {t("designer.amount")} {selectedMaterial && `(${selectedMaterial.unitOfMeasure})`}
+                                                          </label>
+                                                          <Field
+                                                            name={`materials.${index}.amount`}
+                                                            type="number"
+                                                            step="0.01"
+                                                            className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white"
+                                                            placeholder={t("designer.amountPlaceholder")}
+                                                          />
+                                                          <ErrorMessage
+                                                            name={`materials.${index}.amount`}
+                                                            component="div"
+                                                            className="text-xs text-red-400 mt-1"
+                                                          />
+                                                        </div>
+                                                        {values.materials.length > 1 && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => remove(index)}
+                                                            className="col-span-2 flex items-center justify-center gap-1 text-red-400 hover:text-red-300 transition-colors text-xs"
+                                                          >
+                                                            <DeleteIcon fontSize="small" />
+                                                            {t("designer.removeMaterial")}
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => push({ materialId: 0, amount: 0 })}
+                                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 transition-colors"
+                                                  >
+                                                    <AddIcon fontSize="small" />
+                                                    {t("designer.addMaterial")}
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </FieldArray>
+                                            <div className="flex gap-3 pt-2">
+                                              <button
+                                                type="submit"
+                                                disabled={isSubmitting || savingMaterials[order.id]}
+                                                className="flex-1 rounded-full bg-emerald-500 text-white text-sm font-medium py-2.5 hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                                              >
+                                                {savingMaterials[order.id] ? t("designer.saving") : t("designer.saveAndSendForApproval")}
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setShowMaterialForm(prev => ({ ...prev, [order.id]: false }))}
+                                                className="flex-1 rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium py-2.5 hover:bg-gray-900 transition-colors"
+                                              >
+                                                {t("cancel")}
+                                              </button>
+                                            </div>
+                                          </Form>
+                                        )}
+                                      </Formik>
+                                    )}
+                                  </div>
+                                )}
+
+                                {order.status === "IN_PROGRESS" && (
+                                  <div className="mt-4 pt-4 border-t border-gray-700">
+                                    {!showReworkComment[order.id] ? (
+                                      <button
+                                        onClick={() => setShowReworkComment(prev => ({ ...prev, [order.id]: true }))}
+                                        className="w-full rounded-full bg-orange-500 text-white text-sm font-medium py-2.5 hover:bg-orange-600 transition-colors"
+                                      >
+                                        {t("designer.sendForRework")}
+                                      </button>
+                                    ) : (
+                                      <Formik
+                                        initialValues={{ comment: "" }}
+                                        validationSchema={Yup.object({
+                                          comment: Yup.string().required(t("designer.commentRequired")),
+                                        })}
+                                        onSubmit={(values) => handleSendReworkComment(order.id, values.comment)}
+                                      >
+                                        {({ isSubmitting }) => (
+                                          <Form className="space-y-4">
+                                            <div className="text-sm font-medium text-white mb-2">
+                                              {t("designer.reworkComment")}
+                                            </div>
+                                            <Field
+                                              name="comment"
+                                              as="textarea"
+                                              rows={4}
+                                              className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white placeholder-gray-500"
+                                              placeholder={t("designer.commentPlaceholder")}
+                                            />
+                                            <ErrorMessage
+                                              name="comment"
+                                              component="div"
+                                              className="text-xs text-red-400"
+                                            />
+                                            <div className="flex gap-3 pt-2">
+                                              <button
+                                                type="submit"
+                                                disabled={isSubmitting || sendingRework[order.id]}
+                                                className="flex-1 rounded-full bg-orange-500 text-white text-sm font-medium py-2.5 hover:bg-orange-600 transition-colors disabled:opacity-50"
+                                              >
+                                                {sendingRework[order.id] ? t("designer.sending") : t("designer.sendForRework")}
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setShowReworkComment(prev => ({ ...prev, [order.id]: false }))}
+                                                className="flex-1 rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium py-2.5 hover:bg-gray-900 transition-colors"
+                                              >
+                                                {t("cancel")}
+                                              </button>
+                                            </div>
+                                          </Form>
+                                        )}
+                                      </Formik>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>

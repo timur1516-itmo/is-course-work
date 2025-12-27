@@ -1,6 +1,8 @@
 {
   "login": "Войти",
   "register": "Зарегистрироваться",
+  "cancel": "Отмена",
+  "close": "Закрыть",
   "header": {
     "home": "Главная",
     "profile": "Профиль",
@@ -144,7 +146,26 @@
     "generateUP": "Сгенерировать УП",
     "noOrders": "Заказы отсутствуют",
     "file": "Файл",
-    "download": "Скачать"
+    "download": "Скачать",
+    "enterMaterialNorms": "Ввести расход материала",
+    "materialRequired": "Выберите материал",
+    "amountRequired": "Укажите количество",
+    "amountMin": "Количество должно быть больше 0",
+    "materialConsumptionNorms": "Нормы расхода материала",
+    "amount": "Количество",
+    "amountPlaceholder": "Введите количество",
+    "addMaterial": "Добавить материал",
+    "removeMaterial": "Удалить материал",
+    "saveAndSendForApproval": "Сохранить и отправить на согласование",
+    "saving": "Сохранение...",
+    "sendForRework": "Отправить на доработку",
+    "reworkComment": "Комментарии по доработке",
+    "commentPlaceholder": "Укажите, что нужно доработать в заказе",
+    "commentRequired": "Комментарий обязателен при отправке на доработку",
+    "sending": "Отправка...",
+    "material": "Материал",
+    "selectMaterial": "Выберите материал",
+    "unitOfMeasure": "Единица измерения"
   },
   "operator": {
     "dashboard": "Панель оператора станка",
@@ -210,7 +231,23 @@
     "priceRequired": "Укажите цену",
     "priceMin": "Цена должна быть неотрицательной",
     "supplierRequired": "Укажите поставщика",
-    "atLeastOneMaterial": "Добавьте хотя бы один материал"
+    "atLeastOneMaterial": "Добавьте хотя бы один материал",
+    "selectMaterial": "Выберите материал",
+    "unitOfMeasure": "Единица измерения",
+    "createMaterial": "Создать материал",
+    "materialName": "Название материала",
+    "materialNamePlaceholder": "Введите название материала",
+    "materialNameRequired": "Введите название материала",
+    "materialNameMin": "Название материала должно быть не пустым",
+    "unitOfMeasureRequired": "Введите единицу измерения",
+    "unitOfMeasurePlaceholder": "Например: м², кг, шт",
+    "orderPoint": "Точка заказа",
+    "orderPointPlaceholder": "Введите точку заказа",
+    "orderPointRequired": "Введите точку заказа",
+    "orderPointMin": "Точка заказа должна быть неотрицательной",
+    "creating": "Создание...",
+    "invoice": "Накладная",
+    "receivedAmount": "Принято"
   },
   "catalog": {
     "title": "Каталог товаров",
@@ -314,7 +351,8 @@
     "cancel": "Отмена",
     "submit": "Отправить заявку",
     "submitting": "Отправка...",
-    "createError": "Ошибка создания заявки"
+    "createError": "Ошибка создания заявки",
+    "noAttachments": "Файлы не выбраны"
   },
   "order": {
     "title": "Заказ",

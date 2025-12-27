@@ -2,8 +2,9 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
-import { purchaseOrdersService, extractApiError } from "../../../services/api";
+import { purchaseOrdersService, materialsService, extractApiError } from "../../../services/api";
 import type { PurchaseOrderResponseDto, PurchaseOrderRequestDto, PurchaseOrderMaterialDto } from "../../../services/api/purchaseOrders.service";
+import type { MaterialResponseDto } from "../../../services/api/types";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -17,10 +18,30 @@ function SupplyManagerDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCreateMaterialModal, setShowCreateMaterialModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrderResponseDto | null>(null);
+  const [allMaterials, setAllMaterials] = useState<MaterialResponseDto[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [creatingMaterial, setCreatingMaterial] = useState(false);
+  const [receiptInfo, setReceiptInfo] = useState<{ [key: number]: { invoiceNumber: string; receivedItems: Array<{ materialId: number; amount: number }> } }>({});
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const loadMaterials = async () => {
+      try {
+        setLoadingMaterials(true);
+        const materials = await materialsService.getMaterials({ size: 1000 });
+        setAllMaterials(materials);
+      } catch (err) {
+        console.error('Failed to load materials:', err);
+      } finally {
+        setLoadingMaterials(false);
+      }
+    };
+    loadMaterials();
   }, []);
 
   const loadData = async () => {
@@ -49,8 +70,38 @@ function SupplyManagerDashboard() {
     setError(null);
   };
 
-  const handleViewDetails = (order: PurchaseOrderResponseDto) => {
+  const handleViewDetails = async (order: PurchaseOrderResponseDto) => {
     setSelectedOrder(order);
+    
+    try {
+      const receipt = await purchaseOrdersService.getPurchaseOrderReceipt(order.id);
+      if (receipt) {
+        setReceiptInfo(prev => ({
+          ...prev,
+          [order.id]: {
+            invoiceNumber: receipt.invoiceNumber,
+            receivedItems: receipt.receivedItems || []
+          }
+        }));
+      } else {
+        setReceiptInfo(prev => {
+          const newInfo = { ...prev };
+          delete newInfo[order.id];
+          return newInfo;
+        });
+      }
+    } catch (err) {
+      const apiError = extractApiError(err);
+      if (apiError.status !== 404) {
+        console.error('Error loading receipt:', err);
+      }
+      setReceiptInfo(prev => {
+        const newInfo = { ...prev };
+        delete newInfo[order.id];
+        return newInfo;
+      });
+    }
+
     setShowDetailsModal(true);
   };
 
@@ -81,8 +132,23 @@ function SupplyManagerDashboard() {
     }
   };
 
+  const handleCreateMaterial = async (values: { name: string; unitOfMeasure: string; orderPoint: number }) => {
+    try {
+      setCreatingMaterial(true);
+      setError(null);
+      const newMaterial = await materialsService.createMaterial(values);
+      setAllMaterials(prev => [...prev, newMaterial]);
+      setShowCreateMaterialModal(false);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка создания материала');
+    } finally {
+      setCreatingMaterial(false);
+    }
+  };
+
   const materialValidationSchema = Yup.object({
-    materialId: Yup.number().required(t("supply.materialRequired")),
+    materialId: Yup.number().min(1, t("supply.materialRequired")).required(t("supply.materialRequired")),
     amount: Yup.number().required(t("supply.amountRequired")).min(0.01, t("supply.amountMin")),
     priceForUnit: Yup.number().required(t("supply.priceRequired")).min(0, t("supply.priceMin")),
     supplier: Yup.string().required(t("supply.supplierRequired")),
@@ -199,7 +265,6 @@ function SupplyManagerDashboard() {
           </table>
         </div>
 
-        {/* Модальное окно создания заявки */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-stone-900 rounded-3xl border border-gray-800 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -231,22 +296,50 @@ function SupplyManagerDashboard() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <label className="block text-sm text-gray-300 mb-1">
-                                    {t("supply.materialId")} *
+                                    {t("supply.material")} *
                                   </label>
-                                  <Field
-                                    name={`materials.${index}.materialId`}
-                                    type="number"
-                                    className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
-                                  />
+                                  <div className="flex gap-2">
+                                    <Field
+                                      name={`materials.${index}.materialId`}
+                                      as="select"
+                                      className="flex-1 rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                                    >
+                                      <option value={0}>{t("supply.selectMaterial")}</option>
+                                      {allMaterials.map((mat) => (
+                                        <option key={mat.id} value={mat.id}>
+                                          {mat.name} ({mat.unitOfMeasure})
+                                        </option>
+                                      ))}
+                                    </Field>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowCreateMaterialModal(true)}
+                                      className="px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-sm font-medium transition-colors"
+                                      title={t("supply.createMaterial")}
+                                    >
+                                      <AddIcon fontSize="small" />
+                                    </button>
+                                  </div>
                                   <ErrorMessage
                                     name={`materials.${index}.materialId`}
                                     component="div"
                                     className="text-xs text-red-400 mt-1"
                                   />
+                                  {values.materials[index]?.materialId > 0 && (() => {
+                                    const selectedMaterial = allMaterials.find(m => m.id === values.materials[index].materialId);
+                                    return selectedMaterial ? (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        {t("supply.unitOfMeasure")}: {selectedMaterial.unitOfMeasure}
+                                      </div>
+                                    ) : null;
+                                  })()}
                                 </div>
                                 <div>
                                   <label className="block text-sm text-gray-300 mb-1">
-                                    {t("supply.amount")} *
+                                    {t("supply.amount")} {values.materials[index]?.materialId > 0 && (() => {
+                                      const selectedMaterial = allMaterials.find(m => m.id === values.materials[index].materialId);
+                                      return selectedMaterial ? `(${selectedMaterial.unitOfMeasure})` : '';
+                                    })()} *
                                   </label>
                                   <Field
                                     name={`materials.${index}.amount`}
@@ -327,7 +420,6 @@ function SupplyManagerDashboard() {
           </div>
         )}
 
-        {/* Модальное окно редактирования/утверждения заявки */}
         {showEditModal && selectedOrder && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-stone-900 rounded-3xl border border-gray-800 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -359,22 +451,50 @@ function SupplyManagerDashboard() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <label className="block text-sm text-gray-300 mb-1">
-                                    {t("supply.materialId")} *
+                                    {t("supply.material")} *
                                   </label>
-                                  <Field
-                                    name={`materials.${index}.materialId`}
-                                    type="number"
-                                    className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
-                                  />
+                                  <div className="flex gap-2">
+                                    <Field
+                                      name={`materials.${index}.materialId`}
+                                      as="select"
+                                      className="flex-1 rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                                    >
+                                      <option value={0}>{t("supply.selectMaterial")}</option>
+                                      {allMaterials.map((mat) => (
+                                        <option key={mat.id} value={mat.id}>
+                                          {mat.name} ({mat.unitOfMeasure})
+                                        </option>
+                                      ))}
+                                    </Field>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowCreateMaterialModal(true)}
+                                      className="px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-sm font-medium transition-colors"
+                                      title={t("supply.createMaterial")}
+                                    >
+                                      <AddIcon fontSize="small" />
+                                    </button>
+                                  </div>
                                   <ErrorMessage
                                     name={`materials.${index}.materialId`}
                                     component="div"
                                     className="text-xs text-red-400 mt-1"
                                   />
+                                  {values.materials[index]?.materialId > 0 && (() => {
+                                    const selectedMaterial = allMaterials.find(m => m.id === values.materials[index].materialId);
+                                    return selectedMaterial ? (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        {t("supply.unitOfMeasure")}: {selectedMaterial.unitOfMeasure}
+                                      </div>
+                                    ) : null;
+                                  })()}
                                 </div>
                                 <div>
                                   <label className="block text-sm text-gray-300 mb-1">
-                                    {t("supply.amount")} *
+                                    {t("supply.amount")} {values.materials[index]?.materialId > 0 && (() => {
+                                      const selectedMaterial = allMaterials.find(m => m.id === values.materials[index].materialId);
+                                      return selectedMaterial ? `(${selectedMaterial.unitOfMeasure})` : '';
+                                    })()} *
                                   </label>
                                   <Field
                                     name={`materials.${index}.amount`}
@@ -458,11 +578,14 @@ function SupplyManagerDashboard() {
           </div>
         )}
 
-        {/* Модальное окно просмотра деталей заявки */}
         {showDetailsModal && selectedOrder && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-stone-900 rounded-3xl border border-gray-800 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-semibold mb-6">{t("supply.orderDetails")} #{selectedOrder.id}</h2>
+              <h2 className="text-2xl font-semibold mb-6">
+                {receiptInfo[selectedOrder.id]?.invoiceNumber 
+                  ? `${t("supply.invoice")} ${receiptInfo[selectedOrder.id].invoiceNumber}`
+                  : `${t("supply.orderDetails")} #${selectedOrder.id}`}
+              </h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">{t("supply.status")}</label>
@@ -486,28 +609,45 @@ function SupplyManagerDashboard() {
                   <label className="block text-sm text-gray-400 mb-2">{t("supply.materials")}</label>
                   <div className="space-y-2">
                     {selectedOrder.materials && selectedOrder.materials.length > 0 ? (
-                      selectedOrder.materials.map((material, index) => (
-                        <div key={index} className="p-4 rounded-xl bg-stone-800/50 border border-gray-700">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <span className="text-xs text-gray-400">{t("supply.materialId")}:</span>
-                              <p className="text-white">{material.materialId}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-gray-400">{t("supply.amount")}:</span>
-                              <p className="text-white">{material.amount}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-gray-400">{t("supply.priceForUnit")}:</span>
-                              <p className="text-white">{material.priceForUnit}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-gray-400">{t("supply.supplier")}:</span>
-                              <p className="text-white">{material.supplier}</p>
+                      selectedOrder.materials.map((material, index) => {
+                        const materialInfo = allMaterials.find(m => m.id === material.materialId);
+                        const receipt = receiptInfo[selectedOrder.id];
+                        const receivedItem = receipt?.receivedItems?.find(item => item.materialId === material.materialId);
+                        const receivedAmount = receivedItem?.amount || 0;
+                        
+                        return (
+                          <div key={index} className="p-4 rounded-xl bg-stone-800/50 border border-gray-700">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <span className="text-xs text-gray-400">{t("supply.material")}:</span>
+                                <p className="text-white">
+                                  {materialInfo ? `${materialInfo.name} (${materialInfo.unitOfMeasure})` : `ID: ${material.materialId}`}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-400">{t("supply.amount")}:</span>
+                                <p className="text-white">{material.amount} {materialInfo?.unitOfMeasure || ''}</p>
+                              </div>
+                              {receipt && (
+                                <div>
+                                  <span className="text-xs text-gray-400">{t("supply.receivedAmount")}:</span>
+                                  <p className={`text-white ${receivedAmount < material.amount ? 'text-amber-400' : receivedAmount > material.amount ? 'text-orange-400' : ''}`}>
+                                    {receivedAmount} {materialInfo?.unitOfMeasure || ''}
+                                  </p>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-xs text-gray-400">{t("supply.priceForUnit")}:</span>
+                                <p className="text-white">{material.priceForUnit}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-400">{t("supply.supplier")}:</span>
+                                <p className="text-white">{material.supplier}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <p className="text-gray-500">{t("supply.noMaterials")}</p>
                     )}
@@ -522,9 +662,99 @@ function SupplyManagerDashboard() {
                   }}
                   className="px-6 py-2 rounded-full bg-white text-black text-sm font-medium hover:bg-gray-200 transition-colors"
                 >
-                  {t("profile.closeProfileSettings")}
+                  {t("close")}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showCreateMaterialModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-stone-900 rounded-3xl border border-gray-800 p-8 max-w-2xl w-full">
+              <h2 className="text-2xl font-semibold mb-6">{t("supply.createMaterial")}</h2>
+              <Formik
+                initialValues={{
+                  name: "",
+                  unitOfMeasure: "",
+                  orderPoint: 0,
+                }}
+                validationSchema={Yup.object({
+                  name: Yup.string().required(t("supply.materialNameRequired")).min(1, t("supply.materialNameMin")),
+                  unitOfMeasure: Yup.string().required(t("supply.unitOfMeasureRequired")),
+                  orderPoint: Yup.number().required(t("supply.orderPointRequired")).min(0, t("supply.orderPointMin")),
+                })}
+                onSubmit={handleCreateMaterial}
+              >
+                {({ isSubmitting }) => (
+                  <Form className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">
+                        {t("supply.materialName")} *
+                      </label>
+                      <Field
+                        name="name"
+                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                        placeholder={t("supply.materialNamePlaceholder")}
+                      />
+                      <ErrorMessage
+                        name="name"
+                        component="div"
+                        className="text-xs text-red-400 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">
+                        {t("supply.unitOfMeasure")} *
+                      </label>
+                      <Field
+                        name="unitOfMeasure"
+                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                        placeholder={t("supply.unitOfMeasurePlaceholder")}
+                      />
+                      <ErrorMessage
+                        name="unitOfMeasure"
+                        component="div"
+                        className="text-xs text-red-400 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">
+                        {t("supply.orderPoint")} *
+                      </label>
+                      <Field
+                        name="orderPoint"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                        placeholder={t("supply.orderPointPlaceholder")}
+                      />
+                      <ErrorMessage
+                        name="orderPoint"
+                        component="div"
+                        className="text-xs text-red-400 mt-1"
+                      />
+                    </div>
+                    <div className="flex gap-4 mt-6">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateMaterialModal(false)}
+                        className="flex-1 rounded-full border border-gray-700 text-white text-sm font-medium py-2.5 hover:bg-gray-800 transition-colors"
+                      >
+                        {t("cancel")}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmitting || creatingMaterial}
+                        className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                      >
+                        {creatingMaterial ? t("supply.creating") : t("supply.create")}
+                      </button>
+                    </div>
+                  </Form>
+                )}
+              </Formik>
             </div>
           </div>
         )}

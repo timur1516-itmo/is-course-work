@@ -124,6 +124,8 @@ function CreateApplication() {
       }
       if (uploadedFileIds && uploadedFileIds.length > 0) {
         requestData.attachmentFileIds = uploadedFileIds;
+      } else {
+        requestData.attachmentFileIds = [];
       }
 
       const response = await applicationsService.createApplication(requestData);

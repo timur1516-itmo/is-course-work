@@ -80,12 +80,18 @@ export interface MaterialResponseDto {
   currentBalance?: number;
 }
 
+export interface MaterialRequestDto {
+  name: string;
+  unitOfMeasure: string;
+  orderPoint: number;
+}
+
 export interface ClientApplicationRequestDto {
   description: string;
   amount: number;
   templateProductDesignId?: number;
   catalogProductId?: number;
-  attachmentFileIds?: number[];
+  attachmentFileIds: number[];
 }
 
 export interface ClientApplicationResponseDto {

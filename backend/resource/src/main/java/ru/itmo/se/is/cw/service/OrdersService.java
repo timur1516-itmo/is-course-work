@@ -34,6 +34,7 @@ public class OrdersService {
     private final ClientOrderMapper clientOrderMapper;
     private final ClientsService clientsService;
     private final CurrentUserService currentUserService;
+    private final ConversationsService conversationsService;
 
     @Transactional
     public ClientOrderResponseDto createOrder(CreateOrderRequestDto request) {
@@ -49,6 +50,10 @@ public class OrdersService {
         order.setProductDesign(design);
 
         order = clientOrderRepository.save(order);
+
+        ConversationEntity conversation = conversationsService.createConversationForOrder(order);
+        conversationsService.addParticipantToConversation(conversation, application.getClient().getAccountId());
+        conversationsService.addParticipantToConversation(conversation, manager.getAccountId());
 
         clientOrderRepository.updateStatusAndSetCurrent(order.getId(), ClientOrderStatus.CREATED.name());
         em.refresh(order);

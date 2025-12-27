@@ -48,6 +48,9 @@ public class JwtConf {
                     "designs.read",
                     "designs.write",
                     "orders.read",
+                    "materials.read",
+                    "applications.read",
+                    "applications.attachments.read",
                     "files.read",
                     "files.write"
             ),

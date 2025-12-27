@@ -1,6 +1,6 @@
 import axios, {AxiosError, type AxiosInstance} from 'axios';
 
-export const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || 'http://localhost:8080';
+export const GATEWAY_BASE_URL = '/gateway';
 
 const API_BASE_URL = `${GATEWAY_BASE_URL}/resource`;
 

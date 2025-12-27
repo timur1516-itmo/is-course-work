@@ -94,6 +94,21 @@ export const purchaseOrdersService = {
       throw extractApiError(error);
     }
   },
+
+  getPurchaseOrderReceipt: async (purchaseOrderId: number): Promise<PurchaseOrderReceiptDetailDto | null> => {
+    try {
+      const response = await apiClient.get<PurchaseOrderReceiptDetailDto>(
+        `/purchase-orders/${purchaseOrderId}/receipt`
+      );
+      return response.data;
+    } catch (error) {
+      const apiError = extractApiError(error);
+      if (apiError.status === 404) {
+        return null; // Receipt еще не зарегистрирован
+      }
+      throw apiError;
+    }
+  },
 };
 
 export interface PurchaseOrderReceiptResponseDto {
@@ -102,5 +117,21 @@ export interface PurchaseOrderReceiptResponseDto {
   warehouseWorkerId: number;
   invoiceNumber: string;
   receiptedAt: string;
+  receivedItems?: Array<{
+    materialId: number;
+    amount: number;
+  }>;
+}
+
+export interface PurchaseOrderReceiptDetailDto {
+  id: number;
+  purchaseOrderId: number;
+  warehouseWorkerId: number;
+  invoiceNumber: string;
+  receiptedAt: string;
+  receivedItems: Array<{
+    materialId: number;
+    amount: number;
+  }>;
 }
 
