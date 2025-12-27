@@ -1,4 +1,4 @@
-import { apiClient, extractApiError } from './config';
+import {apiClient, extractApiError, GATEWAY_BASE_URL} from './config';
 import type { FileMetadataResponseDto } from './types';
 
 export const filesService = {
@@ -39,7 +39,7 @@ export const filesService = {
 
   getFileUrl: async (id: number): Promise<string | null> => {
     try {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/resource';
+      const baseURL = `${GATEWAY_BASE_URL}/resource`;
       const token = localStorage.getItem('accessToken');
       return `${baseURL}/files/${id}/download${token ? `?token=${token}` : ''}`;
     } catch (error) {

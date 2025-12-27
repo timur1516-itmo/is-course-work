@@ -56,7 +56,7 @@ export const conversationsService = {
   },
 };
 
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8080/ws';
+const WS_BASE_URL = '/ws'
 
 export class ChatWebSocket {
   private ws: WebSocket | null = null;
