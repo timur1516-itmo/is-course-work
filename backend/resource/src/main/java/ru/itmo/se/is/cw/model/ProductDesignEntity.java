@@ -43,4 +43,14 @@ public class ProductDesignEntity {
 
     @OneToMany(mappedBy = "productDesign", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RequiredMaterialEntity> requiredMaterials = new ArrayList<>();
+
+    public void addRequiredMaterial(RequiredMaterialEntity requiredMaterial) {
+        requiredMaterials.add(requiredMaterial);
+        requiredMaterial.setProductDesign(this);
+    }
+
+    public void addFile(ProductDesignFileEntity file) {
+        files.add(file);
+        file.setProductDesign(this);
+    }
 }
