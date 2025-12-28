@@ -56,5 +56,18 @@ export const ordersService = {
       throw extractApiError(error);
     }
   },
+
+  updateOrderPrice: async (
+    orderId: number,
+    price: number
+  ): Promise<void> => {
+    try {
+      await apiClient.patch(`/orders/${orderId}/price`, {
+        price,
+      });
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
 };
 

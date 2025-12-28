@@ -279,11 +279,10 @@ function OrderDetails() {
       const messagesData = await conversationsService.getMessages(conversation.id, {
         sort: ["sentAt,ASC"],
       });
-      // Убеждаемся, что messagesData - это массив
       setMessages(Array.isArray(messagesData) ? messagesData : []);
     } catch (err) {
       console.error("Failed to load messages:", err);
-      setMessages([]); // Устанавливаем пустой массив при ошибке
+      setMessages([]);
     }
   };
 
@@ -294,8 +293,23 @@ function OrderDetails() {
       setChangingStatus(true);
       setError(null);
       await ordersService.changeOrderStatus(order.id, "IN_PROGRESS");
-      // Обновляем статус заказа локально
       setOrder({ ...order, status: "IN_PROGRESS" });
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || t("order.statusChangeError"));
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
+  const handleSendToApproval = async () => {
+    if (!order) return;
+
+    try {
+      setChangingStatus(true);
+      setError(null);
+      await ordersService.changeOrderStatus(order.id, "PENDING_APPROVAL");
+      setOrder({ ...order, status: "PENDING_APPROVAL" });
     } catch (err) {
       const apiError = extractApiError(err);
       setError(apiError.message || t("order.statusChangeError"));
@@ -446,6 +460,15 @@ function OrderDetails() {
                       className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {changingStatus ? t("order.changingStatus") : t("order.startProcessing")}
+                    </button>
+                  )}
+                  {role === "SALES_MANAGER" && order.status === "REWORK" && (
+                    <button
+                      onClick={handleSendToApproval}
+                      disabled={changingStatus}
+                      className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {changingStatus ? t("order.changingStatus") : t("order.sendToApproval")}
                     </button>
                   )}
                 </div>

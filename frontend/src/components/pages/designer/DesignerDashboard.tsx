@@ -2,8 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
-import { ordersService, applicationsService, filesService, designsService, materialsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto } from "../../../services/api/types";
+import { ordersService, applicationsService, filesService, designsService, materialsService, conversationsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, ConversationResponseDto, MessageResponseDto } from "../../../services/api/types";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -11,6 +11,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 
 function DesignerDashboard() {
   const { t } = useTranslation();
@@ -29,6 +30,12 @@ function DesignerDashboard() {
   const [materialFormInitialValues, setMaterialFormInitialValues] = useState<Record<number, RequiredMaterialDto[]>>({});
   const [allMaterials, setAllMaterials] = useState<MaterialResponseDto[]>([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [designFiles, setDesignFiles] = useState<Record<number, FileMetadataResponseDto[]>>({});
+  const [fileTypes, setFileTypes] = useState<Map<number, '3d' | 'up'>>(new Map());
+  const [showChatModal, setShowChatModal] = useState<number | null>(null);
+  const [showApplicationModal, setShowApplicationModal] = useState<number | null>(null);
+  const [chatMessages, setChatMessages] = useState<Record<number, MessageResponseDto[]>>({});
+  const [loadingChat, setLoadingChat] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -112,14 +119,58 @@ function DesignerDashboard() {
       if (isExpanding) {
         newSet.add(orderId);
         const order = orders.find(o => o.id === orderId);
-        if (order && order.clientApplicationId && !applicationFiles[order.clientApplicationId]) {
-          loadApplicationFiles(order.clientApplicationId);
+        if (order) {
+          if (order.clientApplicationId && !applicationFiles[order.clientApplicationId]) {
+            loadApplicationFiles(order.clientApplicationId);
+          }
+          if (order.productDesignId && !designFiles[order.productDesignId]) {
+            loadDesignFiles(order.productDesignId);
+          }
         }
       } else {
         newSet.delete(orderId);
       }
       return newSet;
     });
+  };
+
+  const loadDesignFiles = async (designId: number) => {
+    try {
+      const design = await designsService.getDesignById(designId);
+      setDesignFiles(prev => ({ ...prev, [designId]: design.files || [] }));
+    } catch (err) {
+      console.error(`Failed to load files for design ${designId}:`, err);
+    }
+  };
+
+
+  const handleRemoveDesignFile = async (orderId: number, designId: number, fileId: number) => {
+    try {
+      setError(null);
+      await designsService.removeFileFromDesign(designId, fileId);
+      
+      // Удаляем тип файла
+      setFileTypes(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(fileId);
+        return newMap;
+      });
+      
+      await loadDesignFiles(designId);
+
+      const allOrders = await ordersService.getOrders();
+      const designerOrders = allOrders.filter(
+        (o) => 
+          o.status === "PENDING_APPROVAL" || 
+          o.status === "REWORK" || 
+          o.status === "IN_PROGRESS"
+      );
+      setOrders(designerOrders);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка удаления файла');
+      console.error('Failed to remove file:', err);
+    }
   };
 
   const loadApplicationFiles = async (applicationId: number) => {
@@ -135,6 +186,26 @@ function DesignerDashboard() {
       console.error(`Failed to load files for application ${applicationId}:`, err);
     } finally {
       setLoadingFiles(prev => ({ ...prev, [applicationId]: false }));
+    }
+  };
+
+  const loadChatMessages = async (orderId: number) => {
+    if (loadingChat[orderId] || chatMessages[orderId]) {
+      return;
+    }
+
+    try {
+      setLoadingChat(prev => ({ ...prev, [orderId]: true }));
+      const conversation = await conversationsService.getConversationByOrderId(orderId);
+      const messages = await conversationsService.getMessages(conversation.id, {
+        sort: ["sentAt,ASC"],
+      });
+      setChatMessages(prev => ({ ...prev, [orderId]: Array.isArray(messages) ? messages : [] }));
+    } catch (err) {
+      console.error(`Failed to load chat messages for order ${orderId}:`, err);
+      setChatMessages(prev => ({ ...prev, [orderId]: [] }));
+    } finally {
+      setLoadingChat(prev => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -184,23 +255,24 @@ function DesignerDashboard() {
         ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : `Заказ #${order.id}`;
 
-      if (order.productDesignId) {
-        const existingDesign = await designsService.getDesignById(order.productDesignId);
-        const existingFileIds = existingDesign.files.map(f => f.id);
-        const updatedFileIds = [...existingFileIds, fileId];
-
-        await designsService.updateDesign(order.productDesignId, {
-          productName: existingDesign.productName,
-          fileIds: updatedFileIds,
-          requiredMaterials: existingDesign.requiredMaterials,
-        });
-      } else {
-        await designsService.createDesign({
+      let designId = order.productDesignId;
+      
+      if (!designId) {
+        const newDesign = await designsService.createDesign({
           productName,
-          fileIds: [fileId],
+          fileIds: [],
           requiredMaterials: [],
         });
+        designId = newDesign.id;
+        await designsService.assignDesigner(designId);
       }
+
+      await designsService.addFileToDesign(designId, fileId);
+      
+      // Сохраняем тип файла (3D)
+      setFileTypes(prev => new Map(prev).set(fileId, '3d'));
+
+      await loadDesignFiles(designId);
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
@@ -209,6 +281,10 @@ function DesignerDashboard() {
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
+      const updatedOrder = designerOrders.find(o => o.id === order.id);
+      if (updatedOrder && !order.productDesignId && designId) {
+        updatedOrder.productDesignId = designId;
+      }
       setOrders(designerOrders);
     } catch (err) {
       const apiError = extractApiError(err);
@@ -235,23 +311,24 @@ function DesignerDashboard() {
         ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : `Заказ #${order.id}`;
 
-      if (order.productDesignId) {
-        const existingDesign = await designsService.getDesignById(order.productDesignId);
-        const existingFileIds = existingDesign.files.map(f => f.id);
-        const updatedFileIds = [...existingFileIds, fileId];
-
-        await designsService.updateDesign(order.productDesignId, {
-          productName: existingDesign.productName,
-          fileIds: updatedFileIds,
-          requiredMaterials: existingDesign.requiredMaterials,
-        });
-      } else {
-        await designsService.createDesign({
+      let designId = order.productDesignId;
+      
+      if (!designId) {
+        const newDesign = await designsService.createDesign({
           productName,
-          fileIds: [fileId],
+          fileIds: [],
           requiredMaterials: [],
         });
+        designId = newDesign.id;
+        await designsService.assignDesigner(designId);
       }
+
+      await designsService.addFileToDesign(designId, fileId);
+      
+      // Сохраняем тип файла (УП)
+      setFileTypes(prev => new Map(prev).set(fileId, 'up'));
+
+      await loadDesignFiles(designId);
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
@@ -260,6 +337,10 @@ function DesignerDashboard() {
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
+      const updatedOrder = designerOrders.find(o => o.id === order.id);
+      if (updatedOrder && !order.productDesignId && designId) {
+        updatedOrder.productDesignId = designId;
+      }
       setOrders(designerOrders);
     } catch (err) {
       const apiError = extractApiError(err);
@@ -279,7 +360,7 @@ function DesignerDashboard() {
     }
   };
 
-  const handleSaveMaterials = async (orderId: number, materials: RequiredMaterialDto[]) => {
+  const handleSaveMaterials = async (orderId: number, materials: RequiredMaterialDto[], price?: number) => {
     try {
       setSavingMaterials(prev => ({ ...prev, [orderId]: true }));
       setError(null);
@@ -287,6 +368,24 @@ function DesignerDashboard() {
       const order = orders.find(o => o.id === orderId);
       if (!order) {
         throw new Error('Заказ не найден');
+      }
+
+      // Проверяем наличие 3D и УП файлов
+      const designFilesList = order.productDesignId ? designFiles[order.productDesignId] || [] : [];
+      const has3DFile = designFilesList.some(f => fileTypes.get(f.id) === '3d');
+      const hasUPFile = designFilesList.some(f => fileTypes.get(f.id) === 'up');
+
+      if (!has3DFile || !hasUPFile) {
+        throw new Error(t("designer.filesRequired") || 'Необходимо загрузить 3D модель и УП файл');
+      }
+
+      // Проверяем наличие цены
+      let finalPrice = order.price;
+      if (!finalPrice || finalPrice === null) {
+        if (!price || price <= 0) {
+          throw new Error(t("designer.priceRequired") || 'Необходимо установить цену заказа');
+        }
+        finalPrice = price;
       }
 
       for (const mat of materials) {
@@ -298,24 +397,44 @@ function DesignerDashboard() {
         ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : `Заказ #${order.id}`;
 
-      if (order.productDesignId) {
-        const existingDesign = await designsService.getDesignById(order.productDesignId);
-        await designsService.updateDesign(order.productDesignId, {
-          productName: existingDesign.productName,
-          fileIds: existingDesign.files.map(f => f.id),
-          requiredMaterials: materials,
-        });
-      } else {
-        await designsService.createDesign({
+      let designId = order.productDesignId;
+      
+      if (!designId) {
+        const newDesign = await designsService.createDesign({
           productName,
           fileIds: [],
-          requiredMaterials: materials,
+          requiredMaterials: [],
         });
+        designId = newDesign.id;
+        await designsService.assignDesigner(designId);
       }
 
-      await ordersService.changeOrderStatus(orderId, "PENDING_APPROVAL");
+      for (const material of materials) {
+        await designsService.addMaterialToDesign(designId, material);
+      }
+
+      // Устанавливаем цену, если её нет
+      if (!order.price || order.price === null) {
+        await ordersService.updateOrderPrice(orderId, finalPrice);
+      }
+
+      // Меняем статус на APPROVED
+      await ordersService.changeOrderStatus(orderId, "APPROVED");
+
+      // Проверяем, есть ли заказы со статусом READY_FOR_PRODUCTION или IN_PRODUCTION
+      const allOrdersAfterApproval = await ordersService.getOrders();
+      const hasReadyOrInProduction = allOrdersAfterApproval.some(
+        o => (o.status === "READY_FOR_PRODUCTION" || o.status === "IN_PRODUCTION") && o.id !== orderId
+      );
+
+      // Если нет заказов со статусом READY_FOR_PRODUCTION или IN_PRODUCTION,
+      // устанавливаем статус READY_FOR_PRODUCTION для текущего заказа
+      if (!hasReadyOrInProduction) {
+        await ordersService.changeOrderStatus(orderId, "READY_FOR_PRODUCTION");
+      }
 
       const allOrders = await ordersService.getOrders();
+
       const designerOrders = allOrders.filter(
         (o) => 
           o.status === "PENDING_APPROVAL" || 
@@ -338,7 +457,20 @@ function DesignerDashboard() {
       setSendingRework(prev => ({ ...prev, [orderId]: true }));
       setError(null);
 
+      // Меняем статус заказа на REWORK
       await ordersService.changeOrderStatus(orderId, "REWORK", comment);
+
+      // Отправляем сообщение в чат менеджера с клиентом
+      try {
+        const conversation = await conversationsService.getConversationByOrderId(orderId);
+        await conversationsService.sendMessage(conversation.id, {
+          content: comment || 'Заказ отправлен на доработку',
+          attachmentFileIds: []
+        });
+      } catch (chatErr) {
+        // Если не удалось отправить сообщение, логируем, но не прерываем процесс
+        console.error('Failed to send message to chat:', chatErr);
+      }
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
@@ -448,10 +580,26 @@ function DesignerDashboard() {
                                       {new Date(order.createdAt).toLocaleDateString('ru-RU')}
                                     </div>
                                   </div>
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1">
-                                      {t("designer.expectedDate")}
-                                    </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={async () => {
+                                        if (order.id) {
+                                          setShowChatModal(order.id);
+                                          await loadChatMessages(order.id);
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 transition-colors"
+                                    >
+                                      {t("designer.viewChat")}
+                                    </button>
+                                    {order.clientApplicationId && (
+                                      <button
+                                        onClick={() => setShowApplicationModal(order.clientApplicationId!)}
+                                        className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 transition-colors"
+                                      >
+                                        {t("designer.viewApplication")}
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
 
@@ -509,32 +657,104 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                <div className="flex gap-4 pt-2">
-                                  <label className="flex-1">
-                                    <input
-                                      type="file"
-                                      // accept=".stl,.obj,.3ds,.step,.iges"
-                                      onChange={(e) => handle3DModelUpload(order, e)}
-                                      className="hidden"
-                                    />
-                                    <span className="block w-full rounded-full bg-white text-black text-sm font-medium py-2.5 text-center hover:bg-gray-200 transition-colors cursor-pointer">
-                                      {t("designer.upload3DModel")}
-                                    </span>
-                                  </label>
-                                  <label className="flex-1">
-                                    <input
-                                      type="file"
-                                      // accept=".nc,.cnc,.tap"
-                                      onChange={(e) => handleUPGenerate(order, e)}
-                                      className="hidden"
-                                    />
-                                    <span className="block w-full rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium py-2.5 text-center hover:bg-gray-900 transition-colors cursor-pointer">
-                                      {t("designer.generateUP")}
-                                    </span>
-                                  </label>
-                                </div>
+                                {order.productDesignId && (
+                                  <div className="mt-4">
+                                    <div className="text-xs text-gray-500 mb-2">
+                                      {t("designer.designFiles") || "Файлы дизайна"}
+                                    </div>
+                                    {designFiles[order.productDesignId]?.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {designFiles[order.productDesignId].map((file) => (
+                                          <div
+                                            key={file.id}
+                                            className="flex items-center justify-between bg-stone-800/50 rounded-lg px-3 py-2 border border-gray-700"
+                                          >
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                              <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
+                                              <span className="text-sm text-gray-300 truncate" title={file.filename}>
+                                                {file.filename}
+                                              </span>
+                                              <span className="text-xs text-gray-500 flex-shrink-0">
+                                                ({(file.sizeBytes / 1024).toFixed(1)} KB)
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 ml-2">
+                                              <button
+                                                onClick={() => handleDownloadFile(file.id, file.filename)}
+                                                className="text-gray-400 hover:text-white transition-colors"
+                                                title={t("order.download")}
+                                              >
+                                                <DownloadIcon fontSize="small" />
+                                              </button>
+                                              {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
+                                                <button
+                                                  onClick={() => handleRemoveDesignFile(order.id, order.productDesignId!, file.id)}
+                                                  className="text-red-400 hover:text-red-300 transition-colors"
+                                                  title={t("designer.removeFile") || "Удалить файл"}
+                                                >
+                                                  <DeleteIcon fontSize="small" />
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-gray-500">
+                                        {t("designer.noDesignFiles") || "Нет файлов дизайна"}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
 
-                                {order.status === "IN_PROGRESS" && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
+                                  <div className="flex gap-4 pt-2">
+                                    {(() => {
+                                      const designFilesList = order.productDesignId ? designFiles[order.productDesignId] || [] : [];
+                                      const has3DFile = designFilesList.some(f => fileTypes.get(f.id) === '3d');
+                                      const hasUPFile = designFilesList.some(f => fileTypes.get(f.id) === 'up');
+                                      
+                                      return (
+                                        <>
+                                          <label className="flex-1">
+                                            <input
+                                              type="file"
+                                              // accept=".stl,.obj,.3ds,.step,.iges,.stp,.igs"
+                                              onChange={(e) => handle3DModelUpload(order, e)}
+                                              className="hidden"
+                                              disabled={has3DFile}
+                                            />
+                                            <span className={`block w-full rounded-full text-sm font-medium py-2.5 text-center transition-colors ${
+                                              has3DFile 
+                                                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                                                : 'bg-white text-black hover:bg-gray-200 cursor-pointer'
+                                            }`}>
+                                              {t("designer.upload3DModel")}
+                                            </span>
+                                          </label>
+                                          <label className="flex-1">
+                                            <input
+                                              type="file"
+                                              // accept=".nc,.cnc,.tap,.gcode"
+                                              onChange={(e) => handleUPGenerate(order, e)}
+                                              className="hidden"
+                                              disabled={hasUPFile}
+                                            />
+                                            <span className={`block w-full rounded-full text-sm font-medium py-2.5 text-center transition-colors ${
+                                              hasUPFile 
+                                                ? 'bg-gray-600 text-gray-400 cursor-not-allowed border border-gray-600' 
+                                                : 'bg-stone-950 text-white border border-gray-700 hover:bg-gray-900 cursor-pointer'
+                                            }`}>
+                                              {t("designer.generateUP")}
+                                            </span>
+                                          </label>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
+
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
                                   <div className="mt-4 pt-4 border-t border-gray-700">
                                     {!showMaterialForm[order.id] ? (
                                       <button
@@ -561,6 +781,7 @@ function DesignerDashboard() {
                                       <Formik
                                         initialValues={{
                                           materials: materialFormInitialValues[order.id] || [{ materialId: 0, amount: 0 }],
+                                          price: order.price || 0,
                                         }}
                                         enableReinitialize
                                         validationSchema={Yup.object({
@@ -572,8 +793,11 @@ function DesignerDashboard() {
                                               })
                                             )
                                             .min(1, t("designer.atLeastOneMaterial")),
+                                          price: Yup.number()
+                                            .min(0.01, t("designer.priceMin") || 'Цена должна быть больше 0')
+                                            .required(t("designer.priceRequired") || 'Необходимо указать цену'),
                                         })}
-                                        onSubmit={(values) => handleSaveMaterials(order.id, values.materials)}
+                                        onSubmit={(values) => handleSaveMaterials(order.id, values.materials, values.price)}
                                       >
                                         {({ values, isSubmitting }) => (
                                           <Form className="space-y-4">
@@ -655,13 +879,32 @@ function DesignerDashboard() {
                                                 </div>
                                               )}
                                             </FieldArray>
+                                            {(!order.price || order.price === null) && (
+                                              <div>
+                                                <label className="block text-xs text-gray-400 mb-1">
+                                                  {t("designer.price")} (₽)
+                                                </label>
+                                                <Field
+                                                  name="price"
+                                                  type="number"
+                                                  step="0.01"
+                                                  className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white"
+                                                  placeholder={t("designer.pricePlaceholder") || "Введите цену"}
+                                                />
+                                                <ErrorMessage
+                                                  name="price"
+                                                  component="div"
+                                                  className="text-xs text-red-400 mt-1"
+                                                />
+                                              </div>
+                                            )}
                                             <div className="flex gap-3 pt-2">
                                               <button
                                                 type="submit"
                                                 disabled={isSubmitting || savingMaterials[order.id]}
                                                 className="flex-1 rounded-full bg-emerald-500 text-white text-sm font-medium py-2.5 hover:bg-emerald-600 transition-colors disabled:opacity-50"
                                               >
-                                                {savingMaterials[order.id] ? t("designer.saving") : t("designer.saveAndSendForApproval")}
+                                                {savingMaterials[order.id] ? t("designer.saving") : t("designer.approve")}
                                               </button>
                                               <button
                                                 type="button"
@@ -678,7 +921,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status === "IN_PROGRESS" && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
                                   <div className="mt-4 pt-4 border-t border-gray-700">
                                     {!showReworkComment[order.id] ? (
                                       <button
@@ -747,6 +990,68 @@ function DesignerDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Модальное окно для просмотра чата */}
+      {showChatModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowChatModal(null)}>
+          <div className="bg-stone-900 rounded-xl border border-gray-700 w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <h2 className="text-lg font-semibold text-white">{t("designer.chat")}</h2>
+              <button
+                onClick={() => setShowChatModal(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingChat[showChatModal] ? (
+                <div className="text-center text-gray-400">{t("catalog.loading")}...</div>
+              ) : chatMessages[showChatModal]?.length > 0 ? (
+                <div className="space-y-4">
+                  {chatMessages[showChatModal].map((message) => (
+                    <div key={message.id} className="bg-stone-800/50 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 mb-1">
+                        {new Date(message.sentAt).toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-sm text-white">{message.content}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-400">{t("order.noMessages")}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно для просмотра описания заказа */}
+      {showApplicationModal && applications[showApplicationModal] && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowApplicationModal(null)}>
+          <div className="bg-stone-900 rounded-xl border border-gray-700 w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <h2 className="text-lg font-semibold text-white">{t("designer.applicationDetails")}</h2>
+              <button
+                onClick={() => setShowApplicationModal(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div>
+                <div className="text-xs text-gray-500 uppercase mb-1">{t("application.description")}</div>
+                <div className="text-sm text-white">{applications[showApplicationModal].description || "—"}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 uppercase mb-1">{t("application.amount")}</div>
+                <div className="text-sm text-white">{applications[showApplicationModal].amount || "—"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

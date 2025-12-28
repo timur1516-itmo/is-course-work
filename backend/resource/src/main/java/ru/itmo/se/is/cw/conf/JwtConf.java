@@ -46,20 +46,27 @@ public class JwtConf {
             ),
             "CONSTRUCTOR", Set.of(
                     "designs.read",
+                    "orders.status.write",
+                    "orders.price.write",
                     "designs.write",
                     "orders.read",
                     "materials.read",
                     "applications.read",
                     "applications.attachments.read",
                     "files.read",
-                    "files.write"
+                    "files.write",
+                    "conversations.messages.read",
+                    "conversations.messages.write",
+                    "orders.conversation.read"
             ),
             "CNC_OPERATOR", Set.of(
                     "production.read",
                     "production.execute",
                     "materials.read",
                     "orders.read",
-                    "files.read"
+                    "orders.status.write",
+                    "files.read",
+                    "designs.read"
             ),
             "WAREHOUSE_WORKER", Set.of(
                     "materials.read",

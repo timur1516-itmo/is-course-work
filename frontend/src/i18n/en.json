@@ -364,6 +364,7 @@
     "loadingFiles": "Loading files...",
     "cannotSendToCompleted": "Cannot send messages to completed orders",
     "startProcessing": "Start Processing",
+    "sendToApproval": "Send for Approval",
     "changingStatus": "Changing...",
     "statusChangeError": "Error changing status",
     "status": {

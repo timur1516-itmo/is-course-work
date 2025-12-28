@@ -43,9 +43,6 @@ public class DesignsService {
         ProductDesignEntity design = productDesignMapper.toEntity(request);
         applyFiles(design, request.getFileIds());
         applyRequiredMaterials(design, request.getRequiredMaterials());
-        design.setConstructor(
-                employeesService.getByAccountId(currentUserService.getAccountId())
-        );
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)
         );
@@ -124,6 +121,48 @@ public class DesignsService {
                                 )
                         )
                         .toList()
+        );
+    }
+
+    @Transactional
+    public ProductDesignResponseDto addFileToDesign(Long designId, Long fileId) {
+        ProductDesignEntity design = getById(designId);
+        var file = filesService.getById(fileId);
+        var designFile = productDesignFileMapper.toEntity(design, file);
+        design.addFile(designFile);
+        return productDesignMapper.toDto(
+                productDesignRepository.save(design)
+        );
+    }
+
+    @Transactional
+    public ProductDesignResponseDto addMaterialToDesign(Long designId, RequiredMaterialDto materialDto) {
+        ProductDesignEntity design = getById(designId);
+        var material = materialsService.getById(materialDto.getMaterialId());
+        var requiredMaterial = requiredMaterialMapper.toEntity(materialDto, material, design);
+        design.addMaterial(requiredMaterial);
+        return productDesignMapper.toDto(
+                productDesignRepository.save(design)
+        );
+    }
+
+    @Transactional
+    public ProductDesignResponseDto assignDesigner(Long designId) {
+        ProductDesignEntity design = getById(designId);
+        design.setConstructor(
+                employeesService.getByAccountId(currentUserService.getAccountId())
+        );
+        return productDesignMapper.toDto(
+                productDesignRepository.save(design)
+        );
+    }
+
+    @Transactional
+    public ProductDesignResponseDto removeFileFromDesign(Long designId, Long fileId) {
+        ProductDesignEntity design = getById(designId);
+        design.getFiles().removeIf(designFile -> designFile.getFile().getId().equals(fileId));
+        return productDesignMapper.toDto(
+                productDesignRepository.save(design)
         );
     }
 }

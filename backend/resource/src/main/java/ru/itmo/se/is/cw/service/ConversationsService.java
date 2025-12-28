@@ -48,6 +48,9 @@ public class ConversationsService {
 
     @Transactional
     public void addParticipantToConversation(ConversationEntity conversation, Long userId) {
+        if (participantRepository.existsByConversationIdAndUserId(conversation.getId(), userId)) {
+            return;
+        }
         ConversationParticipantEntity participant = new ConversationParticipantEntity();
         participant.setConversation(conversation);
         participant.setUserId(userId);
@@ -68,6 +71,13 @@ public class ConversationsService {
         return conversationRepository
                 .findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Conversation with id " + id + " not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public ConversationEntity getConversationByOrderIdInternal(Long orderId) {
+        return conversationRepository
+                .findByOrderId(orderId)
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)
@@ -109,8 +119,22 @@ public class ConversationsService {
     }
 
     private void assertCanAccess(ConversationEntity conversation) {
-        if (!participantRepository.existsByConversationIdAndUserId(conversation.getId(), currentUserService.getAccountId())) {
-            throw new EntityNotFoundException("Conversation with id " + conversation.getId() + " not found");
+        Long currentUserId = currentUserService.getAccountId();
+
+        if (participantRepository.existsByConversationIdAndUserId(conversation.getId(), currentUserId)) {
+            return;
         }
+        
+        if (conversation.getOrder() != null && conversation.getOrder().getProductDesign() != null) {
+            var design = conversation.getOrder().getProductDesign();
+            if (design.getConstructor() != null) {
+
+                if (design.getConstructor().getAccountId().equals(currentUserId)) {
+                    return;
+                }
+            }
+        }
+        
+        throw new EntityNotFoundException("Conversation with id " + conversation.getId() + " not found");
     }
 }

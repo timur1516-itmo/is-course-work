@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+import ru.itmo.se.is.cw.dto.AddFileToDesignRequest;
 import ru.itmo.se.is.cw.dto.ProblemDetail;
 import ru.itmo.se.is.cw.dto.ProductDesignRequestDto;
 import ru.itmo.se.is.cw.dto.ProductDesignResponseDto;
@@ -170,5 +171,108 @@ public class DesignsController {
     ) {
         designsService.deleteDesign(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/files")
+    @Operation(
+            summary = "Добавить файл к дизайну",
+            description = "Добавляет файл (3D модель или УП) к существующему дизайну."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Файл добавлен к дизайну",
+                    content = @Content(schema = @Schema(implementation = ProductDesignResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Дизайн или файл не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
+    public ResponseEntity<ProductDesignResponseDto> addFileToDesign(
+            @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id,
+            @RequestBody AddFileToDesignRequest request
+    ) {
+        ProductDesignResponseDto updated = designsService.addFileToDesign(id, request.getFileId());
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/materials")
+    @Operation(
+            summary = "Добавить материал к дизайну",
+            description = "Добавляет требуемый материал к существующему дизайну."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Материал добавлен к дизайну",
+                    content = @Content(schema = @Schema(implementation = ProductDesignResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Дизайн или материал не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
+    public ResponseEntity<ProductDesignResponseDto> addMaterialToDesign(
+            @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id,
+            @RequestBody ru.itmo.se.is.cw.dto.RequiredMaterialDto materialDto
+    ) {
+        ProductDesignResponseDto updated = designsService.addMaterialToDesign(id, materialDto);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/assign")
+    @Operation(
+            summary = "Прикрепить конструктора к дизайну",
+            description = "Прикрепляет текущего пользователя (конструктора) к дизайну."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Конструктор прикреплён к дизайну",
+                    content = @Content(schema = @Schema(implementation = ProductDesignResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Дизайн не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
+    public ResponseEntity<ProductDesignResponseDto> assignDesigner(
+            @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id
+    ) {
+        ProductDesignResponseDto updated = designsService.assignDesigner(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}/files/{fileId}")
+    @Operation(
+            summary = "Удалить файл из дизайна",
+            description = "Удаляет файл из дизайна по идентификатору файла."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Файл удалён из дизайна",
+                    content = @Content(schema = @Schema(implementation = ProductDesignResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Дизайн или файл не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
+    public ResponseEntity<ProductDesignResponseDto> removeFileFromDesign(
+            @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id,
+            @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long fileId
+    ) {
+        ProductDesignResponseDto updated = designsService.removeFileFromDesign(id, fileId);
+        return ResponseEntity.ok(updated);
     }
 }

@@ -1,84 +1,168 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { productionService, extractApiError, authService } from "../../../services/api";
-import type { ProductionTaskResponseDto } from "../../../services/api/production.service";
+import { ordersService, designsService, filesService, materialsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto } from "../../../services/api/types";
+import DownloadIcon from "@mui/icons-material/Download";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 
 function OperatorDashboard() {
   const { t } = useTranslation();
-  const [currentTask, setCurrentTask] = useState<ProductionTaskResponseDto | null>(null);
-  const [taskQueue, setTaskQueue] = useState<ProductionTaskResponseDto[]>([]);
+  const [currentOrder, setCurrentOrder] = useState<ClientOrderResponseDto | null>(null);
+  const [orderHistory, setOrderHistory] = useState<ClientOrderResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [designFiles, setDesignFiles] = useState<FileMetadataResponseDto[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [fileTypes, setFileTypes] = useState<Map<number, '3d' | 'up'>>(new Map());
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterialDto[]>([]);
+  const [materialsMap, setMaterialsMap] = useState<Map<number, MaterialResponseDto>>(new Map());
 
   useEffect(() => {
-    const loadTasks = async () => {
+    const loadOrders = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const currentUser = await authService.getCurrentUser();
-        const employeeId = currentUser?.employee?.id;
-        
-        if (!employeeId) {
-          setError('Не удалось получить ID сотрудника. Пожалуйста, обновите страницу.');
-          setLoading(false);
-          return;
-        }
+        const allOrders = await ordersService.getOrders();
 
-        const tasks = await productionService.getProductionTasks({
-          cncOperatorId: employeeId,
-        });
+        const readyOrder = allOrders.find(o => o.status === 'READY_FOR_PRODUCTION' || o.status === 'IN_PRODUCTION');
+        setCurrentOrder(readyOrder || null);
 
-        const tasksArray = Array.isArray(tasks) ? tasks : [];
-        const inProgress = tasksArray.find(t => t.status === 'IN_PROGRESS');
-        setCurrentTask(inProgress || null);
-
-        const queued = tasksArray.filter(t => t.status === 'QUEUED');
-        setTaskQueue(queued);
+        const approvedOrders = allOrders.filter(o => o.status === 'APPROVED');
+        approvedOrders.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        setOrderHistory(approvedOrders);
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || apiError.detail || 'Ошибка загрузки задач');
+        setError(apiError.message || apiError.detail || 'Ошибка загрузки заказов');
       } finally {
         setLoading(false);
       }
     };
     
-    loadTasks();
+    loadOrders();
   }, []);
 
-  const handleStartWork = async () => {
-    if (currentTask) {
+  useEffect(() => {
+    if (currentOrder?.productDesignId) {
+      loadDesignFiles(currentOrder.productDesignId);
+    } else {
+      setDesignFiles([]);
+      setFileTypes(new Map());
+      setRequiredMaterials([]);
+    }
+  }, [currentOrder?.productDesignId]);
+
+  const loadMaterial = async (materialId: number) => {
+    if (materialsMap.has(materialId)) return;
+    try {
+      const material = await materialsService.getMaterialById(materialId);
+      setMaterialsMap(prev => new Map(prev).set(materialId, material));
+    } catch (err) {
+      console.error(`Failed to load material ${materialId}:`, err);
+    }
+  };
+
+  const loadDesignFiles = async (designId: number) => {
+    try {
+      setLoadingFiles(true);
+      const design = await designsService.getDesignById(designId);
+      setDesignFiles(design.files || []);
+      setRequiredMaterials(design.requiredMaterials || []);
+
+      if (design.requiredMaterials) {
+        for (const mat of design.requiredMaterials) {
+          await loadMaterial(mat.materialId);
+        }
+      }
+
+      const filesMap = new Map<number, '3d' | 'up'>();
+      design.files?.forEach(file => {
+        const ext = file.filename.toLowerCase().split('.').pop();
+        if (['stl', 'obj', '3ds', 'step', 'iges', 'stp', 'igs'].includes(ext || '')) {
+          filesMap.set(file.id, '3d');
+        } else if (['nc', 'cnc', 'tap', 'gcode'].includes(ext || '')) {
+          filesMap.set(file.id, 'up');
+        }
+      });
+      setFileTypes(filesMap);
+    } catch (err) {
+      console.error(`Failed to load design files for design ${designId}:`, err);
+      setDesignFiles([]);
+      setFileTypes(new Map());
+      setRequiredMaterials([]);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  const handleDownloadFile = async (fileId: number, filename: string) => {
+    try {
+      await filesService.downloadFile(fileId, filename);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || 'Ошибка загрузки файла');
+      console.error('Failed to download file:', err);
+    }
+  };
+
+  const handleStartProduction = async () => {
+    if (currentOrder && currentOrder.status === "READY_FOR_PRODUCTION") {
       try {
-        await productionService.startTask(currentTask.id);
-        setCurrentTask({ ...currentTask, status: 'IN_PROGRESS' });
+        setChangingStatus(true);
+        setError(null);
+        await ordersService.changeOrderStatus(currentOrder.id, "IN_PRODUCTION");
+        setCurrentOrder({ ...currentOrder, status: "IN_PRODUCTION" });
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || 'Ошибка начала работы');
+        setError(apiError.message || apiError.detail || 'Ошибка начала выполнения');
+      } finally {
+        setChangingStatus(false);
       }
     }
   };
 
-  const handleCompleteTask = async () => {
-    if (currentTask) {
+  const handleCompleteOrder = async () => {
+    if (currentOrder && currentOrder.status === "IN_PRODUCTION") {
       try {
-        await productionService.finishTask(currentTask.id);
-        setCurrentTask(null);
-
-        const currentUser = await authService.getCurrentUser();
-        const employeeId = currentUser?.employee?.id;
-        if (employeeId) {
-          const tasks = await productionService.getProductionTasks({
-            cncOperatorId: employeeId,
-          });
-          const tasksArray = Array.isArray(tasks) ? tasks : [];
-          const inProgress = tasksArray.find(t => t.status === 'IN_PROGRESS');
-          setCurrentTask(inProgress || null);
-          const queued = tasksArray.filter(t => t.status === 'QUEUED');
-          setTaskQueue(queued);
+        setChangingStatus(true);
+        setError(null);
+        await ordersService.changeOrderStatus(currentOrder.id, "COMPLETED");
+        const allOrders = await ordersService.getOrders();
+        const approvedOrders = allOrders.filter(o => o.status === 'APPROVED');
+        approvedOrders.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        if (approvedOrders.length > 0) {
+          await ordersService.changeOrderStatus(approvedOrders[0].id, "READY_FOR_PRODUCTION");
+          const updatedOrders = await ordersService.getOrders();
+          const readyOrder = updatedOrders.find(o => o.status === 'READY_FOR_PRODUCTION' || o.status === 'IN_PRODUCTION');
+          setCurrentOrder(readyOrder || null);
+          if (readyOrder?.productDesignId) {
+            setDesignFiles([]);
+            setFileTypes(new Map());
+            await loadDesignFiles(readyOrder.productDesignId);
+          }
+        } else {
+          setCurrentOrder(null);
+          setDesignFiles([]);
+          setFileTypes(new Map());
+          setRequiredMaterials([]);
         }
+
+        const updatedOrders = await ordersService.getOrders();
+        const history = updatedOrders.filter(o => o.status === 'APPROVED');
+        history.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        setOrderHistory(history);
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || apiError.detail || 'Ошибка завершения задачи');
+        setError(apiError.message || apiError.detail || 'Ошибка завершения заказа');
+      } finally {
+        setChangingStatus(false);
       }
     }
   };
@@ -114,7 +198,7 @@ function OperatorDashboard() {
             {t("operator.currentTask")}
           </h2>
 
-          {currentTask ? (
+          {currentOrder ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -122,36 +206,125 @@ function OperatorDashboard() {
                     {t("manager.order")}
                   </div>
                   <div className="text-sm font-medium text-white">
-                    Заказ #{currentTask.clientOrderId}
+                    Заказ #{currentOrder.id}
                   </div>
-                  <div className="text-xs text-gray-500">Задача #{currentTask.id}</div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(currentOrder.createdAt).toLocaleDateString('ru-RU')}
+                  </div>
                 </div>
 
                 <div>
                   <div className="text-xs text-gray-500 mb-1">
-                    {t("operator.status")}
+                    {t("order.price")}
                   </div>
                   <div className="text-sm text-white">
-                    {currentTask.status === 'IN_PROGRESS' ? t("operator.inProgress") : t("operator.queued")}
+                    {currentOrder.price ? `${currentOrder.price.toLocaleString("ru-RU")} ₽` : "—"}
                   </div>
                 </div>
               </div>
 
+              {currentOrder.productDesignId && (
+                <div className="mt-4">
+                  <div className="text-xs text-gray-500 mb-2">
+                    {t("operator.designFiles") || "Файлы дизайна"}
+                  </div>
+                  {loadingFiles ? (
+                    <div className="text-sm text-gray-400">{t("catalog.loading")}...</div>
+                  ) : designFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {designFiles.map((file) => {
+                        const fileType = fileTypes.get(file.id);
+                        const is3D = fileType === '3d';
+                        const isUP = fileType === 'up';
+                        
+                        return (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between bg-stone-800/50 rounded-lg px-3 py-2 border border-gray-700"
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
+                              <span className="text-sm text-gray-300 truncate" title={file.filename}>
+                                {file.filename}
+                              </span>
+                              {(is3D || isUP) && (
+                                <span className="text-xs text-gray-500 flex-shrink-0">
+                                  ({is3D ? t("operator.3dModel") : t("operator.upFile")})
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500 flex-shrink-0">
+                                ({(file.sizeBytes / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDownloadFile(file.id, file.filename)}
+                              className="text-gray-400 hover:text-white transition-colors ml-2"
+                              title={t("order.download")}
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      {t("operator.noDesignFiles") || "Нет файлов дизайна"}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {requiredMaterials.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-xs text-gray-500 mb-2">
+                    {t("operator.materials") || "Материалы"}
+                  </div>
+                  <div className="space-y-2">
+                    {requiredMaterials.map((mat, index) => {
+                      const material = materialsMap.get(mat.materialId);
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-stone-800/50 rounded-lg px-3 py-2 border border-gray-700"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-sm text-gray-300">
+                              {material ? material.name : `Материал #${mat.materialId}`}
+                            </span>
+                            {material && (
+                              <span className="text-xs text-gray-500">
+                                ({material.unitOfMeasure})
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-white">
+                            {mat.amount} {material ? material.unitOfMeasure : ''}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-4 pt-2">
-                {currentTask.status === "QUEUED" && (
+                {currentOrder.status === "READY_FOR_PRODUCTION" && (
                   <button
-                    onClick={handleStartWork}
-                    className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"
+                    onClick={handleStartProduction}
+                    disabled={changingStatus}
+                    className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-50"
                   >
-                    {t("operator.startWork")}
+                    {changingStatus ? t("operator.starting") : t("operator.startWork")}
                   </button>
                 )}
-                {currentTask.status === "IN_PROGRESS" && (
+                {currentOrder.status === "IN_PRODUCTION" && (
                   <button
-                    onClick={handleCompleteTask}
-                    className="flex-1 rounded-full bg-emerald-600 text-white text-sm font-medium py-2.5 hover:bg-emerald-700 transition-colors"
+                    onClick={handleCompleteOrder}
+                    disabled={changingStatus}
+                    className="flex-1 rounded-full bg-emerald-600 text-white text-sm font-medium py-2.5 hover:bg-emerald-700 transition-colors disabled:opacity-50"
                   >
-                    {t("operator.completeTask")}
+                    {changingStatus ? t("operator.completing") : t("operator.completeTask")}
                   </button>
                 )}
               </div>
@@ -166,7 +339,7 @@ function OperatorDashboard() {
         <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">
-              {t("operator.taskQueue")}
+              {t("operator.orderHistory") || "История заказов"}
             </h2>
           </div>
 
@@ -174,17 +347,17 @@ function OperatorDashboard() {
             <table className="min-w-full text-sm border-separate border-spacing-y-2">
               <thead>
               <tr className="text-xs uppercase text-gray-500">
-                <th className="text-left px-3 pb-2">{t("operator.task")}</th>
+                <th className="text-left px-3 pb-2">{t("manager.order")}</th>
                 <th className="text-left px-3 pb-2">
-                  {t("operator.material")}
+                  {t("order.price")}
                 </th>
                 <th className="text-left px-3 pb-2">
-                  {t("operator.priority")}
+                  {t("manager.orderDate")}
                 </th>
               </tr>
               </thead>
               <tbody>
-              {taskQueue.length === 0 ? (
+              {orderHistory.length === 0 ? (
                 <tr>
                   <td
                     colSpan={3}
@@ -194,24 +367,16 @@ function OperatorDashboard() {
                   </td>
                 </tr>
               ) : (
-                taskQueue.map((task) => (
-                  <tr key={task.id}>
+                orderHistory.map((order) => (
+                  <tr key={order.id}>
                     <td className="px-3 py-3">
-                      <div className="text-sm font-medium">Задача #{task.id}</div>
-                      <div className="text-xs text-gray-500">Заказ #{task.clientOrderId}</div>
+                      <div className="text-sm font-medium">Заказ #{order.id}</div>
                     </td>
                     <td className="px-3 py-3 text-sm text-gray-300">
-                      —
+                      {order.price ? `${order.price.toLocaleString("ru-RU")} ₽` : "—"}
                     </td>
-                    <td className="px-3 py-3">
-                        <span
-                          className={[
-                            "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                            "bg-yellow-500/10 text-yellow-300 ring-yellow-500/40",
-                          ].join(" ")}
-                        >
-                          {t("operator.queued")}
-                        </span>
+                    <td className="px-3 py-3 text-sm text-gray-300">
+                      {new Date(order.createdAt).toLocaleDateString('ru-RU')}
                     </td>
                   </tr>
                 ))

@@ -165,7 +165,20 @@
     "sending": "Отправка...",
     "material": "Материал",
     "selectMaterial": "Выберите материал",
-    "unitOfMeasure": "Единица измерения"
+    "unitOfMeasure": "Единица измерения",
+    "designFiles": "Файлы дизайна",
+    "noDesignFiles": "Нет файлов дизайна",
+    "removeFile": "Удалить файл",
+    "viewChat": "Посмотреть чат",
+    "viewApplication": "Описание заказа",
+    "chat": "Чат",
+    "applicationDetails": "Описание заказа",
+    "price": "Цена",
+    "pricePlaceholder": "Введите цену",
+    "priceRequired": "Необходимо указать цену",
+    "priceMin": "Цена должна быть больше 0",
+    "filesRequired": "Необходимо загрузить 3D модель и УП файл",
+    "approve": "Согласовать"
   },
   "operator": {
     "dashboard": "Панель оператора станка",
@@ -183,7 +196,15 @@
     "high": "Высокий",
     "medium": "Средний",
     "low": "Низкий",
-    "download": "Скачать"
+    "download": "Скачать",
+    "orderHistory": "История заказов",
+    "designFiles": "Файлы дизайна",
+    "noDesignFiles": "Нет файлов дизайна",
+    "3dModel": "3D модель",
+    "upFile": "УП файл",
+    "starting": "Начало...",
+    "completing": "Завершение...",
+    "materials": "Материалы"
   },
   "warehouse": {
     "dashboard": "Панель сотрудника склада",
@@ -381,6 +402,7 @@
     "loadingFiles": "Загрузка файлов...",
     "cannotSendToCompleted": "Нельзя отправлять сообщения в завершенные заказы",
     "startProcessing": "Начать обработку",
+    "sendToApproval": "Отправить на согласование",
     "changingStatus": "Изменение...",
     "statusChangeError": "Ошибка изменения статуса",
     "status": {

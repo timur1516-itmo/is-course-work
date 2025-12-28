@@ -103,6 +103,17 @@ public class OrdersService {
 
         clientOrderRepository.updateStatusAndSetCurrent(id, next.name());
         em.refresh(order);
+
+        if (next == ClientOrderStatus.REWORK && order.getProductDesign() != null && order.getProductDesign().getConstructor() != null) {
+            try {
+                ConversationEntity conversation = conversationsService.getConversationByOrderIdInternal(order.getId());
+                if (conversation != null) {
+                    Long constructorAccountId = order.getProductDesign().getConstructor().getAccountId();
+                    conversationsService.addParticipantToConversation(conversation, constructorAccountId);
+                }
+            } catch (Exception e) {
+            }
+        }
     }
 
     @Transactional
