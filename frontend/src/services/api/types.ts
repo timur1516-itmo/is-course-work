@@ -114,6 +114,7 @@ export type OrderStatus =
   | "PAID"
   | "READY_FOR_PRODUCTION"
   | "IN_PRODUCTION"
+  | "READY_FOR_PICKUP"
   | "COMPLETED";
 
 export interface CreateOrderRequestDto {
@@ -128,6 +129,7 @@ export interface ClientOrderResponseDto {
   status: OrderStatus;
   price: number;
   createdAt: string;
+  completedAt?: string;
 }
 
 export interface ConversationResponseDto {
@@ -143,6 +145,7 @@ export interface MessageResponseDto {
   authorId: number;
   content: string;
   sentAt: string;
+  attachmentFileIds?: number[];
 }
 
 

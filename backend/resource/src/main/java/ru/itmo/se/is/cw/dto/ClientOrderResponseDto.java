@@ -29,4 +29,7 @@ public class ClientOrderResponseDto {
 
     @Schema(description = "Дата и время создания заказа", example = "2023-10-20T10:00:00Z")
     private ZonedDateTime createdAt;
+
+    @Schema(description = "Дата и время завершения заказа (установки статуса COMPLETED)", example = "2023-10-25T15:30:00Z", nullable = true)
+    private ZonedDateTime completedAt;
 }

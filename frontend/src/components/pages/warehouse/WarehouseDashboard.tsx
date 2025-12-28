@@ -1,14 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { purchaseOrdersService, ordersService, designsService, materialsService, extractApiError } from "../../../services/api";
+import { purchaseOrdersService, ordersService, materialsService, applicationsService, clientsService, extractApiError } from "../../../services/api";
 import type { PurchaseOrderResponseDto } from "../../../services/api/purchaseOrders.service";
-import type { ClientOrderResponseDto } from "../../../services/api/types";
-import DeleteIcon from "@mui/icons-material/Delete";
+import type { ClientOrderResponseDto, ClientResponseDto, ClientApplicationResponseDto } from "../../../services/api/types";
 
 function WarehouseDashboard() {
   const { t } = useTranslation();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderResponseDto[]>([]);
   const [readyOrders, setReadyOrders] = useState<ClientOrderResponseDto[]>([]);
+  const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
+  const [applications, setApplications] = useState<Map<number, ClientApplicationResponseDto>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -17,7 +18,14 @@ function WarehouseDashboard() {
   const [receiptItems, setReceiptItems] = useState<Array<{ materialId: number; materialName: string; amount: number; originalAmount: number }>>([]);
   const [showShipmentModal, setShowShipmentModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ClientOrderResponseDto | null>(null);
-  const [shipmentMaterials, setShipmentMaterials] = useState<Array<{ materialId: number; materialName: string; amount: number; originalAmount: number }>>([]);
+
+  const formatOrderName = (order: ClientOrderResponseDto): string => {
+    const date = new Date(order.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `ORD-${year}-${month}-${day}-${order.id}`;
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -40,9 +48,40 @@ function WarehouseDashboard() {
 
         try {
           const ordersData = await ordersService.getOrders({
-            status: 'READY_FOR_PRODUCTION',
+            status: 'READY_FOR_PICKUP',
           });
-          setReadyOrders(Array.isArray(ordersData) ? ordersData : []);
+          const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+          setReadyOrders(ordersArray);
+
+          const clientsMap = new Map<number, ClientResponseDto>();
+          const applicationsMap = new Map<number, ClientApplicationResponseDto>();
+          const uniqueClientIds = new Set<number>();
+
+          for (const order of ordersArray) {
+            if (order.clientApplicationId) {
+              try {
+                const application = await applicationsService.getApplicationById(order.clientApplicationId);
+                applicationsMap.set(order.clientApplicationId, application);
+                if (application.clientId && !clientsMap.has(application.clientId)) {
+                  uniqueClientIds.add(application.clientId);
+                }
+              } catch (err) {
+                console.error(`Failed to load application ${order.clientApplicationId}:`, err);
+              }
+            }
+          }
+
+          for (const clientId of uniqueClientIds) {
+            try {
+              const client = await clientsService.getClientById(clientId);
+              clientsMap.set(clientId, client);
+            } catch (err) {
+              console.error(`Failed to load client ${clientId}:`, err);
+            }
+          }
+
+          setClients(clientsMap);
+          setApplications(applicationsMap);
         } catch (err) {
           const apiError = extractApiError(err);
           console.error('Failed to load ready orders:', apiError);
@@ -68,8 +107,7 @@ function WarehouseDashboard() {
 
       setSelectedPurchaseOrder(order);
       setReceiptInvoiceNumber("");
-      
-      // Загружаем названия материалов
+
       const itemsWithNames = await Promise.all(
         order.materials.map(async (m) => {
           try {
@@ -145,34 +183,6 @@ function WarehouseDashboard() {
       if (!order) return;
 
       setSelectedOrder(order);
-
-      if (order.productDesignId) {
-        const design = await designsService.getDesignById(order.productDesignId);
-        const materialsWithNames = await Promise.all(
-          design.requiredMaterials.map(async (rm) => {
-            try {
-              const material = await materialsService.getMaterialById(rm.materialId);
-              return {
-                materialId: rm.materialId,
-                materialName: material.name,
-                amount: rm.amount,
-                originalAmount: rm.amount,
-              };
-            } catch {
-              return {
-                materialId: rm.materialId,
-                materialName: `Материал #${rm.materialId}`,
-                amount: rm.amount,
-                originalAmount: rm.amount,
-              };
-            }
-          })
-        );
-        setShipmentMaterials(materialsWithNames);
-      } else {
-        setShipmentMaterials([]);
-      }
-
       setShowShipmentModal(true);
     } catch (err) {
       const apiError = extractApiError(err);
@@ -190,28 +200,46 @@ function WarehouseDashboard() {
 
       setShowShipmentModal(false);
       setSelectedOrder(null);
-      setShipmentMaterials([]);
 
       const ordersData = await ordersService.getOrders({
-        status: 'READY_FOR_PRODUCTION',
+        status: 'READY_FOR_PICKUP',
       });
-      setReadyOrders(ordersData);
+      const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+      setReadyOrders(ordersArray);
+
+      const clientsMap = new Map<number, ClientResponseDto>();
+      const applicationsMap = new Map<number, ClientApplicationResponseDto>();
+      const uniqueClientIds = new Set<number>();
+
+      for (const order of ordersArray) {
+        if (order.clientApplicationId) {
+          try {
+            const application = await applicationsService.getApplicationById(order.clientApplicationId);
+            applicationsMap.set(order.clientApplicationId, application);
+            if (application.clientId && !clientsMap.has(application.clientId)) {
+              uniqueClientIds.add(application.clientId);
+            }
+          } catch (err) {
+            console.error(`Failed to load application ${order.clientApplicationId}:`, err);
+          }
+        }
+      }
+
+      for (const clientId of uniqueClientIds) {
+        try {
+          const client = await clientsService.getClientById(clientId);
+          clientsMap.set(clientId, client);
+        } catch (err) {
+          console.error(`Failed to load client ${clientId}:`, err);
+        }
+      }
+
+      setClients(clientsMap);
+      setApplications(applicationsMap);
     } catch (err) {
       const apiError = extractApiError(err);
       setError(apiError.message || 'Ошибка обработки отгрузки');
     }
-  };
-
-  const handleRemoveShipmentMaterial = (index: number) => {
-    setShipmentMaterials(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleUpdateShipmentMaterialAmount = (index: number, amount: number) => {
-    setShipmentMaterials(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], amount: Math.max(0, amount) };
-      return updated;
-    });
   };
 
   if (loading) {
@@ -320,7 +348,7 @@ function WarehouseDashboard() {
                     {t("warehouse.client")}
                   </th>
                   <th className="text-left px-3 pb-2">
-                    {t("warehouse.material")}
+                    {t("order.price")}
                   </th>
                   <th className="text-left px-3 pb-2">
                     {t("warehouse.expectedDate")}
@@ -341,31 +369,39 @@ function WarehouseDashboard() {
                     </td>
                   </tr>
                 ) : (
-                  readyOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="px-3 py-3">
-                        <div className="text-sm font-medium">Заказ #{order.id}</div>
-                        <div className="text-xs text-gray-500">ID: {order.id}</div>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        Заявка #{order.clientApplicationId}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        —
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          onClick={() => handleProcessShipment(order.id)}
-                          className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
-                        >
-                          {t("warehouse.processShipment")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  readyOrders.map((order) => {
+                    const application = order.clientApplicationId ? applications.get(order.clientApplicationId) : null;
+                    const client = application ? clients.get(application.clientId) : null;
+                    return (
+                      <tr key={order.id}>
+                        <td className="px-3 py-3">
+                          <div className="text-sm font-medium">{formatOrderName(order)}</div>
+                          <div className="text-xs text-gray-500">ID: {order.id}</div>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-300">
+                          {client 
+                            ? `${client.person.firstName} ${client.person.lastName}`
+                            : application 
+                              ? `Клиент #${application.clientId}`
+                              : `Заявка #${order.clientApplicationId || 'N/A'}`}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-300">
+                          {order.price ? `${order.price.toLocaleString("ru-RU")} ₽` : "—"}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-300">
+                          {new Date(order.createdAt).toLocaleDateString('ru-RU')}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            onClick={() => handleProcessShipment(order.id)}
+                            className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
+                          >
+                            {t("warehouse.processShipment")}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -373,7 +409,6 @@ function WarehouseDashboard() {
         </section>
       </div>
 
-      {/* Модальное окно регистрации поступления */}
       {showReceiptModal && selectedPurchaseOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-stone-900 rounded-2xl border border-gray-800 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -460,77 +495,61 @@ function WarehouseDashboard() {
         </div>
       )}
 
-      {showShipmentModal && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-stone-900 rounded-2xl border border-gray-800 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4">
-              {t("warehouse.processShipment")} - Заказ #{selectedOrder.id}
-            </h2>
+      {showShipmentModal && selectedOrder && (() => {
+        const application = selectedOrder.clientApplicationId ? applications.get(selectedOrder.clientApplicationId) : null;
+        const client = application ? clients.get(application.clientId) : null;
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-stone-900 rounded-2xl border border-gray-800 p-6 max-w-2xl w-full">
+              <h2 className="text-xl font-semibold mb-4">
+                {t("warehouse.processShipment")} - {formatOrderName(selectedOrder)}
+              </h2>
 
-            <div className="space-y-4">
-              <div className="text-sm text-gray-400 mb-2">
-                Материалы для отгрузки (можно удалить или изменить количество):
-              </div>
-              <div className="space-y-2">
-                {shipmentMaterials.length === 0 ? (
-                  <div className="text-sm text-gray-500 text-center py-4">
-                    Материалы не найдены
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    {t("warehouse.client")}
+                  </label>
+                  <div className="text-sm text-white">
+                    {client 
+                      ? `${client.person.firstName} ${client.person.lastName}`
+                      : application 
+                        ? `Клиент #${application.clientId}`
+                        : `Заявка #${selectedOrder.clientApplicationId || 'N/A'}`}
                   </div>
-                ) : (
-                  shipmentMaterials.map((material, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 bg-stone-800/50 rounded-lg px-3 py-2 border border-gray-700"
-                    >
-                      <div className="flex-1">
-                        <div className="text-sm text-white">
-                          {material.materialName}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Ожидалось: {material.originalAmount}
-                        </div>
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={material.amount}
-                        onChange={(e) => handleUpdateShipmentMaterialAmount(index, parseFloat(e.target.value) || 0)}
-                        className="w-24 rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                      />
-                      <button
-                        onClick={() => handleRemoveShipmentMaterial(index)}
-                        className="text-red-400 hover:text-red-300 transition-colors"
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+                </div>
 
-            <div className="flex gap-4 mt-6">
-              <button
-                onClick={handleSaveShipment}
-                className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"
-              >
-                Сохранить и завершить заказ
-              </button>
-              <button
-                onClick={() => {
-                  setShowShipmentModal(false);
-                  setSelectedOrder(null);
-                  setShipmentMaterials([]);
-                }}
-                className="flex-1 rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium py-2.5 hover:bg-gray-900 transition-colors"
-              >
-                Отмена
-              </button>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    {t("order.price")}
+                  </label>
+                  <div className="text-sm text-white font-semibold">
+                    {selectedOrder.price ? `${selectedOrder.price.toLocaleString("ru-RU")} ₽` : "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={handleSaveShipment}
+                  className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"
+                >
+                  Сохранить и завершить заказ
+                </button>
+                <button
+                  onClick={() => {
+                    setShowShipmentModal(false);
+                    setSelectedOrder(null);
+                  }}
+                  className="flex-1 rounded-full bg-stone-950 text-white border border-gray-700 text-sm font-medium py-2.5 hover:bg-gray-900 transition-colors"
+                >
+                  Отмена
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

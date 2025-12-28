@@ -67,7 +67,6 @@ function ProductCard() {
   };
 
   const handleCreateApplication = () => {
-    // TODO: Переход на создание заявки с предзаполненным catalogProductId
     navigate(`/applications/create?catalogProductId=${id}`);
   };
 

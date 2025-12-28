@@ -58,5 +58,14 @@ export const filesService = {
       throw extractApiError(error);
     }
   },
+
+  getFileMetadata: async (id: number): Promise<FileMetadataResponseDto> => {
+    try {
+      const response = await apiClient.get<FileMetadataResponseDto>(`/files/${id}`);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
 };
 

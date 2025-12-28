@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
-import { ordersService, applicationsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto } from "../../../services/api/types";
+import { ordersService, applicationsService, clientsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, ClientResponseDto } from "../../../services/api/types";
 import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 
 interface ManagerStats {
@@ -16,9 +16,18 @@ function ManagerDashboard() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
   const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
+  const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+  const formatOrderName = (order: ClientOrderResponseDto): string => {
+    const date = new Date(order.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `ORD-${year}-${month}-${day}-${order.id}`;
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -26,11 +35,34 @@ function ManagerDashboard() {
         setLoading(true);
         setError(null);
 
-        const ordersData = await ordersService.getOrders();
-        setOrders(Array.isArray(ordersData) ? ordersData : []);
-
-        const applicationsData = await applicationsService.getApplications();
+        const [ordersData, applicationsData] = await Promise.all([
+          ordersService.getOrders(),
+          applicationsService.getApplications()
+        ]);
+        
+        const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+        setOrders(ordersArray);
         setApplications(applicationsData.content || []);
+
+        const clientsMap = new Map<number, ClientResponseDto>();
+        const uniqueClientIds = new Set<number>();
+
+        applicationsData.content?.forEach(app => {
+          if (app.clientId) {
+            uniqueClientIds.add(app.clientId);
+          }
+        });
+
+        for (const clientId of uniqueClientIds) {
+          try {
+            const client = await clientsService.getClientById(clientId);
+            clientsMap.set(clientId, client);
+          } catch (err) {
+            console.error(`Failed to load client ${clientId}:`, err);
+          }
+        }
+        
+        setClients(clientsMap);
       } catch (err) {
         const apiError = extractApiError(err);
         setError(apiError.message || 'Ошибка загрузки данных');
@@ -223,15 +255,23 @@ function ManagerDashboard() {
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="px-3 py-3">
-                        <div className="text-sm font-medium">Заказ #{order.id}</div>
-                        <div className="text-xs text-gray-500">ID: {order.id}</div>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-300">
-                        Клиент #{order.clientApplicationId}
-                      </td>
+                  filteredOrders.map((order) => {
+                    const application = applications.find(app => app.id === order.clientApplicationId);
+                    const client = application ? clients.get(application.clientId) : null;
+                    
+                    return (
+                      <tr key={order.id}>
+                        <td className="px-3 py-3">
+                          <div className="text-sm font-medium">{formatOrderName(order)}</div>
+                          <div className="text-xs text-gray-500">ID: {order.id}</div>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-gray-300">
+                          {client ? (
+                            `${client.person.firstName} ${client.person.lastName}`
+                          ) : (
+                            <span className="text-gray-500">{t("catalog.loading")}</span>
+                          )}
+                        </td>
                       <td className="px-3 py-3">
                         <span
                           className={[
@@ -254,7 +294,8 @@ function ManagerDashboard() {
                         </Link>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

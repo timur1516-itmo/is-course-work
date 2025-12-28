@@ -19,13 +19,11 @@ public final class ClientOrderSpecification {
             if (f == null) return cb.conjunction();
 
             if (f.getStatus() != null) {
-                // currentStatus может быть null -> LEFT JOIN
                 var st = root.join("currentStatus", JoinType.LEFT);
                 p.add(cb.equal(st.get("status"), f.getStatus()));
             }
 
             if (f.getClientId() != null) {
-                // clientId лежит не в order, а в clientApplication.client.id
                 var app = root.join("clientApplication", JoinType.INNER);
                 var client = app.join("client", JoinType.INNER);
                 p.add(cb.equal(client.get("id"), f.getClientId()));

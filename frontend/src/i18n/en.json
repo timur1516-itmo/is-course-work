@@ -377,6 +377,7 @@
       "paid": "Paid",
       "readyForProduction": "Ready for Production",
       "inProduction": "In Production",
+      "readyForPickup": "Ready for Pickup",
       "completed": "Completed"
     }
   },

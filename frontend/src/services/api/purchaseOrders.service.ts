@@ -104,7 +104,7 @@ export const purchaseOrdersService = {
     } catch (error) {
       const apiError = extractApiError(error);
       if (apiError.status === 404) {
-        return null; // Receipt еще не зарегистрирован
+        return null;
       }
       throw apiError;
     }

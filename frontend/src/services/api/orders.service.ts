@@ -69,5 +69,29 @@ export const ordersService = {
       throw extractApiError(error);
     }
   },
+
+  hasOrderBeenInStatus: async (
+    orderId: number,
+    status: string
+  ): Promise<boolean> => {
+    try {
+      const response = await apiClient.get<boolean>(`/orders/${orderId}/has-status/${status}`);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  updateOrderDesign: async (
+    orderId: number,
+    designId: number
+  ): Promise<ClientOrderResponseDto> => {
+    try {
+      const response = await apiClient.patch<ClientOrderResponseDto>(`/orders/${orderId}/design/${designId}`);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
 };
 

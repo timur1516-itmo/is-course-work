@@ -293,10 +293,9 @@ CREATE TABLE client_order_status
                           'PENDING_APPROVAL',
                           'REWORK',
                           'APPROVED',
-                          'AWAITING_PAYMENT',
-                          'PAID',
                           'READY_FOR_PRODUCTION',
                           'IN_PRODUCTION',
+                          'READY_FOR_PICKUP',
                           'COMPLETED'
             ))
 );

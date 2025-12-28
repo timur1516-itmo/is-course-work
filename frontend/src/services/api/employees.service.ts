@@ -52,5 +52,14 @@ export const employeesService = {
       throw extractApiError(error);
     }
   },
+
+  async getEmployeeByAccountId(accountId: number): Promise<EmployeeResponseDto> {
+    try {
+      const response = await apiClient.get<EmployeeResponseDto>(`/employees/by-account/${accountId}`);
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
 };
 

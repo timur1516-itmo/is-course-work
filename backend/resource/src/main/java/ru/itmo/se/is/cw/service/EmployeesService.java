@@ -69,6 +69,12 @@ public class EmployeesService {
                 .orElseThrow(() -> new EntityNotFoundException("Employee with accountId " + accountId + " not found"));
     }
 
+    @Transactional(readOnly = true)
+    public EmployeeResponseDto getEmployeeByAccountId(Long accountId) {
+        EmployeeEntity employee = getByAccountId(accountId);
+        return employeeMapper.toDto(employee);
+    }
+
     public void enableEmployee(Long id) {
         accountClient.enableAccount(id);
     }

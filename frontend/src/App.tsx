@@ -49,6 +49,7 @@ function App() {
               <Route path="/catalog" element={<Catalog/>}/>
               <Route path="/catalog/:id" element={<ProductCard/>}/>
               <Route path="/applications/create" element={<CreateApplication/>}/>
+              <Route path="/applications/:id" element={<ApplicationDetails/>}/>
               <Route path="/orders/:id" element={<OrderDetails/>}/>
               <Route path="/auth" element={<AuthPage/>}/>
               <Route path="/profile" element={<Profile/>}/>

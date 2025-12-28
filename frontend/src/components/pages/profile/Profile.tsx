@@ -3,8 +3,8 @@ import {useTranslation} from "react-i18next";
 import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { ordersService, authService, extractApiError, type CurrentUserDto } from "../../../services/api";
-import type { ClientOrderResponseDto } from "../../../services/api/types";
+import { ordersService, authService, applicationsService, extractApiError, type CurrentUserDto } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto } from "../../../services/api/types";
 import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 
 const PASSWORD_REGEX = /^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/;
@@ -14,6 +14,7 @@ function ProfilePage() {
   const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
+  const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,11 +35,15 @@ function ProfilePage() {
 
         if (!alive) return;
 
-        const ordersData = await ordersService.getOrders();
+        const [ordersData, applicationsData] = await Promise.all([
+          ordersService.getOrders(),
+          applicationsService.getApplications({ page: 0, size: 1000 })
+        ]);
 
         if (!alive) return;
 
         setOrders(Array.isArray(ordersData) ? ordersData : []);
+        setApplications(applicationsData.content || []);
         setCurrentUser(userData);
       } catch (err: any) {
         if (!alive) return;
@@ -62,9 +67,31 @@ function ProfilePage() {
     };
   }, [navigate]);
 
+  const formatOrderName = (order: ClientOrderResponseDto): string => {
+    const date = new Date(order.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `ORD-${year}-${month}-${day}-${order.id}`;
+  };
+
+  const getCompletedDate = (order: ClientOrderResponseDto): string | null => {
+    return order.completedAt || null;
+  };
+
   const currentOrders = Array.isArray(orders) ? orders.filter(
     (order) => order.status !== "COMPLETED"
   ) : [];
+
+  const applicationsWithoutOrders = applications.filter(
+    (app) => !orders.some((order) => order.clientApplicationId === app.id)
+  );
+
+  const allCurrentItems = [
+    ...currentOrders.map(order => ({ type: 'order' as const, data: order })),
+    ...applicationsWithoutOrders.map(app => ({ type: 'application' as const, data: app }))
+  ];
+
   const historyOrders = Array.isArray(orders) ? orders.filter(
     (order) => order.status === "COMPLETED"
   ) : [];
@@ -195,7 +222,7 @@ function ProfilePage() {
                 {t("profile.openProfileSettings")}
               </button>
             </div>
-            {currentOrders.length > 0 && (
+            {allCurrentItems.length > 0 && (
               <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -219,40 +246,71 @@ function ProfilePage() {
                     </tr>
                     </thead>
                     <tbody>
-                    {currentOrders.length === 0 ? (
+                    {allCurrentItems.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-3 py-8 text-center text-gray-500">
                           {t("manager.noOrders")}
                         </td>
                       </tr>
                     ) : (
-                      currentOrders.map((order) => (
-                        <tr key={order.id}>
-                          <td className="px-3 py-3">
-                            <div className="text-sm font-medium">Заказ #{order.id}</div>
-                            <div className="text-xs text-gray-500">ID: {order.id}</div>
-                          </td>
-                          <td className="px-3 py-3 text-xs text-gray-300">
-                            {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                          </td>
-                          <td className="px-3 py-3">
-                          <span className={[
-                            "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                            getOrderStatusStyle(order.status),
-                          ].join(" ")}>
-                            {t(getOrderStatusTranslationKey(order.status))}
-                          </span>
-                          </td>
-                          <td className="px-3 py-3 text-right">
-                            <Link
-                              to={`/orders/${order.id}`}
-                              className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
-                            >
-                              {t("profile.openOrder")}
-                            </Link>
-                          </td>
-                        </tr>
-                      ))
+                      allCurrentItems.map((item) => {
+                        if (item.type === 'order') {
+                          const order = item.data;
+                          return (
+                            <tr key={`order-${order.id}`}>
+                              <td className="px-3 py-3">
+                                <div className="text-sm font-medium">{formatOrderName(order)}</div>
+                                <div className="text-xs text-gray-500">ID: {order.id}</div>
+                              </td>
+                              <td className="px-3 py-3 text-xs text-gray-300">
+                                {new Date(order.createdAt).toLocaleDateString('ru-RU')}
+                              </td>
+                              <td className="px-3 py-3">
+                              <span className={[
+                                "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
+                                getOrderStatusStyle(order.status),
+                              ].join(" ")}>
+                                {t(getOrderStatusTranslationKey(order.status))}
+                              </span>
+                              </td>
+                              <td className="px-3 py-3 text-right">
+                                <Link
+                                  to={`/orders/${order.id}`}
+                                  className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
+                                >
+                                  {t("profile.openOrder")}
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          const app = item.data;
+                          return (
+                            <tr key={`app-${app.id}`}>
+                              <td className="px-3 py-3">
+                                <div className="text-sm font-medium">{t("profile.request")} #{app.id}</div>
+                                <div className="text-xs text-gray-500">ID: {app.id}</div>
+                              </td>
+                              <td className="px-3 py-3 text-xs text-gray-300">
+                                {new Date(app.createdAt).toLocaleDateString('ru-RU')}
+                              </td>
+                              <td className="px-3 py-3">
+                              <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 bg-blue-500/10 text-blue-400 ring-blue-500/20">
+                                {t("profile.applicationCreated") || "Заявка создана"}
+                              </span>
+                              </td>
+                              <td className="px-3 py-3 text-right">
+                                <Link
+                                  to={`/applications/${app.id}`}
+                                  className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
+                                >
+                                  {t("profile.openApplication") || "Открыть заявку"}
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        }
+                      })
                     )}
                     </tbody>
                   </table>
@@ -295,42 +353,45 @@ function ProfilePage() {
                       </td>
                     </tr>
                   ) : (
-                    historyOrders.map((order) => (
-                      <tr key={order.id}>
-                        <td className="px-3 py-1">
-                          <div className="text-sm font-medium">
-                            Заказ #{order.id}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            ID: {order.id}
-                          </div>
-                        </td>
-                        <td className="px-3 py-1 text-xs text-gray-300">
-                          {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                        </td>
-                        <td className="px-3 py-1 text-xs text-gray-300">
-                          —
-                        </td>
-                        <td className="px-3 py-1">
-                            <span
-                              className={[
-                                "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
-                                getOrderStatusStyle(order.status),
-                              ].join(" ")}
+                    historyOrders.map((order) => {
+                      const completedDate = getCompletedDate(order);
+                      return (
+                        <tr key={order.id}>
+                          <td className="px-3 py-1">
+                            <div className="text-sm font-medium">
+                              {formatOrderName(order)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              ID: {order.id}
+                            </div>
+                          </td>
+                          <td className="px-3 py-1 text-xs text-gray-300">
+                            {new Date(order.createdAt).toLocaleDateString('ru-RU')}
+                          </td>
+                          <td className="px-3 py-1 text-xs text-gray-300">
+                            {completedDate ? new Date(completedDate).toLocaleDateString('ru-RU') : '—'}
+                          </td>
+                          <td className="px-3 py-1">
+                              <span
+                                className={[
+                                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1",
+                                  getOrderStatusStyle(order.status),
+                                ].join(" ")}
+                              >
+                                {t(getOrderStatusTranslationKey(order.status))}
+                              </span>
+                          </td>
+                          <td className="px-3 py-1 text-right">
+                            <Link
+                              to={`/orders/${order.id}`}
+                              className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
                             >
-                              {t(getOrderStatusTranslationKey(order.status))}
-                            </span>
-                        </td>
-                        <td className="px-3 py-1 text-right">
-                          <Link
-                            to={`/orders/${order.id}`}
-                            className="text-xs rounded-full border border-gray-700 px-3 py-1 hover:bg-gray-800 transition-colors"
-                          >
-                            {t("profile.open")}
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
+                              {t("profile.open")}
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                   </tbody>
                 </table>

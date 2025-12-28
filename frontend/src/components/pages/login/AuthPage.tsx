@@ -106,7 +106,7 @@ function AuthPage() {
                     setLoading(true);
                     setError(null);
                     await authService.register({
-                      username: values.email, // Используем email как username
+                      username: values.email,
                       email: values.email,
                       password: values.password,
                       firstName: values.firstName,

@@ -49,6 +49,7 @@ function OrderDetails() {
   const [authorNames, setAuthorNames] = useState<Record<number, string>>({});
   const [orderFiles, setOrderFiles] = useState<FileMetadataResponseDto[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [messageAttachments, setMessageAttachments] = useState<Map<number, FileMetadataResponseDto[]>>(new Map());
   const [changingStatus, setChangingStatus] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +82,9 @@ function OrderDetails() {
               return [...prevArray, messageData.message];
             });
             loadAuthorName(messageData.message.authorId);
+            if (messageData.message.attachmentFileIds && messageData.message.attachmentFileIds.length > 0) {
+              loadMessageAttachments(messageData.message.id, messageData.message.attachmentFileIds);
+            }
           }
         }
       };
@@ -103,7 +107,9 @@ function OrderDetails() {
     const authorIds = new Set(messages.map((m) => m.authorId));
     authorIds.forEach((authorId) => {
       if (!authorNames[authorId]) {
-        loadAuthorName(authorId);
+        loadAuthorName(authorId).catch(err => {
+          console.error(`Failed to load author name for ${authorId}:`, err);
+        });
       }
     });
   }, [messages]);
@@ -163,13 +169,22 @@ function OrderDetails() {
     }
   };
 
+  const formatOrderName = (order: ClientOrderResponseDto): string => {
+    const date = new Date(order.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `ORD-${year}-${month}-${day}-${order.id}`;
+  };
+
   const loadOrderFiles = async (applicationId: number) => {
     try {
       setLoadingFiles(true);
       const files = await applicationsService.getApplicationAttachments(applicationId);
-      setOrderFiles(files);
+      setOrderFiles(files || []);
     } catch (err) {
       console.error("Failed to load order files:", err);
+      setOrderFiles([]);
     } finally {
       setLoadingFiles(false);
     }
@@ -208,67 +223,58 @@ function OrderDetails() {
     if (authorNames[authorId]) return;
 
     try {
-      const accountIdToClientId: Record<number, number> = {
-        123: 456,
-        124: 457,
-        125: 458,
-        126: 459,
-        127: 460,
-      };
-
-      const accountIdToEmployeeId: Record<number, number> = {
-        201: 101,
-        202: 102,
-      };
-
-      const clientId = accountIdToClientId[authorId];
-      if (clientId) {
-        try {
-          const client = await clientsService.getClientById(clientId);
-          if (client) {
-            setAuthorNames((prev) => ({
-              ...prev,
-              [authorId]: `${client.person.firstName} ${client.person.lastName}`,
-            }));
-            return;
-          }
-        } catch (err) {
-          console.debug("Failed to load client:", err);
+      try {
+        const client = await clientsService.getClientByAccountId(authorId);
+        if (client) {
+          setAuthorNames((prev) => ({
+            ...prev,
+            [authorId]: `${client.person.firstName} ${client.person.lastName}`,
+          }));
+          return;
+        }
+      } catch (err: any) {
+        const apiError = extractApiError(err);
+        if (apiError.status !== 404) {
+          console.error(`Failed to load client for accountId ${authorId}:`, apiError);
         }
       }
 
-      const employeeId = accountIdToEmployeeId[authorId];
-      if (employeeId) {
-        try {
-          const employee = await employeesService.getEmployeeById(employeeId);
-          if (employee) {
-            setAuthorNames((prev) => ({
-              ...prev,
-              [authorId]: `${employee.person.firstName} ${employee.person.lastName}`,
-            }));
-            return;
-          }
-        } catch (err) {
-          console.debug("Failed to load employee:", err);
+      try {
+        const employee = await employeesService.getEmployeeByAccountId(authorId);
+        if (employee) {
+          setAuthorNames((prev) => ({
+            ...prev,
+            [authorId]: `${employee.person.firstName} ${employee.person.lastName}`,
+          }));
+          return;
         }
-      }
-
-      if (authorId === 101 || authorId === 102) {
-        try {
-          const employee = await employeesService.getEmployeeById(authorId);
-          if (employee) {
-            setAuthorNames((prev) => ({
-              ...prev,
-              [authorId]: `${employee.person.firstName} ${employee.person.lastName}`,
-            }));
-            return;
-          }
-        } catch (err) {
-          console.debug("Failed to load employee:", err);
+      } catch (err: any) {
+        const apiError = extractApiError(err);
+        if (apiError.status !== 404) {
+          console.error(`Failed to load employee for accountId ${authorId}:`, apiError);
         }
       }
     } catch (err) {
       console.error("Failed to load author name:", err);
+    }
+  };
+
+  const loadMessageAttachments = async (messageId: number, fileIds: number[]) => {
+    if (fileIds.length === 0) return;
+    
+    try {
+      const files: FileMetadataResponseDto[] = [];
+      for (const fileId of fileIds) {
+        try {
+          const file = await filesService.getFileMetadata(fileId);
+          files.push(file);
+        } catch (err) {
+          console.error(`Failed to load file ${fileId}:`, err);
+        }
+      }
+      setMessageAttachments(prev => new Map(prev).set(messageId, files));
+    } catch (err) {
+      console.error(`Failed to load attachments for message ${messageId}:`, err);
     }
   };
 
@@ -279,7 +285,14 @@ function OrderDetails() {
       const messagesData = await conversationsService.getMessages(conversation.id, {
         sort: ["sentAt,ASC"],
       });
-      setMessages(Array.isArray(messagesData) ? messagesData : []);
+      const messagesArray = Array.isArray(messagesData) ? messagesData : [];
+      setMessages(messagesArray);
+
+      for (const message of messagesArray) {
+        if (message.attachmentFileIds && message.attachmentFileIds.length > 0) {
+          await loadMessageAttachments(message.id, message.attachmentFileIds);
+        }
+      }
     } catch (err) {
       console.error("Failed to load messages:", err);
       setMessages([]);
@@ -356,6 +369,10 @@ function OrderDetails() {
     if (order?.status === "COMPLETED") {
       setError(t("order.cannotSendToCompleted"));
       return;
+    }
+
+    if (uploadedFiles.length > 0 && uploadedFileIds.length === 0) {
+      await handleFileUpload();
     }
 
     try {
@@ -439,7 +456,7 @@ function OrderDetails() {
         <div className="w-1/3 flex-shrink-0">
           <div className="bg-stone-950/70 rounded-xl border border-gray-700 p-6 h-full overflow-y-auto">
             <h1 className="text-2xl font-bold text-white mb-6">
-              {t("order.title")} #{order.id}
+              {formatOrderName(order)}
             </h1>
 
             <div className="space-y-4">
@@ -514,81 +531,57 @@ function OrderDetails() {
                 </div>
               )}
 
-              {isStaff && order.clientApplicationId && (
-                <div>
-                  <label className="text-xs text-gray-500 uppercase mb-1 block">
-                    {t("order.clientApplication")}
-                  </label>
-                  <Link
-                    to={`/applications/${order.clientApplicationId}`}
-                    className="text-emerald-400 hover:text-emerald-300"
-                  >
-                    #{order.clientApplicationId}
-                  </Link>
-                </div>
-              )}
-
-              {isStaff && order.productDesignId && (
-                <div>
-                  <label className="text-xs text-gray-500 uppercase mb-1 block">
-                    {t("order.productDesign")}
-                  </label>
-                  <Link
-                    to={`/designs/${order.productDesignId}`}
-                    className="text-emerald-400 hover:text-emerald-300"
-                  >
-                    #{order.productDesignId}
-                  </Link>
-                </div>
-              )}
-
-              {orderFiles.length > 0 && (
+              {order.clientApplicationId && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase mb-2 block">
                     {t("order.attachments")}
                   </label>
-                  <div className="space-y-2">
-                    {orderFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className="flex items-center justify-between bg-stone-900/50 rounded-lg px-3 py-2 border border-gray-800"
-                      >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
-                          <span className="text-sm text-gray-300 truncate" title={file.filename}>
-                            {file.filename}
-                          </span>
-                          <span className="text-xs text-gray-500 flex-shrink-0">
-                            ({(file.sizeBytes / 1024).toFixed(1)} KB)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 ml-2">
-                          {file.contentType.startsWith('image/') && (
+                  {loadingFiles ? (
+                    <div className="text-xs text-gray-500">
+                      {t("order.loadingFiles")}
+                    </div>
+                  ) : orderFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {orderFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between bg-stone-900/50 rounded-lg px-3 py-2 border border-gray-800"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
+                            <span className="text-sm text-gray-300 truncate" title={file.filename}>
+                              {file.filename}
+                            </span>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              ({(file.sizeBytes / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            {file.contentType.startsWith('image/') && (
+                              <button
+                                onClick={() => handleViewFile(file.id, file.filename, file.contentType)}
+                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                title={t("order.view")}
+                              >
+                                <VisibilityIcon className="text-lg" />
+                              </button>
+                            )}
                             <button
-                              onClick={() => handleViewFile(file.id, file.filename, file.contentType)}
+                              onClick={() => handleDownloadFile(file.id, file.filename)}
                               className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
-                              title={t("order.view")}
+                              title={t("order.download")}
                             >
-                              <VisibilityIcon className="text-lg" />
+                              <DownloadIcon className="text-lg" />
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleDownloadFile(file.id, file.filename)}
-                            className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
-                            title={t("order.download")}
-                          >
-                            <DownloadIcon className="text-lg" />
-                          </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {loadingFiles && (
-                <div className="text-xs text-gray-500">
-                  {t("order.loadingFiles")}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500">
+                      {t("order.noFiles") || "Нет прикрепленных файлов"}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -622,6 +615,33 @@ function OrderDetails() {
                     </span>
                   </div>
                   <p className="text-white whitespace-pre-wrap">{message.content}</p>
+                  {message.attachmentFileIds && message.attachmentFileIds.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {messageAttachments.get(message.id)?.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between bg-stone-800/50 rounded-lg px-3 py-2 border border-gray-700"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
+                            <span className="text-sm text-gray-300 truncate" title={file.filename}>
+                              {file.filename}
+                            </span>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              ({(file.sizeBytes / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleDownloadFile(file.id, file.filename)}
+                            className="text-gray-400 hover:text-white transition-colors ml-2"
+                            title={t("order.download")}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}

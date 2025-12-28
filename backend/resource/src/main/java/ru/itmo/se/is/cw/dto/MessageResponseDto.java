@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @Data
 @Schema(description = "Сообщение в диалоге")
@@ -22,4 +23,7 @@ public class MessageResponseDto {
 
     @Schema(description = "Дата и время отправки сообщения", example = "2023-10-20T10:00:00Z")
     private ZonedDateTime sentAt;
+
+    @Schema(description = "Список идентификаторов файлов-вложений", example = "[201, 202]")
+    private List<Long> attachmentFileIds;
 }

@@ -18,7 +18,6 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
     authService.getCurrentUser()
         .then(() => { if (alive) setState("authed"); })
         .catch((_) => {
-          // если это 401 — точно не залогинен
           if (alive) setState("unauthed");
         });
 
@@ -26,15 +25,11 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [location.pathname]);
 
   if (state === "unknown") {
-    // можно заменить на свой спиннер
     return null;
   }
 
   if (state === "unauthed") {
-    // В BFF не надо вести на "/auth", ведём на gateway login:
-    // либо через Navigate на страницу, где ты сам сделаешь window.location,
-    // либо напрямую window.location тут (проще).
-    authService.login(); // делает redirect на /oauth2/authorization/gateway
+    authService.login();
     return null;
   }
 

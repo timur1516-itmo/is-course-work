@@ -3,7 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
 import {
   applicationsService,
+  ordersService,
   type ClientApplicationResponseDto,
+  type ClientOrderResponseDto,
   type ClientResponseDto, clientsService,
   extractApiError
 } from "../../../services/api";
@@ -14,6 +16,7 @@ function ApplicationsList() {
   const filter = searchParams.get("filter");
   const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
   const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
+  const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,15 +25,27 @@ function ApplicationsList() {
       try {
         setLoading(true);
         setError(null);
-        const response = await applicationsService.getApplications();
-        const apps = response.content || [];
+
+        const [applicationsResponse, ordersData] = await Promise.all([
+          applicationsService.getApplications(),
+          ordersService.getOrders()
+        ]);
+        
+        const apps = applicationsResponse.content || [];
         setApplications(apps);
+
+        const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+        setOrders(ordersArray);
 
         const clientsMap = new Map<number, ClientResponseDto>();
         for (const app of apps) {
           if (!clientsMap.has(app.clientId)) {
-            const client = await clientsService.getClientById(app.clientId);
-            clientsMap.set(app.clientId, client);
+            try {
+              const client = await clientsService.getClientById(app.clientId);
+              clientsMap.set(app.clientId, client);
+            } catch (err) {
+              console.error(`Failed to load client ${app.clientId}:`, err);
+            }
           }
         }
         setClients(clientsMap);
@@ -47,10 +62,16 @@ function ApplicationsList() {
 
   const filteredApplications = useMemo(() => {
     if (filter === "new") {
-      return applications.filter((app) => !app.templateProductDesignId);
+      const applicationIdsWithOrders = new Set(
+        orders
+          .filter(order => order.clientApplicationId !== null && order.clientApplicationId !== undefined)
+          .map(order => order.clientApplicationId)
+      );
+      
+      return applications.filter((app) => !applicationIdsWithOrders.has(app.id));
     }
     return applications;
-  }, [filter, applications]);
+  }, [filter, applications, orders]);
 
   if (loading) {
     return (

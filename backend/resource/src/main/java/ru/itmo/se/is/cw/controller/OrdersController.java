@@ -243,4 +243,70 @@ public class OrdersController {
     ) {
         return ResponseEntity.ok(materialsService.getMaterialsConsumptionByOrder(id));
     }
+
+    @PatchMapping("/{id}/design/{designId}")
+    @Operation(
+            summary = "Обновить дизайн заказа",
+            description = "Связывает заказ с указанным дизайном."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Дизайн обновлен",
+                    content = @Content(
+                            schema = @Schema(implementation = ClientOrderResponseDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Заказ или дизайн не найден",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetail.class)
+                    )
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_orders.write')")
+    public ResponseEntity<ClientOrderResponseDto> updateOrderDesign(
+            @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id,
+            @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long designId
+    ) {
+        return ResponseEntity.ok(ordersService.updateOrderDesign(id, designId));
+    }
+
+    @GetMapping("/{id}/has-status/{status}")
+    @Operation(
+            summary = "Проверка наличия статуса в истории заказа",
+            description = "Проверяет, был ли заказ когда-либо в указанном статусе."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Результат проверки",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Boolean.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Заказ не найден",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ProblemDetail.class)
+                    )
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_orders.read')")
+    public ResponseEntity<Boolean> hasOrderBeenInStatus(
+            @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id,
+            @PathVariable @Parameter(description = "Статус для проверки", required = true) String status
+    ) {
+        try {
+            ru.itmo.se.is.cw.model.value.ClientOrderStatus orderStatus = 
+                ru.itmo.se.is.cw.model.value.ClientOrderStatus.valueOf(status);
+            return ResponseEntity.ok(ordersService.hasOrderBeenInStatus(id, orderStatus));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(false);
+        }
+    }
 }

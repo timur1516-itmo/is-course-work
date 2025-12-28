@@ -1,6 +1,7 @@
 package ru.itmo.se.is.cw.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -133,6 +134,36 @@ public class EmployeesController {
     @PreAuthorize("hasAuthority('SCOPE_employees.read')")
     public ResponseEntity<EmployeeResponseDto> getEmployeeById(@PathVariable Long id) {
         EmployeeResponseDto employee = employeesService.getEmployeeById(id);
+        return ResponseEntity.ok(employee);
+    }
+
+    @GetMapping("/by-account/{accountId}")
+    @Operation(
+            summary = "Получение сотрудника по accountId",
+            description = "Возвращает информацию о сотруднике по идентификатору аккаунта."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Информация о сотруднике",
+                    content = @Content(schema = @Schema(implementation = EmployeeResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Сотрудник не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Доступ запрещён",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_employees.read')")
+    public ResponseEntity<EmployeeResponseDto> getEmployeeByAccountId(
+            @PathVariable @Parameter(description = "Идентификатор аккаунта", required = true) Long accountId
+    ) {
+        EmployeeResponseDto employee = employeesService.getEmployeeByAccountId(accountId);
         return ResponseEntity.ok(employee);
     }
 

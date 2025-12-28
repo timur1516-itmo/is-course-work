@@ -28,3 +28,23 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: false
             stripComments: false
+
+  - changeSet:
+      id: 005-message-attachments
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/005-message-attachments.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
+
+  - changeSet:
+      id: 006-add-ready-for-pickup-status
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/006-add-ready-for-pickup-status.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true

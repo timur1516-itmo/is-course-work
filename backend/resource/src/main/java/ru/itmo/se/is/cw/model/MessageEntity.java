@@ -8,6 +8,8 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -31,5 +33,11 @@ public class MessageEntity {
     @CreationTimestamp
     private ZonedDateTime sentAt;
 
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<MessageAttachmentEntity> attachments = new ArrayList<>();
 
+    public void addAttachment(MessageAttachmentEntity attachment) {
+        attachments.add(attachment);
+        attachment.setMessage(this);
+    }
 }

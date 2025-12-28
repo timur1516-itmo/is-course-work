@@ -18,6 +18,8 @@ import ru.itmo.se.is.cw.model.*;
 import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.model.value.ClientOrderStatus;
 import ru.itmo.se.is.cw.repository.ClientOrderRepository;
+import ru.itmo.se.is.cw.repository.ClientOrderStatusRepository;
+import ru.itmo.se.is.cw.repository.ProductDesignRepository;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -27,6 +29,8 @@ import java.util.Set;
 public class OrdersService {
 
     private final ClientOrderRepository clientOrderRepository;
+    private final ClientOrderStatusRepository clientOrderStatusRepository;
+    private final ProductDesignRepository productDesignRepository;
     private final ClientApplicationsService clientApplicationsService;
     private final EmployeesService employeesService;
     private final DesignsService designsService;
@@ -72,12 +76,27 @@ public class OrdersService {
 
         return clientOrderRepository
                 .findAll(ClientOrderSpecification.byFilter(effective), pageable)
-                .map(clientOrderMapper::toDto);
+                .map(order -> {
+                    ClientOrderResponseDto dto = clientOrderMapper.toDto(order);
+                    if (dto.getStatus() == ClientOrderStatus.COMPLETED) {
+                        clientOrderStatusRepository
+                                .findSetAtByClientOrderIdAndStatus(order.getId(), ClientOrderStatus.COMPLETED)
+                                .ifPresent(dto::setCompletedAt);
+                    }
+                    return dto;
+                });
     }
 
     @Transactional(readOnly = true)
     public ClientOrderResponseDto getOrderById(Long id) {
-        return clientOrderMapper.toDto(getById(id));
+        ClientOrderEntity order = getById(id);
+        ClientOrderResponseDto dto = clientOrderMapper.toDto(order);
+        if (dto.getStatus() == ClientOrderStatus.COMPLETED) {
+            clientOrderStatusRepository
+                    .findSetAtByClientOrderIdAndStatus(order.getId(), ClientOrderStatus.COMPLETED)
+                    .ifPresent(dto::setCompletedAt);
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -104,14 +123,25 @@ public class OrdersService {
         clientOrderRepository.updateStatusAndSetCurrent(id, next.name());
         em.refresh(order);
 
-        if (next == ClientOrderStatus.REWORK && order.getProductDesign() != null && order.getProductDesign().getConstructor() != null) {
+        if (next == ClientOrderStatus.REWORK && order.getProductDesign() != null) {
             try {
+                if (order.getProductDesign().getConstructor() == null) {
+                    EmployeeEntity constructor = employeesService.getByAccountId(currentUserService.getAccountId());
+                    order.getProductDesign().setConstructor(constructor);
+                    productDesignRepository.save(order.getProductDesign());
+                }
+
                 ConversationEntity conversation = conversationsService.getConversationByOrderIdInternal(order.getId());
                 if (conversation != null) {
                     Long constructorAccountId = order.getProductDesign().getConstructor().getAccountId();
                     conversationsService.addParticipantToConversation(conversation, constructorAccountId);
+
+                    if (request.getComment() != null && !request.getComment().trim().isEmpty()) {
+                        conversationsService.sendMessageAsUser(conversation.getId(), constructorAccountId, request.getComment());
+                    }
                 }
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
@@ -123,6 +153,19 @@ public class OrdersService {
         return clientOrderMapper.toDto(
                 clientOrderRepository.save(order)
         );
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasOrderBeenInStatus(Long orderId, ClientOrderStatus status) {
+        return clientOrderStatusRepository.existsByClientOrderIdAndStatus(orderId, status);
+    }
+
+    @Transactional
+    public ClientOrderResponseDto updateOrderDesign(Long id, Long designId) {
+        ClientOrderEntity order = getById(id);
+        ProductDesignEntity design = designsService.getById(designId);
+        order.setProductDesign(design);
+        return clientOrderMapper.toDto(clientOrderRepository.save(order));
     }
 
     private boolean isAllowedTransition(ClientOrderStatus from, ClientOrderStatus to) {
@@ -139,7 +182,8 @@ public class OrdersService {
             case AWAITING_PAYMENT -> Set.of(ClientOrderStatus.PAID).contains(to);
             case PAID -> Set.of(ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
             case READY_FOR_PRODUCTION -> Set.of(ClientOrderStatus.IN_PRODUCTION).contains(to);
-            case IN_PRODUCTION -> Set.of(ClientOrderStatus.COMPLETED).contains(to);
+            case IN_PRODUCTION -> Set.of(ClientOrderStatus.READY_FOR_PICKUP).contains(to);
+            case READY_FOR_PICKUP -> Set.of(ClientOrderStatus.COMPLETED).contains(to);
             case COMPLETED -> false;
         };
     }

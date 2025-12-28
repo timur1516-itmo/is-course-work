@@ -28,7 +28,9 @@ public class JwtConf {
                     "orders.read",
                     "files.read",
                     "files.write",
-                    "catalog.read"
+                    "catalog.read",
+                    "clients.read",
+                    "employees.read"
             ),
             "SALES_MANAGER", Set.of(
                     "orders.read",
@@ -42,7 +44,8 @@ public class JwtConf {
                     "conversations.messages.write",
                     "orders.conversation.read",
                     "files.read",
-                    "files.write"
+                    "files.write",
+                    "employees.read"
             ),
             "CONSTRUCTOR", Set.of(
                     "designs.read",
@@ -57,7 +60,8 @@ public class JwtConf {
                     "files.write",
                     "conversations.messages.read",
                     "conversations.messages.write",
-                    "orders.conversation.read"
+                    "orders.conversation.read",
+                    "clients.read"
             ),
             "CNC_OPERATOR", Set.of(
                     "production.read",
@@ -72,7 +76,13 @@ public class JwtConf {
                     "materials.read",
                     "materials.balance.write",
                     "po.read",
-                    "po.receive"
+                    "po.receive",
+                    "orders.read",
+                    "orders.status.write",
+                    "designs.read",
+                    "files.read",
+                    "clients.read",
+                    "applications.read"
             ),
             "SUPPLY_MANAGER", Set.of(
                     "materials.read",

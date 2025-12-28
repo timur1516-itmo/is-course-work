@@ -18,10 +18,14 @@ import ru.itmo.se.is.cw.mapper.MessageMapper;
 import ru.itmo.se.is.cw.model.ClientOrderEntity;
 import ru.itmo.se.is.cw.model.ConversationEntity;
 import ru.itmo.se.is.cw.model.ConversationParticipantEntity;
+import ru.itmo.se.is.cw.model.FileEntity;
+import ru.itmo.se.is.cw.model.MessageAttachmentEntity;
 import ru.itmo.se.is.cw.model.MessageEntity;
 import ru.itmo.se.is.cw.model.value.ConversationStatus;
 import ru.itmo.se.is.cw.repository.ConversationParticipantRepository;
 import ru.itmo.se.is.cw.repository.ConversationRepository;
+import ru.itmo.se.is.cw.repository.FileRepository;
+import ru.itmo.se.is.cw.repository.MessageAttachmentRepository;
 import ru.itmo.se.is.cw.repository.MessageRepository;
 
 import java.util.List;
@@ -33,6 +37,8 @@ public class ConversationsService {
     private final ConversationRepository conversationRepository;
     private final ConversationParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
+    private final MessageAttachmentRepository messageAttachmentRepository;
+    private final FileRepository fileRepository;
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
     private final ConversationParticipantMapper conversationParticipantMapper;
@@ -104,7 +110,36 @@ public class ConversationsService {
         message.setContent(request.getContent());
         message.setConversationParticipant(participant);
 
-        return messageMapper.toDto(messageRepository.save(message));
+        MessageEntity savedMessage = messageRepository.save(message);
+
+        if (request.getAttachmentFileIds() != null && !request.getAttachmentFileIds().isEmpty()) {
+            for (Long fileId : request.getAttachmentFileIds()) {
+                FileEntity file = fileRepository.findById(fileId)
+                        .orElseThrow(() -> new EntityNotFoundException("File with id " + fileId + " not found"));
+                MessageAttachmentEntity attachment = new MessageAttachmentEntity();
+                attachment.setMessage(savedMessage);
+                attachment.setFile(file);
+                messageAttachmentRepository.save(attachment);
+            }
+        }
+
+        return messageMapper.toDto(savedMessage);
+    }
+
+    @Transactional
+    public MessageResponseDto sendMessageAsUser(Long conversationId, Long userId, String content) {
+        ConversationEntity conversation = getById(conversationId);
+
+        ConversationParticipantEntity participant = participantRepository
+                .findByConversationIdAndUserId(conversation.getId(), userId)
+                .orElseThrow(() -> new RuntimeException("User is not a participant of this conversation"));
+
+        MessageEntity message = new MessageEntity();
+        message.setContent(content);
+        message.setConversationParticipant(participant);
+
+        MessageEntity savedMessage = messageRepository.save(message);
+        return messageMapper.toDto(savedMessage);
     }
 
     @Transactional(readOnly = true)

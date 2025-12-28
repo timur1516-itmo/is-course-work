@@ -66,4 +66,10 @@ public class ClientsService {
                 .findByAccountId(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Client with accountId " + accountId + " not found"));
     }
+
+    @Transactional(readOnly = true)
+    public ClientResponseDto getClientByAccountId(Long accountId) {
+        ClientEntity client = getByAccountId(accountId);
+        return clientMapper.toDto(client);
+    }
 }

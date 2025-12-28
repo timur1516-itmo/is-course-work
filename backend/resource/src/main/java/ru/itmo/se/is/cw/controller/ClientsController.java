@@ -92,4 +92,33 @@ public class ClientsController {
         ClientResponseDto client = clientsService.getClientById(id);
         return ResponseEntity.ok(client);
     }
+
+    @GetMapping("/by-account/{accountId}")
+    @Operation(
+            summary = "Получение клиента по accountId",
+            description = "Возвращает информацию о клиенте по идентификатору аккаунта."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Информация о клиенте",
+                    content = @Content(
+                            schema = @Schema(implementation = ClientResponseDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Клиент не найден",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetail.class)
+                    )
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_clients.read')")
+    public ResponseEntity<ClientResponseDto> getClientByAccountId(
+            @PathVariable @Parameter(description = "Идентификатор аккаунта", required = true) Long accountId
+    ) {
+        ClientResponseDto client = clientsService.getClientByAccountId(accountId);
+        return ResponseEntity.ok(client);
+    }
 }

@@ -3,6 +3,7 @@
   "register": "Зарегистрироваться",
   "cancel": "Отмена",
   "close": "Закрыть",
+  "back": "Назад",
   "header": {
     "home": "Главная",
     "profile": "Профиль",
@@ -63,6 +64,8 @@
     "orderActions": "Действия",
     "applicationDate": "Дата заявки",
     "openOrder": "Открыть заказ",
+    "openApplication": "Открыть заявку",
+    "applicationCreated": "Заявка создана",
     "open": "Открыть",
     "orderHistory": "История заказов",
     "orderHistoryInfo": "Все завершённые и отменённые заказы.",
@@ -178,7 +181,8 @@
     "priceRequired": "Необходимо указать цену",
     "priceMin": "Цена должна быть больше 0",
     "filesRequired": "Необходимо загрузить 3D модель и УП файл",
-    "approve": "Согласовать"
+    "approve": "Согласовать",
+    "insufficientMaterial": "Недостаточно материала на складе"
   },
   "operator": {
     "dashboard": "Панель оператора станка",
@@ -367,6 +371,10 @@
     "uploading": "Загрузка...",
     "fileUploadError": "Ошибка загрузки файла",
     "catalogProductInfo": "Заявка создается на основе товара из каталога",
+    "catalogProduct": "Товар из каталога",
+    "viewInCatalog": "Посмотреть в каталоге",
+    "templateDesign": "Шаблон дизайна",
+    "templateDesignId": "ID шаблона",
     "minAmount": "Минимальное количество",
     "productNotFound": "Товар не найден",
     "cancel": "Отмена",
@@ -415,8 +423,11 @@
       "paid": "Оплачен",
       "readyForProduction": "Готов к изготовлению",
       "inProduction": "В производстве",
+      "readyForPickup": "Готов к получению",
       "completed": "Завершён"
-    }
+    },
+    "noFiles": "Файлы отсутствуют",
+    "files": "Приложенные файлы"
   },
   "about": {
     "title": "О компании",

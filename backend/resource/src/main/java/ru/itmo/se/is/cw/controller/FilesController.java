@@ -37,7 +37,6 @@ public class FilesController {
         this.filesService = filesService;
     }
 
-    // TODO: Что бы я не загружал "A collection with orphan deletion was no longer referenced by the owning entity instance: ru.itmo.se.is.cw.model.ProductDesignEntity.files"
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "Загрузка нового файла",

@@ -16,6 +16,7 @@ public interface ClientOrderMapper {
     @Mapping(target = "productDesignId", source = "productDesign.id")
     @Mapping(target = "status", source = "currentStatus.status")
     @Mapping(target = "price", expression = "java(toDouble(entity.getPrice()))")
+    @Mapping(target = "completedAt", ignore = true)
     ClientOrderResponseDto toDto(ClientOrderEntity entity);
 
     default Double toDouble(BigDecimal v) {

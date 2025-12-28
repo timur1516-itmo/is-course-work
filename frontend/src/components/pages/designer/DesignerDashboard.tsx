@@ -2,8 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
-import { ordersService, applicationsService, filesService, designsService, materialsService, conversationsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, ConversationResponseDto, MessageResponseDto } from "../../../services/api/types";
+import { ordersService, applicationsService, filesService, designsService, materialsService, conversationsService, clientsService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, ConversationResponseDto, MessageResponseDto, ClientResponseDto } from "../../../services/api/types";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -17,6 +17,16 @@ function DesignerDashboard() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
   const [applications, setApplications] = useState<Record<number, ClientApplicationResponseDto>>({});
+  const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
+  const [ordersWithReworkHistory, setOrdersWithReworkHistory] = useState<Set<number>>(new Set());
+
+  const formatOrderName = (order: ClientOrderResponseDto): string => {
+    const date = new Date(order.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `ORD-${year}-${month}-${day}-${order.id}`;
+  };
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
   const [applicationFiles, setApplicationFiles] = useState<Record<number, FileMetadataResponseDto[]>>({});
   const [loadingFiles, setLoadingFiles] = useState<Record<number, boolean>>({});
@@ -64,19 +74,57 @@ function DesignerDashboard() {
         setOrders(designerOrders);
 
         const applicationsMap: Record<number, ClientApplicationResponseDto> = {};
+        const clientsMap = new Map<number, ClientResponseDto>();
+        const reworkOrdersSet = new Set<number>();
+        const designFilesToLoad: number[] = [];
+
         for (const order of designerOrders) {
           if (order.clientApplicationId && !applicationsMap[order.clientApplicationId]) {
             try {
               const app = await applicationsService.getApplicationById(order.clientApplicationId);
               if (app) {
                 applicationsMap[order.clientApplicationId] = app;
+                
+                if (app.clientId && !clientsMap.has(app.clientId)) {
+                  try {
+                    const client = await clientsService.getClientById(app.clientId);
+                    clientsMap.set(app.clientId, client);
+                  } catch (err) {
+                    console.error(`Failed to load client ${app.clientId}:`, err);
+                  }
+                }
               }
             } catch (err) {
               console.error(`Failed to load application ${order.clientApplicationId}:`, err);
             }
           }
+
+          if (order.productDesignId && !designFilesToLoad.includes(order.productDesignId)) {
+            designFilesToLoad.push(order.productDesignId);
+          }
+
+          if (order.id) {
+            try {
+              const hasBeenInRework = await ordersService.hasOrderBeenInStatus(order.id, "REWORK");
+              if (hasBeenInRework) {
+                reworkOrdersSet.add(order.id);
+              }
+            } catch (err) {
+              console.error(`Failed to check REWORK status for order ${order.id}:`, err);
+            }
+          }
         }
+
+        await Promise.all(
+          designFilesToLoad.map(designId => 
+            loadDesignFiles(designId).catch(err => {
+              console.error(`Failed to load design files for design ${designId}:`, err);
+            })
+          )
+        );
         setApplications(applicationsMap);
+        setClients(clientsMap);
+        setOrdersWithReworkHistory(reworkOrdersSet);
       } catch (err) {
         const apiError = extractApiError(err);
         setError(apiError.message || apiError.detail || 'Ошибка загрузки данных');
@@ -134,10 +182,39 @@ function DesignerDashboard() {
     });
   };
 
+  const getFileType = (filename: string): '3d' | 'up' | null => {
+    const ext = filename.toLowerCase().split('.').pop();
+    if (!ext) return null;
+    
+    const model3DExts = ['stl', 'obj', '3ds', 'step', 'iges', 'stp', 'igs'];
+    if (model3DExts.includes(ext)) {
+      return '3d';
+    }
+    
+    const upExts = ['nc', 'cnc', 'tap', 'gcode'];
+    if (upExts.includes(ext)) {
+      return 'up';
+    }
+    
+    return null;
+  };
+
   const loadDesignFiles = async (designId: number) => {
     try {
       const design = await designsService.getDesignById(designId);
-      setDesignFiles(prev => ({ ...prev, [designId]: design.files || [] }));
+      const files = design.files || [];
+      setDesignFiles(prev => ({ ...prev, [designId]: files }));
+      
+      setFileTypes(prev => {
+        const newMap = new Map(prev);
+        files.forEach(file => {
+          const fileType = getFileType(file.filename);
+          if (fileType) {
+            newMap.set(file.id, fileType);
+          }
+        });
+        return newMap;
+      });
     } catch (err) {
       console.error(`Failed to load files for design ${designId}:`, err);
     }
@@ -149,7 +226,6 @@ function DesignerDashboard() {
       setError(null);
       await designsService.removeFileFromDesign(designId, fileId);
       
-      // Удаляем тип файла
       setFileTypes(prev => {
         const newMap = new Map(prev);
         newMap.delete(fileId);
@@ -252,8 +328,8 @@ function DesignerDashboard() {
 
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
       const productName = application 
-        ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
-        : `Заказ #${order.id}`;
+        ? `${formatOrderName(order)} - ${application.description?.substring(0, 50) || 'Без описания'}`
+        : formatOrderName(order);
 
       let designId = order.productDesignId;
       
@@ -265,11 +341,11 @@ function DesignerDashboard() {
         });
         designId = newDesign.id;
         await designsService.assignDesigner(designId);
+        await ordersService.updateOrderDesign(order.id, designId);
       }
 
       await designsService.addFileToDesign(designId, fileId);
       
-      // Сохраняем тип файла (3D)
       setFileTypes(prev => new Map(prev).set(fileId, '3d'));
 
       await loadDesignFiles(designId);
@@ -308,8 +384,8 @@ function DesignerDashboard() {
 
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
       const productName = application 
-        ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
-        : `Заказ #${order.id}`;
+        ? `${formatOrderName(order)} - ${application.description?.substring(0, 50) || 'Без описания'}`
+        : formatOrderName(order);
 
       let designId = order.productDesignId;
       
@@ -321,11 +397,11 @@ function DesignerDashboard() {
         });
         designId = newDesign.id;
         await designsService.assignDesigner(designId);
+        await ordersService.updateOrderDesign(order.id, designId);
       }
 
       await designsService.addFileToDesign(designId, fileId);
-      
-      // Сохраняем тип файла (УП)
+
       setFileTypes(prev => new Map(prev).set(fileId, 'up'));
 
       await loadDesignFiles(designId);
@@ -370,16 +446,41 @@ function DesignerDashboard() {
         throw new Error('Заказ не найден');
       }
 
-      // Проверяем наличие 3D и УП файлов
-      const designFilesList = order.productDesignId ? designFiles[order.productDesignId] || [] : [];
-      const has3DFile = designFilesList.some(f => fileTypes.get(f.id) === '3d');
-      const hasUPFile = designFilesList.some(f => fileTypes.get(f.id) === 'up');
+      let designFilesList: FileMetadataResponseDto[] = [];
+      if (order.productDesignId) {
+        if (!designFiles[order.productDesignId]) {
+          const design = await designsService.getDesignById(order.productDesignId);
+          designFilesList = design.files || [];
+          setDesignFiles(prev => ({ ...prev, [order.productDesignId!]: designFilesList }));
+          setFileTypes(prev => {
+            const newMap = new Map(prev);
+            designFilesList.forEach(file => {
+              const fileType = getFileType(file.filename);
+              if (fileType) {
+                newMap.set(file.id, fileType);
+              }
+            });
+            return newMap;
+          });
+        } else {
+          designFilesList = designFiles[order.productDesignId];
+        }
+      }
+      
+      const hasEnoughFiles = designFilesList.length >= 2;
+      const has3DFile = hasEnoughFiles || designFilesList.some(f => {
+        const type = fileTypes.get(f.id) || getFileType(f.filename);
+        return type === '3d';
+      });
+      const hasUPFile = hasEnoughFiles || designFilesList.some(f => {
+        const type = fileTypes.get(f.id) || getFileType(f.filename);
+        return type === 'up';
+      });
 
       if (!has3DFile || !hasUPFile) {
         throw new Error(t("designer.filesRequired") || 'Необходимо загрузить 3D модель и УП файл');
       }
 
-      // Проверяем наличие цены
       let finalPrice = order.price;
       if (!finalPrice || finalPrice === null) {
         if (!price || price <= 0) {
@@ -389,13 +490,28 @@ function DesignerDashboard() {
       }
 
       for (const mat of materials) {
+        if (mat.materialId === 0 || mat.amount <= 0) {
+          continue;
+        }
+        
         await loadMaterial(mat.materialId);
+        const material = materialsMap.get(mat.materialId);
+        
+        if (material) {
+          const availableBalance = material.currentBalance ?? 0;
+          if (mat.amount > availableBalance) {
+            throw new Error(
+              t("designer.insufficientMaterial") || 
+              `Недостаточно материала "${material.name}". Доступно: ${availableBalance} ${material.unitOfMeasure}, требуется: ${mat.amount} ${material.unitOfMeasure}`
+            );
+          }
+        }
       }
 
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
       const productName = application 
-        ? `Заказ #${order.id} - ${application.description?.substring(0, 50) || 'Без описания'}`
-        : `Заказ #${order.id}`;
+        ? `${formatOrderName(order)} - ${application.description?.substring(0, 50) || 'Без описания'}`
+        : formatOrderName(order);
 
       let designId = order.productDesignId;
       
@@ -413,22 +529,17 @@ function DesignerDashboard() {
         await designsService.addMaterialToDesign(designId, material);
       }
 
-      // Устанавливаем цену, если её нет
       if (!order.price || order.price === null) {
         await ordersService.updateOrderPrice(orderId, finalPrice);
       }
 
-      // Меняем статус на APPROVED
       await ordersService.changeOrderStatus(orderId, "APPROVED");
 
-      // Проверяем, есть ли заказы со статусом READY_FOR_PRODUCTION или IN_PRODUCTION
       const allOrdersAfterApproval = await ordersService.getOrders();
       const hasReadyOrInProduction = allOrdersAfterApproval.some(
         o => (o.status === "READY_FOR_PRODUCTION" || o.status === "IN_PRODUCTION") && o.id !== orderId
       );
 
-      // Если нет заказов со статусом READY_FOR_PRODUCTION или IN_PRODUCTION,
-      // устанавливаем статус READY_FOR_PRODUCTION для текущего заказа
       if (!hasReadyOrInProduction) {
         await ordersService.changeOrderStatus(orderId, "READY_FOR_PRODUCTION");
       }
@@ -457,20 +568,7 @@ function DesignerDashboard() {
       setSendingRework(prev => ({ ...prev, [orderId]: true }));
       setError(null);
 
-      // Меняем статус заказа на REWORK
       await ordersService.changeOrderStatus(orderId, "REWORK", comment);
-
-      // Отправляем сообщение в чат менеджера с клиентом
-      try {
-        const conversation = await conversationsService.getConversationByOrderId(orderId);
-        await conversationsService.sendMessage(conversation.id, {
-          content: comment || 'Заказ отправлен на доработку',
-          attachmentFileIds: []
-        });
-      } catch (chatErr) {
-        // Если не удалось отправить сообщение, логируем, но не прерываем процесс
-        console.error('Failed to send message to chat:', chatErr);
-      }
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
@@ -553,11 +651,20 @@ function DesignerDashboard() {
                           className="cursor-pointer hover:bg-gray-800/50 transition-colors"
                         >
                           <td className="px-3 py-3">
-                            <div className="text-sm font-medium">Заказ #{order.id}</div>
+                            <div className="text-sm font-medium">{formatOrderName(order)}</div>
                             <div className="text-xs text-gray-500">ID: {order.id}</div>
                           </td>
                           <td className="px-3 py-3 text-sm text-gray-300">
-                            {application ? `Клиент #${application.clientId}` : `Заявка #${order.clientApplicationId}`}
+                            {application ? (
+                              (() => {
+                                const client = clients.get(application.clientId);
+                                return client 
+                                  ? `${client.person.firstName} ${client.person.lastName}`
+                                  : `Клиент #${application.clientId}`;
+                              })()
+                            ) : (
+                              `Заявка #${order.clientApplicationId}`
+                            )}
                           </td>
                           <td className="px-3 py-3 text-right">
                             {isExpanded ? (
@@ -581,17 +688,19 @@ function DesignerDashboard() {
                                     </div>
                                   </div>
                                   <div className="flex gap-2">
-                                    <button
-                                      onClick={async () => {
-                                        if (order.id) {
-                                          setShowChatModal(order.id);
-                                          await loadChatMessages(order.id);
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 transition-colors"
-                                    >
-                                      {t("designer.viewChat")}
-                                    </button>
+                                    {ordersWithReworkHistory.has(order.id) && (
+                                      <button
+                                        onClick={async () => {
+                                          if (order.id) {
+                                            setShowChatModal(order.id);
+                                            await loadChatMessages(order.id);
+                                          }
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 transition-colors"
+                                      >
+                                        {t("designer.viewChat")}
+                                      </button>
+                                    )}
                                     {order.clientApplicationId && (
                                       <button
                                         onClick={() => setShowApplicationModal(order.clientApplicationId!)}
@@ -711,8 +820,15 @@ function DesignerDashboard() {
                                   <div className="flex gap-4 pt-2">
                                     {(() => {
                                       const designFilesList = order.productDesignId ? designFiles[order.productDesignId] || [] : [];
-                                      const has3DFile = designFilesList.some(f => fileTypes.get(f.id) === '3d');
-                                      const hasUPFile = designFilesList.some(f => fileTypes.get(f.id) === 'up');
+                                      const hasEnoughFiles = designFilesList.length >= 2;
+                                      const has3DFile = hasEnoughFiles || designFilesList.some(f => {
+                                        const type = fileTypes.get(f.id) || getFileType(f.filename);
+                                        return type === '3d';
+                                      });
+                                      const hasUPFile = hasEnoughFiles || designFilesList.some(f => {
+                                        const type = fileTypes.get(f.id) || getFileType(f.filename);
+                                        return type === 'up';
+                                      });
                                       
                                       return (
                                         <>
@@ -799,62 +915,98 @@ function DesignerDashboard() {
                                         })}
                                         onSubmit={(values) => handleSaveMaterials(order.id, values.materials, values.price)}
                                       >
-                                        {({ values, isSubmitting }) => (
-                                          <Form className="space-y-4">
-                                            <div className="text-sm font-medium text-white mb-2">
-                                              {t("designer.materialConsumptionNorms")}
-                                            </div>
-                                            <FieldArray name="materials">
-                                              {({ push, remove }) => (
-                                                <div className="space-y-3">
-                                                  {values.materials.map((material: RequiredMaterialDto, index: number) => {
-                                                    const selectedMaterial = allMaterials.find(m => m.id === material.materialId);
-                                                    return (
-                                                      <div key={index} className="grid grid-cols-2 gap-3 p-3 bg-stone-900/50 rounded-lg border border-gray-700">
-                                                        <div>
-                                                          <label className="block text-xs text-gray-400 mb-1">
-                                                            {t("designer.material")}
-                                                          </label>
-                                                          <Field
-                                                            name={`materials.${index}.materialId`}
-                                                            as="select"
-                                                            className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white"
-                                                          >
-                                                            <option value={0}>{t("designer.selectMaterial")}</option>
-                                                            {allMaterials.map((mat) => (
-                                                              <option key={mat.id} value={mat.id}>
-                                                                {mat.name} ({mat.unitOfMeasure})
-                                                              </option>
-                                                            ))}
-                                                          </Field>
-                                                          <ErrorMessage
-                                                            name={`materials.${index}.materialId`}
-                                                            component="div"
-                                                            className="text-xs text-red-400 mt-1"
-                                                          />
-                                                          {selectedMaterial && (
-                                                            <div className="text-xs text-gray-500 mt-1">
-                                                              {t("designer.unitOfMeasure")}: {selectedMaterial.unitOfMeasure}
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                        <div>
-                                                          <label className="block text-xs text-gray-400 mb-1">
-                                                            {t("designer.amount")} {selectedMaterial && `(${selectedMaterial.unitOfMeasure})`}
-                                                          </label>
-                                                          <Field
-                                                            name={`materials.${index}.amount`}
-                                                            type="number"
-                                                            step="0.01"
-                                                            className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white"
-                                                            placeholder={t("designer.amountPlaceholder")}
-                                                          />
-                                                          <ErrorMessage
-                                                            name={`materials.${index}.amount`}
-                                                            component="div"
-                                                            className="text-xs text-red-400 mt-1"
-                                                          />
-                                                        </div>
+                                        {({ values, isSubmitting, setFieldValue }) => {
+                                          let hasInsufficientMaterial = false;
+                                          const materialErrors: Record<number, string> = {};
+                                          
+                                          values.materials.forEach((material: RequiredMaterialDto, index: number) => {
+                                            if (material.materialId > 0 && material.amount > 0) {
+                                              const mat = allMaterials.find(m => m.id === material.materialId);
+                                              if (mat) {
+                                                const availableBalance = mat.currentBalance ?? 0;
+                                                if (material.amount > availableBalance) {
+                                                  hasInsufficientMaterial = true;
+                                                  materialErrors[index] = t("designer.insufficientMaterial") || 
+                                                    `Недостаточно материала. Доступно: ${availableBalance} ${mat.unitOfMeasure}`;
+                                                }
+                                              }
+                                            }
+                                          });
+
+                                          return (
+                                            <Form className="space-y-4">
+                                              <div className="text-sm font-medium text-white mb-2">
+                                                {t("designer.materialConsumptionNorms")}
+                                              </div>
+                                              <FieldArray name="materials">
+                                                {({ push, remove }) => (
+                                                  <div className="space-y-3">
+                                                    {values.materials.map((material: RequiredMaterialDto, index: number) => {
+                                                      const selectedMaterial = allMaterials.find(m => m.id === material.materialId);
+                                                      const availableBalance = selectedMaterial?.currentBalance ?? null;
+                                                      const isInsufficient = materialErrors[index] !== undefined;
+                                                      
+                                                      return (
+                                                        <div key={index} className="grid grid-cols-2 gap-3 p-3 bg-stone-900/50 rounded-lg border border-gray-700">
+                                                          <div>
+                                                            <label className="block text-xs text-gray-400 mb-1">
+                                                              {t("designer.material")}
+                                                            </label>
+                                                            <Field
+                                                              name={`materials.${index}.materialId`}
+                                                              as="select"
+                                                              className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-sm text-white"
+                                                              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                                                setFieldValue(`materials.${index}.materialId`, Number(e.target.value));
+                                                              }}
+                                                            >
+                                                              <option value={0}>{t("designer.selectMaterial")}</option>
+                                                              {allMaterials.map((mat) => (
+                                                                <option key={mat.id} value={mat.id}>
+                                                                  {mat.name} ({mat.unitOfMeasure})
+                                                                </option>
+                                                              ))}
+                                                            </Field>
+                                                            <ErrorMessage
+                                                              name={`materials.${index}.materialId`}
+                                                              component="div"
+                                                              className="text-xs text-red-400 mt-1"
+                                                            />
+                                                            {selectedMaterial && (
+                                                              <div className="text-xs text-gray-500 mt-1">
+                                                                {t("designer.unitOfMeasure")}: {selectedMaterial.unitOfMeasure}
+                                                                {availableBalance !== null && (
+                                                                  <span className="ml-2 text-gray-400">
+                                                                    (Доступно: {availableBalance} {selectedMaterial.unitOfMeasure})
+                                                                  </span>
+                                                                )}
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                          <div>
+                                                            <label className="block text-xs text-gray-400 mb-1">
+                                                              {t("designer.amount")} {selectedMaterial && `(${selectedMaterial.unitOfMeasure})`}
+                                                            </label>
+                                                            <Field
+                                                              name={`materials.${index}.amount`}
+                                                              type="number"
+                                                              step="0.01"
+                                                              className={`w-full rounded-lg bg-stone-950/70 border px-3 py-2 text-sm text-white ${
+                                                                isInsufficient ? 'border-red-500' : 'border-gray-700'
+                                                              }`}
+                                                              placeholder={t("designer.amountPlaceholder")}
+                                                            />
+                                                            <ErrorMessage
+                                                              name={`materials.${index}.amount`}
+                                                              component="div"
+                                                              className="text-xs text-red-400 mt-1"
+                                                            />
+                                                            {isInsufficient && (
+                                                              <div className="text-xs text-red-400 mt-1">
+                                                                {materialErrors[index]}
+                                                              </div>
+                                                            )}
+                                                          </div>
                                                         {values.materials.length > 1 && (
                                                           <button
                                                             type="button"
@@ -901,7 +1053,7 @@ function DesignerDashboard() {
                                             <div className="flex gap-3 pt-2">
                                               <button
                                                 type="submit"
-                                                disabled={isSubmitting || savingMaterials[order.id]}
+                                                disabled={isSubmitting || savingMaterials[order.id] || hasInsufficientMaterial}
                                                 className="flex-1 rounded-full bg-emerald-500 text-white text-sm font-medium py-2.5 hover:bg-emerald-600 transition-colors disabled:opacity-50"
                                               >
                                                 {savingMaterials[order.id] ? t("designer.saving") : t("designer.approve")}
@@ -915,7 +1067,8 @@ function DesignerDashboard() {
                                               </button>
                                             </div>
                                           </Form>
-                                        )}
+                                        );
+                                      }}
                                       </Formik>
                                     )}
                                   </div>
@@ -991,7 +1144,6 @@ function DesignerDashboard() {
         </section>
       </div>
 
-      {/* Модальное окно для просмотра чата */}
       {showChatModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowChatModal(null)}>
           <div className="bg-stone-900 rounded-xl border border-gray-700 w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -1026,7 +1178,6 @@ function DesignerDashboard() {
         </div>
       )}
 
-      {/* Модальное окно для просмотра описания заказа */}
       {showApplicationModal && applications[showApplicationModal] && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowApplicationModal(null)}>
           <div className="bg-stone-900 rounded-xl border border-gray-700 w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
