@@ -49,6 +49,7 @@ public class ClientsService {
         AccountResponseDto responseDto = accountClient.createAccount(accountRequestDto);
 
         client.setAccountId(responseDto.getAccountId());
+        accountClient.enableAccount(client.getAccountId());
 
         clientRepository.save(client);
     }

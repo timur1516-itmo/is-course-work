@@ -24,6 +24,7 @@ function SupplyManagerDashboard() {
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
   const [receiptInfo, setReceiptInfo] = useState<{ [key: number]: { invoiceNumber: string; receivedItems: Array<{ materialId: number; amount: number }> } }>({});
+  const [lowBalanceMaterials, setLowBalanceMaterials] = useState<MaterialResponseDto[]>([]);
 
   useEffect(() => {
     loadData();
@@ -35,6 +36,12 @@ function SupplyManagerDashboard() {
         setLoadingMaterials(true);
         const materials = await materialsService.getMaterials({ size: 1000 });
         setAllMaterials(materials);
+
+        const lowBalance = await materialsService.getMaterials({ 
+          belowOrderPoint: true,
+          size: 1000 
+        });
+        setLowBalanceMaterials(lowBalance);
       } catch (err) {
         console.error('Failed to load materials:', err);
       } finally {
@@ -196,6 +203,28 @@ function SupplyManagerDashboard() {
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
             {error}
+          </div>
+        )}
+
+        {lowBalanceMaterials.length > 0 && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-400">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-semibold text-sm">
+                {t("supply.lowBalanceAlert") || "Требуется дозаказ материалов"}
+              </div>
+            </div>
+            <div className="text-sm space-y-1">
+              {lowBalanceMaterials.map((material) => (
+                <div key={material.id} className="flex items-center justify-between">
+                  <span>
+                    {material.name} - {t("supply.balance") || "Баланс"}: {material.currentBalance || 0} {material.unitOfMeasure}
+                  </span>
+                  <span className="text-amber-300">
+                    {t("supply.orderPoint") || "Порог заказа"}: {material.orderPoint} {material.unitOfMeasure}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -612,8 +641,7 @@ function SupplyManagerDashboard() {
                       selectedOrder.materials.map((material, index) => {
                         const materialInfo = allMaterials.find(m => m.id === material.materialId);
                         const receipt = receiptInfo[selectedOrder.id];
-                        const receivedItem = receipt?.receivedItems?.find(item => item.materialId === material.materialId);
-                        const receivedAmount = receivedItem?.amount || 0;
+                        const receivedAmount = material.realAmount || 0;
                         
                         return (
                           <div key={index} className="p-4 rounded-xl bg-stone-800/50 border border-gray-700">

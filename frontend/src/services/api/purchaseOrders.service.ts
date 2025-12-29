@@ -7,11 +7,14 @@ export interface PurchaseOrderMaterialDto {
   amount: number;
   priceForUnit: number;
   supplier: string;
+  realAmount?: number;
 }
 
 export interface PurchaseOrderResponseDto {
   id: number;
   supplyManagerId: number;
+  supplyManagerFirstName?: string;
+  supplyManagerLastName?: string;
   status: PurchaseOrderStatus;
   createdAt: string;
   materials: PurchaseOrderMaterialDto[];

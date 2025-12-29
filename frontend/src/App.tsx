@@ -18,7 +18,7 @@ import { useUserRole } from "./hooks/useUserRole.ts";
 import StaffDashboard from "./components/pages/staff/StaffDashboard.tsx";
 
 function App() {
-  const { isClient, isStaff, loading } = useUserRole();
+  const { isStaff, loading } = useUserRole();
 
   if (loading) {
     return (
@@ -93,7 +93,7 @@ function App() {
           </Routes>
         </main>
 
-        {isClient && (
+        {!isStaff && (
           <Footer />
         )}
       </div>

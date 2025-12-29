@@ -190,6 +190,8 @@ export interface EmployeeResponseDto {
   accountId: number;
   person: PersonResponseDto;
   role: string;
+  username?: string;
+  enabled?: boolean;
 }
 
 export interface EmployeesQueryParams {

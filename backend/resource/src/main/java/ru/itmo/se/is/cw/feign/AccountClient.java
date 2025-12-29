@@ -22,4 +22,7 @@ public interface AccountClient {
 
     @PostMapping("/accounts/{id}/change-password")
     void changePassword(@PathVariable Long id, @RequestBody ChangePasswordRequestDto request);
+
+    @org.springframework.web.bind.annotation.GetMapping("/accounts/{id}")
+    AccountResponseDto getAccount(@PathVariable Long id);
 }

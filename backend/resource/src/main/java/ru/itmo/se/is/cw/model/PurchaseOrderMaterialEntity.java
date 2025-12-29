@@ -36,4 +36,7 @@ public class PurchaseOrderMaterialEntity {
 
     @Column(name = "supplier", nullable = false)
     private String supplier;
+
+    @Column(name = "real_amount", precision = 12, scale = 2)
+    private BigDecimal realAmount;
 }

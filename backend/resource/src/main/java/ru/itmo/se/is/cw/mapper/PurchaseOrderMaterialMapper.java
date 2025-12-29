@@ -16,6 +16,7 @@ public interface PurchaseOrderMaterialMapper {
     @Mapping(target = "materialId", source = "material.id")
     @Mapping(target = "amount", expression = "java(toDouble(entity.getAmount()))")
     @Mapping(target = "priceForUnit", expression = "java(toDouble(entity.getPriceForUnit()))")
+    @Mapping(target = "realAmount", expression = "java(toDouble(entity.getRealAmount()))")
     PurchaseOrderMaterialDto toDto(PurchaseOrderMaterialEntity entity);
 
     @Mapping(target = "id", ignore = true)

@@ -48,4 +48,9 @@ public class AuthController {
         authService.changePassword(id, request);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/accounts/{id}")
+    public ResponseEntity<AccountResponseDto> getAccount(@PathVariable Long id) {
+        return ResponseEntity.ok(authService.getAccount(id));
+    }
 }

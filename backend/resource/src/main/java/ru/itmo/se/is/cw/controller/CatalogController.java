@@ -52,7 +52,6 @@ public class CatalogController {
                     )
             )
     })
-    @PreAuthorize("hasAuthority('SCOPE_catalog.read')")
     public ResponseEntity<Page<ProductCatalogResponseDto>> getProducts(
             @ParameterObject @ModelAttribute ProductCatalogFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable
@@ -118,7 +117,6 @@ public class CatalogController {
                     )
             )
     })
-    @PreAuthorize("hasAuthority('SCOPE_catalog.read')")
     public ResponseEntity<ProductCatalogResponseDto> getProductById(
             @PathVariable @Parameter(description = "Идентификатор товара", required = true) Long id
     ) {

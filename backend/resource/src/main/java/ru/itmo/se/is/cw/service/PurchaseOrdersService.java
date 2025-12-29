@@ -15,10 +15,12 @@ import ru.itmo.se.is.cw.mapper.PurchaseOrderMaterialMapper;
 import ru.itmo.se.is.cw.mapper.PurchaseOrderReceiptMapper;
 import ru.itmo.se.is.cw.model.EmployeeEntity;
 import ru.itmo.se.is.cw.model.PurchaseOrderEntity;
+import ru.itmo.se.is.cw.model.PurchaseOrderMaterialEntity;
 import ru.itmo.se.is.cw.model.PurchaseOrderReceiptEntity;
 import ru.itmo.se.is.cw.model.value.PurchaseOrderStatus;
 import ru.itmo.se.is.cw.repository.PurchaseOrderReceiptRepository;
 import ru.itmo.se.is.cw.repository.PurchaseOrderRepository;
+import ru.itmo.se.is.cw.repository.PurchaseOrderMaterialRepository;
 
 import java.util.List;
 
@@ -28,6 +30,7 @@ public class PurchaseOrdersService {
 
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final PurchaseOrderReceiptRepository purchaseOrderReceiptRepository;
+    private final PurchaseOrderMaterialRepository purchaseOrderMaterialRepository;
     private final PurchaseOrderMapper purchaseOrderMapper;
     private final EntityManager em;
     private final MaterialsService materialsService;
@@ -106,11 +109,29 @@ public class PurchaseOrdersService {
                 .map(pm -> pm.getMaterial().getId())
                 .toList();
 
+        java.util.Map<Long, PurchaseOrderMaterialEntity> materialMap = purchaseOrder.getMaterials().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        pm -> pm.getMaterial().getId(),
+                        pm -> pm
+                ));
+
         request.getReceivedItems().forEach(item -> {
             if (!allowedMaterialsIds.contains(item.getMaterialId())) {
                 throw new IllegalArgumentException("Material " + item.getMaterialId() + " is not in purchase order " + id);
             }
-            materialsService.setMaterialBalance(item.getMaterialId(), item.getAmount());
+            
+            PurchaseOrderMaterialEntity materialEntity = materialMap.get(item.getMaterialId());
+            if (materialEntity != null) {
+                materialEntity.setRealAmount(java.math.BigDecimal.valueOf(item.getAmount()));
+                purchaseOrderMaterialRepository.save(materialEntity);
+            }
+
+            ru.itmo.se.is.cw.model.MaterialEntity material = materialsService.getById(item.getMaterialId());
+            java.math.BigDecimal currentBalance = material.getCurrentBalance() != null 
+                    ? material.getCurrentBalance().getBalance() 
+                    : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal newBalance = currentBalance.add(java.math.BigDecimal.valueOf(item.getAmount()));
+            materialsService.setMaterialBalance(item.getMaterialId(), newBalance.doubleValue());
         });
     }
 

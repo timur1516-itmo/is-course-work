@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { purchaseOrdersService, ordersService, materialsService, applicationsService, clientsService, extractApiError } from "../../../services/api";
 import type { PurchaseOrderResponseDto } from "../../../services/api/purchaseOrders.service";
 import type { ClientOrderResponseDto, ClientResponseDto, ClientApplicationResponseDto } from "../../../services/api/types";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 function WarehouseDashboard() {
   const { t } = useTranslation();
@@ -309,7 +310,9 @@ function WarehouseDashboard() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-300">
-                        Менеджер #{order.supplyManagerId}
+                        {order.supplyManagerFirstName && order.supplyManagerLastName
+                          ? `${order.supplyManagerFirstName} ${order.supplyManagerLastName}`
+                          : `Менеджер #${order.supplyManagerId}`}
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-300">
                         {new Date(order.createdAt).toLocaleDateString('ru-RU')}

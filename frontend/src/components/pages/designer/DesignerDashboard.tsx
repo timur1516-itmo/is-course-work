@@ -535,15 +535,6 @@ function DesignerDashboard() {
 
       await ordersService.changeOrderStatus(orderId, "APPROVED");
 
-      const allOrdersAfterApproval = await ordersService.getOrders();
-      const hasReadyOrInProduction = allOrdersAfterApproval.some(
-        o => (o.status === "READY_FOR_PRODUCTION" || o.status === "IN_PRODUCTION") && o.id !== orderId
-      );
-
-      if (!hasReadyOrInProduction) {
-        await ordersService.changeOrderStatus(orderId, "READY_FOR_PRODUCTION");
-      }
-
       const allOrders = await ordersService.getOrders();
 
       const designerOrders = allOrders.filter(

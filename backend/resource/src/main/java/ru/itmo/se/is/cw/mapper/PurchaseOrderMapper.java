@@ -12,6 +12,8 @@ import ru.itmo.se.is.cw.model.PurchaseOrderEntity;
 public interface PurchaseOrderMapper {
 
     @Mapping(target = "supplyManagerId", source = "supplyManager.id")
+    @Mapping(target = "supplyManagerFirstName", source = "supplyManager.person.firstName")
+    @Mapping(target = "supplyManagerLastName", source = "supplyManager.person.lastName")
     @Mapping(target = "status", source = "currentStatus.status")
     PurchaseOrderResponseDto toDto(PurchaseOrderEntity entity);
 

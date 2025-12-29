@@ -222,7 +222,7 @@ function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden">
               <div className="aspect-video bg-stone-800 flex items-center justify-center">
-                <div className="text-center">
+                <div className="text-center w-full">
                   <YandexConstructorMap
                     src="https://api-maps.yandex.ru/services/constructor/1.0/js/?um=constructor%3A60077b966ee3702e7fec625426f14a20e77edf0053936b072eef7e2d0c32def3&width=741&height=508&lang=ru_RU&scroll=true"
                     height={508}

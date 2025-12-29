@@ -5,4 +5,6 @@ import lombok.Data;
 @Data
 public class AccountResponseDto {
     Long accountId;
+    String username;
+    Boolean enabled;
 }

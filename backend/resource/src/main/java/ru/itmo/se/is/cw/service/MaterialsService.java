@@ -135,6 +135,45 @@ public class MaterialsService {
                 .toList();
     }
 
+    @Transactional
+    public void recordMaterialConsumptionForOrder(ru.itmo.se.is.cw.model.ClientOrderEntity order) {
+        if (order.getProductDesign() == null) {
+            return;
+        }
+
+        var requiredMaterials = order.getProductDesign().getRequiredMaterials();
+        if (requiredMaterials == null || requiredMaterials.isEmpty()) {
+            return;
+        }
+
+        for (var requiredMaterial : requiredMaterials) {
+            var material = requiredMaterial.getMaterial();
+            var amount = requiredMaterial.getAmount();
+
+            MaterialConsumptionEntity consumption = new MaterialConsumptionEntity();
+            consumption.setClientOrder(order);
+            consumption.setMaterial(material);
+            consumption.setAmount(amount);
+            consumption.setCreatedAt(java.time.ZonedDateTime.now());
+            materialConsumptionRepository.save(consumption);
+
+            MaterialEntity materialEntity = getById(material.getId());
+            BigDecimal currentBalance = materialEntity.getCurrentBalance() != null
+                    ? materialEntity.getCurrentBalance().getBalance()
+                    : BigDecimal.ZERO;
+
+            BigDecimal newBalance = currentBalance.subtract(amount);
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalStateException(
+                        String.format("Insufficient material balance. Material: %s, Required: %s, Available: %s",
+                                material.getName(), amount, currentBalance)
+                );
+            }
+
+            setMaterialBalance(material.getId(), newBalance.doubleValue());
+        }
+    }
+
     private BigDecimal toBigDecimal(Double value) {
         return value == null ? null : BigDecimal.valueOf(value);
     }

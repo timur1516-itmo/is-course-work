@@ -16,6 +16,12 @@ public class PurchaseOrderResponseDto {
     @Schema(description = "Уникальный идентификатор менеджера снабжения", example = "101")
     private Long supplyManagerId;
 
+    @Schema(description = "Имя менеджера снабжения", example = "Иван")
+    private String supplyManagerFirstName;
+
+    @Schema(description = "Фамилия менеджера снабжения", example = "Петров")
+    private String supplyManagerLastName;
+
     @Schema(description = "Статус заявки")
     private PurchaseOrderStatus status;
 

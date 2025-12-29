@@ -17,4 +17,7 @@ public class PurchaseOrderMaterialDto {
 
     @Schema(description = "Поставщик", example = "ООО 'Лесной мир'")
     private String supplier;
+
+    @Schema(description = "Реальное количество полученного материала", example = "8.5", nullable = true)
+    private Double realAmount;
 }

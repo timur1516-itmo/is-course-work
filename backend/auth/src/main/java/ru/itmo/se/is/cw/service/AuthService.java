@@ -64,6 +64,14 @@ public class AuthService {
                 );
     }
 
+    @Transactional(readOnly = true)
+    public AccountResponseDto getAccount(Long id) {
+        AccountEntity account = getById(id);
+        AccountResponseDto dto = accountMapper.toDto(account);
+        System.out.println("AuthService.getAccount: id=" + id + ", username=" + dto.getUsername() + ", enabled=" + dto.getEnabled());
+        return dto;
+    }
+
     @Transactional
     public void verifyEmail(VerifyEmailRequestDto request) {
         // TODO: проверить токен, активировать аккаунт

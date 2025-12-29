@@ -16,12 +16,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/v3/api-docs", "/v3/api-docs/**",
-                                "/v3/api-docs.yaml", "/swagger-ui/**"
-                        ).permitAll()
-                        .requestMatchers("/register").permitAll()
-                        .anyRequest().authenticated()
+                    .requestMatchers(
+                            "/v3/api-docs", "/v3/api-docs/**",
+                            "/v3/api-docs.yaml", "/swagger-ui/**"
+                    ).permitAll()
+                    .requestMatchers("/register").permitAll()
+                    .requestMatchers("/catalog", "/catalog/**").permitAll()
+                    .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

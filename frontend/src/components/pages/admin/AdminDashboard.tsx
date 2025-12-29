@@ -393,7 +393,7 @@ function AdminDashboard() {
                         <div className="text-xs text-gray-500">ID: {employee.id}</div>
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-300">
-                        Account #{employee.accountId}
+                        {employee.username || `Account #${employee.accountId}`}
                       </td>
                       <td className="px-3 py-3">
                         <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 bg-emerald-500/10 text-emerald-300 ring-emerald-500/40">
@@ -402,20 +402,23 @@ function AdminDashboard() {
                       </td>
                       <td className="px-3 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleEnableAccount(employee.accountId)}
-                            className="text-emerald-400 hover:text-emerald-300 transition-colors"
-                            title={t("admin.enable")}
-                          >
-                            <CheckCircleIcon fontSize="small" />
-                          </button>
-                          <button
-                            onClick={() => handleDisableAccount(employee.accountId)}
-                            className="text-amber-400 hover:text-amber-300 transition-colors"
-                            title={t("admin.disable")}
-                          >
-                            <CancelIcon fontSize="small" />
-                          </button>
+                          {employee.enabled ? (
+                            <button
+                              onClick={() => handleDisableAccount(employee.accountId)}
+                              className="text-amber-400 hover:text-amber-300 transition-colors"
+                              title={t("admin.disable")}
+                            >
+                              <CancelIcon fontSize="small" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleEnableAccount(employee.accountId)}
+                              className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                              title={t("admin.enable")}
+                            >
+                              <CheckCircleIcon fontSize="small" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteEmployee(employee.id)}
                             className="text-red-400 hover:text-red-300 transition-colors"

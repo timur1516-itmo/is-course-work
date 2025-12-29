@@ -22,6 +22,7 @@ import ru.itmo.se.is.cw.repository.ClientOrderStatusRepository;
 import ru.itmo.se.is.cw.repository.ProductDesignRepository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -39,6 +40,7 @@ public class OrdersService {
     private final ClientsService clientsService;
     private final CurrentUserService currentUserService;
     private final ConversationsService conversationsService;
+    private final MaterialsService materialsService;
 
     @Transactional
     public ClientOrderResponseDto createOrder(CreateOrderRequestDto request) {
@@ -122,6 +124,35 @@ public class OrdersService {
 
         clientOrderRepository.updateStatusAndSetCurrent(id, next.name());
         em.refresh(order);
+        
+        order = getById(id);
+
+        if (next == ClientOrderStatus.APPROVED) {
+            boolean hasActiveProduction = clientOrderRepository.existsByCurrentStatusStatusIn(
+                    List.of(ClientOrderStatus.READY_FOR_PRODUCTION, ClientOrderStatus.IN_PRODUCTION)
+            );
+            
+            if (!hasActiveProduction) {
+                clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.READY_FOR_PRODUCTION.name());
+                em.refresh(order);
+                order = getById(id);
+                next = ClientOrderStatus.READY_FOR_PRODUCTION;
+            }
+        }
+
+        if (next == ClientOrderStatus.READY_FOR_PICKUP) {
+            try {
+                materialsService.recordMaterialConsumptionForOrder(order);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            promoteNextApprovedOrder();
+        }
+
+        if (next == ClientOrderStatus.COMPLETED) {
+            promoteNextApprovedOrder();
+        }
 
         if (next == ClientOrderStatus.REWORK && order.getProductDesign() != null) {
             try {
@@ -143,6 +174,20 @@ public class OrdersService {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private void promoteNextApprovedOrder() {
+        boolean hasActiveProduction = clientOrderRepository.existsByCurrentStatusStatusIn(
+                List.of(ClientOrderStatus.READY_FOR_PRODUCTION, ClientOrderStatus.IN_PRODUCTION)
+        );
+        
+        if (!hasActiveProduction) {
+            clientOrderRepository.findFirstByCurrentStatusStatusOrderByCreatedAtAsc(ClientOrderStatus.APPROVED)
+                    .ifPresent(nextOrder -> {
+                        clientOrderRepository.updateStatusAndSetCurrent(nextOrder.getId(), ClientOrderStatus.READY_FOR_PRODUCTION.name());
+                        em.refresh(nextOrder);
+                    });
         }
     }
 

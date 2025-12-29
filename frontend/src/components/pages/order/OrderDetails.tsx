@@ -9,7 +9,7 @@ import {
   filesService,
   applicationsService,
   extractApiError,
-  chatWebSocket, type OrderStatus,
+  type OrderStatus,
 } from "../../../services/api";
 import type {
   ClientOrderResponseDto,
@@ -66,35 +66,6 @@ function OrderDetails() {
   useEffect(() => {
     if (conversation) {
       loadMessages();
-
-      const token = localStorage.getItem('accessToken') || undefined;
-      chatWebSocket.connect(conversation.id, token);
-
-      const handleMessage = (data: unknown) => {
-        if (data && typeof data === 'object' && 'message' in data) {
-          const messageData = data as { message: MessageResponseDto };
-          if (messageData.message) {
-            setMessages((prev) => {
-              const prevArray = Array.isArray(prev) ? prev : [];
-              if (prevArray.some((m) => m.id === messageData.message.id)) {
-                return prevArray;
-              }
-              return [...prevArray, messageData.message];
-            });
-            loadAuthorName(messageData.message.authorId);
-            if (messageData.message.attachmentFileIds && messageData.message.attachmentFileIds.length > 0) {
-              loadMessageAttachments(messageData.message.id, messageData.message.attachmentFileIds);
-            }
-          }
-        }
-      };
-
-      chatWebSocket.on('message', handleMessage);
-
-      return () => {
-        chatWebSocket.off('message', handleMessage);
-        chatWebSocket.disconnect();
-      };
     }
   }, [conversation]);
 
@@ -384,12 +355,8 @@ function OrderDetails() {
         attachmentFileIds: uploadedFileIds.length > 0 ? uploadedFileIds : undefined,
       };
 
-      if (chatWebSocket.isConnected()) {
-        chatWebSocket.send({ type: 'send_message', ...messageData });
-      } else {
-        await conversationsService.sendMessage(conversation.id, messageData);
-        await loadMessages();
-      }
+      await conversationsService.sendMessage(conversation.id, messageData);
+      await loadMessages();
 
       setMessageText("");
       setUploadedFiles([]);

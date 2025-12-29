@@ -15,4 +15,17 @@ public interface ProductionTaskRepository extends JpaRepository<ProductionTaskEn
     @Query(value = "call p_update_production_task_status_and_set_current(:taskId, :status)", nativeQuery = true)
     void updateStatusAndSetCurrent(@Param("taskId") Long taskId,
                                    @Param("status") String status);
+
+    boolean existsByClientOrderId(Long clientOrderId);
+
+    java.util.Optional<ProductionTaskEntity> findByClientOrderId(Long clientOrderId);
+
+    long countByCncOperatorIdAndCurrentStatusStatusIn(Long cncOperatorId, java.util.List<ru.itmo.se.is.cw.model.value.ProductionTaskStatus> statuses);
+
+    java.util.List<ProductionTaskEntity> findByCncOperatorIdOrderByCreatedAtAsc(Long cncOperatorId);
+
+    java.util.Optional<ProductionTaskEntity> findFirstByCncOperatorIdAndCurrentStatusStatusInOrderByCreatedAtAsc(
+            Long cncOperatorId,
+            java.util.List<ru.itmo.se.is.cw.model.value.ProductionTaskStatus> statuses
+    );
 }

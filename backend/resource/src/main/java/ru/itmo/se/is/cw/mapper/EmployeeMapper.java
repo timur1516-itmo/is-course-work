@@ -10,6 +10,8 @@ import ru.itmo.se.is.cw.model.EmployeeEntity;
 @Mapper(config = MapperConfig.class)
 public interface EmployeeMapper {
 
+    @Mapping(target = "username", ignore = true)
+    @Mapping(target = "enabled", ignore = true)
     EmployeeResponseDto toDto(EmployeeEntity entity);
 
     @Mapping(target = "id", ignore = true)

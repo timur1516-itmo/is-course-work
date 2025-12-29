@@ -19,4 +19,10 @@ public class EmployeeResponseDto {
 
     @Schema(description = "Роль сотрудника", implementation = EmployeeRole.class)
     private EmployeeRole role;
+
+    @Schema(description = "Имя пользователя аккаунта", example = "john.doe")
+    private String username;
+
+    @Schema(description = "Активен ли аккаунт", example = "true")
+    private Boolean enabled;
 }

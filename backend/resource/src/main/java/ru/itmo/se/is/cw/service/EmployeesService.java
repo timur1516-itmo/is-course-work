@@ -18,6 +18,8 @@ import ru.itmo.se.is.cw.model.EmployeeEntity;
 import ru.itmo.se.is.cw.model.value.AccountRole;
 import ru.itmo.se.is.cw.repository.EmployeeRepository;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class EmployeesService {
@@ -40,19 +42,42 @@ public class EmployeesService {
         entity.setAccountId(responseDto.getAccountId());
 
         EmployeeEntity savedEntity = employeeRepository.save(entity);
-        return employeeMapper.toDto(savedEntity);
+        EmployeeResponseDto dto = employeeMapper.toDto(savedEntity);
+        dto.setUsername(responseDto.getUsername());
+        dto.setEnabled(responseDto.getEnabled());
+        return dto;
     }
 
     @Transactional(readOnly = true)
     public Page<EmployeeResponseDto> getEmployees(Pageable pageable, EmployeeFilter filter) {
         return employeeRepository
                 .findAll(EmployeeSpecification.byFilter(filter), pageable)
-                .map(employeeMapper::toDto);
+                .map(employee -> {
+                    EmployeeResponseDto dto = employeeMapper.toDto(employee);
+                    try {
+                        AccountResponseDto account = accountClient.getAccount(employee.getAccountId());
+                        if (account != null) {
+                            dto.setUsername(account.getUsername());
+                            dto.setEnabled(account.getEnabled());
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    return dto;
+                });
     }
 
     @Transactional(readOnly = true)
     public EmployeeResponseDto getEmployeeById(Long id) {
-        return employeeMapper.toDto(getById(id));
+        EmployeeEntity employee = getById(id);
+        EmployeeResponseDto dto = employeeMapper.toDto(employee);
+        try {
+            AccountResponseDto account = accountClient.getAccount(employee.getAccountId());
+            dto.setUsername(account.getUsername());
+            dto.setEnabled(account.getEnabled());
+        } catch (Exception e) {
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +97,14 @@ public class EmployeesService {
     @Transactional(readOnly = true)
     public EmployeeResponseDto getEmployeeByAccountId(Long accountId) {
         EmployeeEntity employee = getByAccountId(accountId);
-        return employeeMapper.toDto(employee);
+        EmployeeResponseDto dto = employeeMapper.toDto(employee);
+        try {
+            AccountResponseDto account = accountClient.getAccount(accountId);
+            dto.setUsername(account.getUsername());
+            dto.setEnabled(account.getEnabled());
+        } catch (Exception e) {
+        }
+        return dto;
     }
 
     public void enableEmployee(Long id) {
@@ -81,5 +113,12 @@ public class EmployeesService {
 
     public void disableEmployee(Long id) {
         accountClient.disableAccount(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmployeeEntity> getEmployeesByRole(ru.itmo.se.is.cw.model.value.EmployeeRole role) {
+        return employeeRepository.findAll().stream()
+                .filter(employee -> employee.getRole() == role)
+                .toList();
     }
 }

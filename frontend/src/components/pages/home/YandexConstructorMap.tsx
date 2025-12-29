@@ -1,35 +1,23 @@
-import { useEffect, useRef } from "react";
-
 interface YandexConstructorMapProps {
   src: string;
   height: number;
 }
 
 export function YandexConstructorMap({ src, height }: YandexConstructorMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const umMatch = src.match(/um=([^&]+)/);
+  const um = umMatch ? umMatch[1] : '';
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.defer = true;
-    
-    containerRef.current.appendChild(script);
-
-    return () => {
-      if (containerRef.current && script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    };
-  }, [src]);
+  const iframeSrc = `https://yandex.ru/map-widget/v1/?um=${um}&lang=ru_RU&scroll=true&source=constructor-api`;
 
   return (
-    <div
-      ref={containerRef}
-      style={{ height: `${height}px`, width: "100%" }}
-      className="w-full"
+    <iframe
+      src={iframeSrc}
+      width="100%"
+      height={height}
+      frameBorder="0"
+      allowFullScreen
+      style={{ border: 0 }}
+      title="Yandex Map"
     />
   );
 }

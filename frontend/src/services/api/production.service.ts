@@ -56,11 +56,33 @@ export const productionService = {
     }
   },
 
-  async finishTask(id: number): Promise<void> {
+  async completeTask(id: number): Promise<void> {
     try {
-      await apiClient.post(`/production-tasks/${id}/finish`);
+      await apiClient.post(`/production-tasks/${id}/complete`);
     } catch (error) {
       throw extractApiError(error);
+    }
+  },
+
+  async getMyTasks(): Promise<ProductionTaskResponseDto[]> {
+    try {
+      const response = await apiClient.get<ProductionTaskResponseDto[]>('/production-tasks/my-tasks');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  async getCurrentTask(): Promise<ProductionTaskResponseDto | null> {
+    try {
+      const response = await apiClient.get<ProductionTaskResponseDto>('/production-tasks/current');
+      return response.data;
+    } catch (error) {
+      const apiError = extractApiError(error);
+      if (apiError.status === 404) {
+        return null;
+      }
+      throw apiError;
     }
   },
 };

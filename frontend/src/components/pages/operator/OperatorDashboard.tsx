@@ -8,7 +8,6 @@ import AttachFileIcon from "@mui/icons-material/AttachFile";
 function OperatorDashboard() {
   const { t } = useTranslation();
   const [currentOrder, setCurrentOrder] = useState<ClientOrderResponseDto | null>(null);
-  const [orderHistory, setOrderHistory] = useState<ClientOrderResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [designFiles, setDesignFiles] = useState<FileMetadataResponseDto[]>([]);
@@ -18,31 +17,37 @@ function OperatorDashboard() {
   const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterialDto[]>([]);
   const [materialsMap, setMaterialsMap] = useState<Map<number, MaterialResponseDto>>(new Map());
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const loadCurrentOrder = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const allOrders = await ordersService.getOrders();
-
-        const readyOrder = allOrders.find(o => o.status === 'READY_FOR_PRODUCTION' || o.status === 'IN_PRODUCTION');
-        setCurrentOrder(readyOrder || null);
-
-        const approvedOrders = allOrders.filter(o => o.status === 'APPROVED');
-        approvedOrders.sort((a, b) => 
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        setOrderHistory(approvedOrders);
-      } catch (err) {
-        const apiError = extractApiError(err);
-        setError(apiError.message || apiError.detail || 'Ошибка загрузки заказов');
-      } finally {
-        setLoading(false);
+      // Сначала ищем заказ со статусом IN_PRODUCTION (уже в работе)
+      let orders = await ordersService.getOrders({ status: 'IN_PRODUCTION', page: 0, size: 1 });
+      
+      if (orders && orders.length > 0) {
+        setCurrentOrder(orders[0]);
+        return;
       }
-    };
-    
-    loadOrders();
+
+      // Если нет заказа в работе, ищем заказ READY_FOR_PRODUCTION
+      orders = await ordersService.getOrders({ status: 'READY_FOR_PRODUCTION', page: 0, size: 1 });
+      
+      if (orders && orders.length > 0) {
+        setCurrentOrder(orders[0]);
+      } else {
+        setCurrentOrder(null);
+      }
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setError(apiError.message || apiError.detail || 'Ошибка загрузки заказов');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCurrentOrder();
   }, []);
 
   useEffect(() => {
@@ -113,8 +118,8 @@ function OperatorDashboard() {
       try {
         setChangingStatus(true);
         setError(null);
-        await ordersService.changeOrderStatus(currentOrder.id, "IN_PRODUCTION");
-        setCurrentOrder({ ...currentOrder, status: "IN_PRODUCTION" });
+        await ordersService.changeOrderStatus(currentOrder.id, 'IN_PRODUCTION');
+        await loadCurrentOrder();
       } catch (err) {
         const apiError = extractApiError(err);
         setError(apiError.message || apiError.detail || 'Ошибка начала выполнения');
@@ -129,44 +134,23 @@ function OperatorDashboard() {
       try {
         setChangingStatus(true);
         setError(null);
-        await ordersService.changeOrderStatus(currentOrder.id, "READY_FOR_PICKUP");
-        const allOrders = await ordersService.getOrders();
-        const approvedOrders = allOrders.filter(o => o.status === 'APPROVED');
-        approvedOrders.sort((a, b) => 
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        if (approvedOrders.length > 0) {
-          await ordersService.changeOrderStatus(approvedOrders[0].id, "READY_FOR_PRODUCTION");
-          const updatedOrders = await ordersService.getOrders();
-          const readyOrder = updatedOrders.find(o => o.status === 'READY_FOR_PRODUCTION' || o.status === 'IN_PRODUCTION');
-          setCurrentOrder(readyOrder || null);
-          if (readyOrder?.productDesignId) {
-            setDesignFiles([]);
-            setFileTypes(new Map());
-            await loadDesignFiles(readyOrder.productDesignId);
-          }
-        } else {
-          setCurrentOrder(null);
-          setDesignFiles([]);
-          setFileTypes(new Map());
-          setRequiredMaterials([]);
-        }
-
-        const updatedOrders = await ordersService.getOrders();
-        const history = updatedOrders.filter(o => o.status === 'APPROVED');
-        history.sort((a, b) => 
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        setOrderHistory(history);
+        await ordersService.changeOrderStatus(currentOrder.id, 'READY_FOR_PICKUP');
+        
+        // Очищаем текущий заказ и загружаем следующий
+        setCurrentOrder(null);
+        setDesignFiles([]);
+        setFileTypes(new Map());
+        setRequiredMaterials([]);
+        
+        await loadCurrentOrder();
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || apiError.detail || 'Ошибка завершения заказа');
+        setError(apiError.message || apiError.detail || 'Ошибка завершения задачи');
       } finally {
         setChangingStatus(false);
       }
     }
   };
-
 
   if (loading) {
     return (
@@ -200,7 +184,7 @@ function OperatorDashboard() {
 
           {currentOrder ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <div className="text-xs text-gray-500 mb-1">
                     {t("manager.order")}
@@ -340,64 +324,6 @@ function OperatorDashboard() {
               {t("operator.noCurrentTask")}
             </div>
           )}
-        </section>
-
-        <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">
-              {t("operator.orderHistory") || "История заказов"}
-            </h2>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border-separate border-spacing-y-2">
-              <thead>
-              <tr className="text-xs uppercase text-gray-500">
-                <th className="text-left px-3 pb-2">{t("manager.order")}</th>
-                <th className="text-left px-3 pb-2">
-                  {t("order.price")}
-                </th>
-                <th className="text-left px-3 pb-2">
-                  {t("manager.orderDate")}
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              {orderHistory.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-3 py-8 text-center text-gray-500"
-                  >
-                    {t("operator.noTasks")}
-                  </td>
-                </tr>
-              ) : (
-                orderHistory.map((order) => (
-                  <tr key={order.id}>
-                    <td className="px-3 py-3">
-                      <div className="text-sm font-medium">
-                        {(() => {
-                          const date = new Date(order.createdAt);
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          return `ORD-${year}-${month}-${day}-${order.id}`;
-                        })()}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-300">
-                      {order.price ? `${order.price.toLocaleString("ru-RU")} ₽` : "—"}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-300">
-                      {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                    </td>
-                  </tr>
-                ))
-              )}
-              </tbody>
-            </table>
-          </div>
         </section>
       </div>
     </div>

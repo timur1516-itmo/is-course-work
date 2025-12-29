@@ -29,7 +29,8 @@ public class SecurityConfig {
                                 "/resource/v3/api-docs", "/resource/v3/api-docs/**",
                                 "/resource/v3/api-docs.yaml",
                                 "/resource/swagger-ui.html", "/resource/swagger-ui/**",
-                                "/resource/register"
+                                "/resource/register",
+                                "/resource/catalog", "/resource/catalog/**"
                         ).permitAll()
                         .requestMatchers("/resource/**").authenticated()
                         .anyRequest().denyAll()

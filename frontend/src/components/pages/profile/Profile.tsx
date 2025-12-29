@@ -215,12 +215,12 @@ function ProfilePage() {
                 ? 'opacity-0 max-h-0 scale-y-0'
                 : 'opacity-100 scale-y-100'
             }`}>
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"
-              >
-                {t("profile.openProfileSettings")}
-              </button>
+              {/*<button*/}
+              {/*  onClick={() => setIsSettingsOpen(true)}*/}
+              {/*  className="w-full rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors"*/}
+              {/*>*/}
+              {/*  {t("profile.openProfileSettings")}*/}
+              {/*</button>*/}
             </div>
             {allCurrentItems.length > 0 && (
               <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
