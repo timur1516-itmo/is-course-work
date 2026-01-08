@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   ordersService,
   conversationsService,
@@ -342,9 +342,9 @@ function OrderDetails() {
       return;
     }
 
-    if (uploadedFiles.length > 0 && uploadedFileIds.length === 0) {
-      await handleFileUpload();
-    }
+    // if (uploadedFiles.length > 0 && uploadedFileIds.length === 0) {
+    //   await handleFileUpload();
+    // }
 
     try {
       setSending(true);

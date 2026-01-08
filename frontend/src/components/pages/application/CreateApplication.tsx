@@ -114,6 +114,7 @@ function CreateApplication() {
       const requestData: ClientApplicationRequestDto = {
         description: values.description,
         amount: values.amount,
+        attachmentFileIds: values.attachmentFileIds,
       };
 
       if (values.catalogProductId) {

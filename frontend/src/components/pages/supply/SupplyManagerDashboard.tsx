@@ -21,7 +21,7 @@ function SupplyManagerDashboard() {
   const [showCreateMaterialModal, setShowCreateMaterialModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrderResponseDto | null>(null);
   const [allMaterials, setAllMaterials] = useState<MaterialResponseDto[]>([]);
-  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [, setLoadingMaterials] = useState(false);
   const [creatingMaterial, setCreatingMaterial] = useState(false);
   const [receiptInfo, setReceiptInfo] = useState<{ [key: number]: { invoiceNumber: string; receivedItems: Array<{ materialId: number; amount: number }> } }>({});
   const [lowBalanceMaterials, setLowBalanceMaterials] = useState<MaterialResponseDto[]>([]);

@@ -4,18 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --config vite.config.client.ts",
-    "dev:client": "vite --config vite.config.client.ts",
-    "dev:staff": "vite --config vite.config.staff.ts",
-    "dev:all": "concurrently \"npm run dev:client\" \"npm run dev:staff\"",
-    "build": "tsc -b && vite build --config vite.config.client.ts",
-    "build:client": "tsc -b && vite build --config vite.config.client.ts",
-    "build:staff": "tsc -b && vite build --config vite.config.staff.ts",
-    "build:all": "npm run build:client && npm run build:staff",
-    "lint": "eslint .",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "preview:client": "vite preview --config vite.config.client.ts",
-    "preview:staff": "vite preview --config vite.config.staff.ts"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

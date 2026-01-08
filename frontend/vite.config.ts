@@ -12,6 +12,24 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: path => path.replace(/^\/gateway/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, _req, _res) => {
+            proxyReq.setHeader('X-Forwarded-Host', 'localhost:5173');
+            proxyReq.setHeader('X-Forwarded-Proto', 'http');
+          });
+        },
+      },
+      '/login': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/logout': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       },
       '/ws': {
         target: 'ws://localhost:8080',

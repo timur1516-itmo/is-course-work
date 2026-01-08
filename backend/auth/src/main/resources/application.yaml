@@ -32,7 +32,7 @@ spring:
               post-logout-redirect-uris:
                 - http://${SPA_HOST:localhost}:${SPA_PORT:5173}
               redirect-uris:
-                - http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/login/oauth2/code/gateway
+                - http://${SPA_HOST:localhost}:${SPA_PORT:5173}/login/oauth2/code/gateway
               scopes:
                 - openid
                 - profile

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
 import { ordersService, applicationsService, filesService, designsService, materialsService, conversationsService, clientsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, ConversationResponseDto, MessageResponseDto, ClientResponseDto } from "../../../services/api/types";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, MessageResponseDto, ClientResponseDto } from "../../../services/api/types";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -39,7 +39,7 @@ function DesignerDashboard() {
   const [materialsMap, setMaterialsMap] = useState<Map<number, MaterialResponseDto>>(new Map());
   const [materialFormInitialValues, setMaterialFormInitialValues] = useState<Record<number, RequiredMaterialDto[]>>({});
   const [allMaterials, setAllMaterials] = useState<MaterialResponseDto[]>([]);
-  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [, setLoadingMaterials] = useState(false);
   const [designFiles, setDesignFiles] = useState<Record<number, FileMetadataResponseDto[]>>({});
   const [fileTypes, setFileTypes] = useState<Map<number, '3d' | 'up'>>(new Map());
   const [showChatModal, setShowChatModal] = useState<number | null>(null);
@@ -221,7 +221,7 @@ function DesignerDashboard() {
   };
 
 
-  const handleRemoveDesignFile = async (orderId: number, designId: number, fileId: number) => {
+  const handleRemoveDesignFile = async (designId: number, fileId: number) => {
     try {
       setError(null);
       await designsService.removeFileFromDesign(designId, fileId);
@@ -788,7 +788,7 @@ function DesignerDashboard() {
                                               </button>
                                               {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
                                                 <button
-                                                  onClick={() => handleRemoveDesignFile(order.id, order.productDesignId!, file.id)}
+                                                  onClick={() => handleRemoveDesignFile(order.productDesignId!, file.id)}
                                                   className="text-red-400 hover:text-red-300 transition-colors"
                                                   title={t("designer.removeFile") || "Удалить файл"}
                                                 >
