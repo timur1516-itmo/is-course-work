@@ -29,7 +29,8 @@ spring:
             scope: internal
       resource-server:
         jwt:
-          issuer-uri: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/auth
+          issuer-uri: http://${SPA_HOST:localhost}:${SPA_PORT:5173}/gateway/auth
+          jwk-set-uri: http://${AUTH_HOST:localhost}:${AUTH_PORT:8081}/auth/oauth2/jwks
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:laserworks}

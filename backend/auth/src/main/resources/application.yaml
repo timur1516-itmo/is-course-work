@@ -18,7 +18,7 @@ spring:
   security:
     oauth2:
       authorization-server:
-        issuer: http://${GATEWAY_HOST:localhost}:${GATEWAY_PORT:8080}/auth
+        issuer: http://${SPA_HOST:localhost}:${SPA_PORT:5173}/gateway/auth
         client:
           gateway:
             registration:

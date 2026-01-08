@@ -16,6 +16,7 @@ export default defineConfig({
           proxy.on('proxyReq', (proxyReq, _req, _res) => {
             proxyReq.setHeader('X-Forwarded-Host', 'localhost:5173');
             proxyReq.setHeader('X-Forwarded-Proto', 'http');
+            proxyReq.setHeader('X-Forwarded-Port', '5173');
           });
         },
       },
@@ -24,6 +25,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/auth': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
