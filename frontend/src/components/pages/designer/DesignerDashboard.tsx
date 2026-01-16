@@ -533,7 +533,7 @@ function DesignerDashboard() {
         await ordersService.updateOrderPrice(orderId, finalPrice);
       }
 
-      await ordersService.changeOrderStatus(orderId, "APPROVED");
+      await ordersService.changeOrderStatus(orderId, "READY_FOR_PRODUCTION");
 
       const allOrders = await ordersService.getOrders();
 

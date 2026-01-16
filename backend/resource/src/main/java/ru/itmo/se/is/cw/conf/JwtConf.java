@@ -27,6 +27,8 @@ public class JwtConf {
                     "orders.conversation.read",
                     "orders.read",
                     "files.read",
+                    "designs.read",
+                    "materials.read",
                     "files.write",
                     "catalog.read",
                     "clients.read",
@@ -45,13 +47,15 @@ public class JwtConf {
                     "orders.conversation.read",
                     "files.read",
                     "files.write",
-                    "employees.read"
+                    "employees.read",
+                    "catalog.write", "catalog.delete"
             ),
             "CONSTRUCTOR", Set.of(
                     "designs.read",
                     "orders.status.write",
                     "orders.price.write",
                     "designs.write",
+                    "designs.delete",
                     "orders.read",
                     "materials.read",
                     "applications.read",

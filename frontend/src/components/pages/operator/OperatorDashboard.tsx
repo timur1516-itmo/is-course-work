@@ -1,6 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import { ordersService, designsService, filesService, materialsService, extractApiError } from "../../../services/api";
+import {
+  ordersService,
+  designsService,
+  filesService,
+  materialsService,
+  extractApiError,
+  type ProductionTaskResponseDto, productionService
+} from "../../../services/api";
 import type { ClientOrderResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto } from "../../../services/api/types";
 import DownloadIcon from "@mui/icons-material/Download";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -16,38 +23,36 @@ function OperatorDashboard() {
   const [changingStatus, setChangingStatus] = useState(false);
   const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterialDto[]>([]);
   const [materialsMap, setMaterialsMap] = useState<Map<number, MaterialResponseDto>>(new Map());
+  const [currentTask, setCurrentTask] = useState<ProductionTaskResponseDto | null>(null);
 
-  const loadCurrentOrder = async () => {
+  const loadCurrentTask = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Сначала ищем заказ со статусом IN_PRODUCTION (уже в работе)
-      let orders = await ordersService.getOrders({ status: 'IN_PRODUCTION', page: 0, size: 1 });
-      
-      if (orders && orders.length > 0) {
-        setCurrentOrder(orders[0]);
+      const task = await productionService.getCurrentProductionTask();
+      setCurrentTask(task);
+
+      if (!task) {
+        setCurrentOrder(null);
+        setDesignFiles([]);
+        setFileTypes(new Map());
+        setRequiredMaterials([]);
         return;
       }
 
-      // Если нет заказа в работе, ищем заказ READY_FOR_PRODUCTION
-      orders = await ordersService.getOrders({ status: 'READY_FOR_PRODUCTION', page: 0, size: 1 });
-      
-      if (orders && orders.length > 0) {
-        setCurrentOrder(orders[0]);
-      } else {
-        setCurrentOrder(null);
-      }
+      const order = await ordersService.getOrderById(task.clientOrderId);
+      setCurrentOrder(order);
     } catch (err) {
       const apiError = extractApiError(err);
-      setError(apiError.message || apiError.detail || 'Ошибка загрузки заказов');
+      setError(apiError.message || apiError.detail || "Ошибка загрузки задачи");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCurrentOrder();
+    loadCurrentTask();
   }, []);
 
   useEffect(() => {
@@ -114,15 +119,15 @@ function OperatorDashboard() {
   };
 
   const handleStartProduction = async () => {
-    if (currentOrder && currentOrder.status === "READY_FOR_PRODUCTION") {
+    if (currentTask && currentTask.status === "PENDING") {
       try {
         setChangingStatus(true);
         setError(null);
-        await ordersService.changeOrderStatus(currentOrder.id, 'IN_PRODUCTION');
-        await loadCurrentOrder();
+        await productionService.startTask(currentTask.id);
+        await loadCurrentTask();
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || apiError.detail || 'Ошибка начала выполнения');
+        setError(apiError.message || apiError.detail || "Ошибка начала выполнения");
       } finally {
         setChangingStatus(false);
       }
@@ -130,22 +135,23 @@ function OperatorDashboard() {
   };
 
   const handleCompleteOrder = async () => {
-    if (currentOrder && currentOrder.status === "IN_PRODUCTION") {
+    if (currentTask && currentTask.status === "IN_PROGRESS") {
       try {
         setChangingStatus(true);
         setError(null);
-        await ordersService.changeOrderStatus(currentOrder.id, 'READY_FOR_PICKUP');
-        
-        // Очищаем текущий заказ и загружаем следующий
+        await productionService.completeTask(currentTask.id);
+
+        // очистка UI
+        setCurrentTask(null);
         setCurrentOrder(null);
         setDesignFiles([]);
         setFileTypes(new Map());
         setRequiredMaterials([]);
-        
-        await loadCurrentOrder();
+
+        await loadCurrentTask();
       } catch (err) {
         const apiError = extractApiError(err);
-        setError(apiError.message || apiError.detail || 'Ошибка завершения задачи');
+        setError(apiError.message || apiError.detail || "Ошибка завершения задачи");
       } finally {
         setChangingStatus(false);
       }
@@ -182,7 +188,7 @@ function OperatorDashboard() {
             {t("operator.currentTask")}
           </h2>
 
-          {currentOrder ? (
+          {(currentTask && currentOrder) ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -299,7 +305,7 @@ function OperatorDashboard() {
               )}
 
               <div className="flex gap-4 pt-2">
-                {currentOrder.status === "READY_FOR_PRODUCTION" && (
+                {currentTask?.status === "PENDING" && (
                   <button
                     onClick={handleStartProduction}
                     disabled={changingStatus}
@@ -308,7 +314,7 @@ function OperatorDashboard() {
                     {changingStatus ? t("operator.starting") : t("operator.startWork")}
                   </button>
                 )}
-                {currentOrder.status === "IN_PRODUCTION" && (
+                {currentTask?.status === "IN_PROGRESS" && (
                   <button
                     onClick={handleCompleteOrder}
                     disabled={changingStatus}

@@ -43,6 +43,9 @@ public class DesignsService {
         ProductDesignEntity design = productDesignMapper.toEntity(request);
         applyFiles(design, request.getFileIds());
         applyRequiredMaterials(design, request.getRequiredMaterials());
+        design.setConstructor(
+                employeesService.getByAccountId(currentUserService.getAccountId())
+        );
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)
         );

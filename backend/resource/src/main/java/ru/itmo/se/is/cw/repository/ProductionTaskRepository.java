@@ -7,6 +7,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import ru.itmo.se.is.cw.model.ProductionTaskEntity;
+import ru.itmo.se.is.cw.model.value.ProductionTaskStatus;
+
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductionTaskRepository extends JpaRepository<ProductionTaskEntity, Long>, JpaSpecificationExecutor<ProductionTaskEntity> {
@@ -18,14 +22,9 @@ public interface ProductionTaskRepository extends JpaRepository<ProductionTaskEn
 
     boolean existsByClientOrderId(Long clientOrderId);
 
-    java.util.Optional<ProductionTaskEntity> findByClientOrderId(Long clientOrderId);
+    Optional<ProductionTaskEntity> findByClientOrderId(Long clientOrderId);
 
-    long countByCncOperatorIdAndCurrentStatusStatusIn(Long cncOperatorId, java.util.List<ru.itmo.se.is.cw.model.value.ProductionTaskStatus> statuses);
+    Optional<ProductionTaskEntity> findFirstByCurrentStatusStatusOrderByCreatedAtAsc(ProductionTaskStatus status);
 
-    java.util.List<ProductionTaskEntity> findByCncOperatorIdOrderByCreatedAtAsc(Long cncOperatorId);
-
-    java.util.Optional<ProductionTaskEntity> findFirstByCncOperatorIdAndCurrentStatusStatusInOrderByCreatedAtAsc(
-            Long cncOperatorId,
-            java.util.List<ru.itmo.se.is.cw.model.value.ProductionTaskStatus> statuses
-    );
+    Optional<ProductionTaskEntity> findFirstByCncOperatorIdAndCurrentStatusStatusIn(Long cncOperatorId, List<ProductionTaskStatus> statuses);
 }

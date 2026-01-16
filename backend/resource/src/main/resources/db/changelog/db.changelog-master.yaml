@@ -48,3 +48,23 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: true
+
+  - changeSet:
+      id: 007-remove-production-task-non-null-contraint
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/007-remove-production-task-non-null-contraint.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
+
+  - changeSet:
+      id: 008-pending-status
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/008-pending-status.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true

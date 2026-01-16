@@ -35,7 +35,7 @@ public class ProductionTaskEntity {
     @Column(name = "finished_at")
     private ZonedDateTime finishedAt;
 
-    @ManyToOne(optional = false)
+    @ManyToOne
     @OnDelete(action = OnDeleteAction.RESTRICT)
     @JoinColumn(name = "cnc_operator_id", nullable = false)
     private EmployeeEntity cncOperator;

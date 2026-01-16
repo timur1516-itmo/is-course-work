@@ -22,7 +22,6 @@ import ru.itmo.se.is.cw.repository.ClientOrderStatusRepository;
 import ru.itmo.se.is.cw.repository.ProductDesignRepository;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Set;
 
 @Service
@@ -41,6 +40,7 @@ public class OrdersService {
     private final CurrentUserService currentUserService;
     private final ConversationsService conversationsService;
     private final MaterialsService materialsService;
+    private final ProductionService productionService;
 
     @Transactional
     public ClientOrderResponseDto createOrder(CreateOrderRequestDto request) {
@@ -124,70 +124,33 @@ public class OrdersService {
 
         clientOrderRepository.updateStatusAndSetCurrent(id, next.name());
         em.refresh(order);
-        
+
         order = getById(id);
 
-        if (next == ClientOrderStatus.APPROVED) {
-            boolean hasActiveProduction = clientOrderRepository.existsByCurrentStatusStatusIn(
-                    List.of(ClientOrderStatus.READY_FOR_PRODUCTION, ClientOrderStatus.IN_PRODUCTION)
-            );
-            
-            if (!hasActiveProduction) {
-                clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.READY_FOR_PRODUCTION.name());
-                em.refresh(order);
-                order = getById(id);
-                next = ClientOrderStatus.READY_FOR_PRODUCTION;
-            }
+        if (next == ClientOrderStatus.READY_FOR_PRODUCTION) {
+            productionService.createForOrder(order);
         }
 
         if (next == ClientOrderStatus.READY_FOR_PICKUP) {
-            try {
-                materialsService.recordMaterialConsumptionForOrder(order);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            promoteNextApprovedOrder();
-        }
-
-        if (next == ClientOrderStatus.COMPLETED) {
-            promoteNextApprovedOrder();
+            materialsService.recordMaterialConsumptionForOrder(order);
         }
 
         if (next == ClientOrderStatus.REWORK && order.getProductDesign() != null) {
-            try {
-                if (order.getProductDesign().getConstructor() == null) {
-                    EmployeeEntity constructor = employeesService.getByAccountId(currentUserService.getAccountId());
-                    order.getProductDesign().setConstructor(constructor);
-                    productDesignRepository.save(order.getProductDesign());
-                }
-
-                ConversationEntity conversation = conversationsService.getConversationByOrderIdInternal(order.getId());
-                if (conversation != null) {
-                    Long constructorAccountId = order.getProductDesign().getConstructor().getAccountId();
-                    conversationsService.addParticipantToConversation(conversation, constructorAccountId);
-
-                    if (request.getComment() != null && !request.getComment().trim().isEmpty()) {
-                        conversationsService.sendMessageAsUser(conversation.getId(), constructorAccountId, request.getComment());
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (order.getProductDesign().getConstructor() == null) {
+                EmployeeEntity constructor = employeesService.getByAccountId(currentUserService.getAccountId());
+                order.getProductDesign().setConstructor(constructor);
+                productDesignRepository.save(order.getProductDesign());
             }
-        }
-    }
 
-    private void promoteNextApprovedOrder() {
-        boolean hasActiveProduction = clientOrderRepository.existsByCurrentStatusStatusIn(
-                List.of(ClientOrderStatus.READY_FOR_PRODUCTION, ClientOrderStatus.IN_PRODUCTION)
-        );
-        
-        if (!hasActiveProduction) {
-            clientOrderRepository.findFirstByCurrentStatusStatusOrderByCreatedAtAsc(ClientOrderStatus.APPROVED)
-                    .ifPresent(nextOrder -> {
-                        clientOrderRepository.updateStatusAndSetCurrent(nextOrder.getId(), ClientOrderStatus.READY_FOR_PRODUCTION.name());
-                        em.refresh(nextOrder);
-                    });
+            ConversationEntity conversation = conversationsService.getConversationByOrderIdInternal(order.getId());
+            if (conversation != null) {
+                Long constructorAccountId = order.getProductDesign().getConstructor().getAccountId();
+                conversationsService.addParticipantToConversation(conversation, constructorAccountId);
+
+                if (request.getComment() != null && !request.getComment().trim().isEmpty()) {
+                    conversationsService.sendMessageAsUser(conversation.getId(), constructorAccountId, request.getComment());
+                }
+            }
         }
     }
 
@@ -219,13 +182,9 @@ public class OrdersService {
         return switch (from) {
             case CREATED -> Set.of(ClientOrderStatus.IN_PROGRESS, ClientOrderStatus.PENDING_APPROVAL).contains(to);
             case IN_PROGRESS ->
-                    Set.of(ClientOrderStatus.PENDING_APPROVAL, ClientOrderStatus.REWORK, ClientOrderStatus.APPROVED).contains(to);
-            case PENDING_APPROVAL -> Set.of(ClientOrderStatus.REWORK, ClientOrderStatus.APPROVED).contains(to);
-            case REWORK -> Set.of(ClientOrderStatus.PENDING_APPROVAL, ClientOrderStatus.APPROVED).contains(to);
-            case APPROVED ->
-                    Set.of(ClientOrderStatus.AWAITING_PAYMENT, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
-            case AWAITING_PAYMENT -> Set.of(ClientOrderStatus.PAID).contains(to);
-            case PAID -> Set.of(ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
+                    Set.of(ClientOrderStatus.PENDING_APPROVAL, ClientOrderStatus.REWORK, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
+            case PENDING_APPROVAL -> Set.of(ClientOrderStatus.REWORK, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
+            case REWORK -> Set.of(ClientOrderStatus.PENDING_APPROVAL, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
             case READY_FOR_PRODUCTION -> Set.of(ClientOrderStatus.IN_PRODUCTION).contains(to);
             case IN_PRODUCTION -> Set.of(ClientOrderStatus.READY_FOR_PICKUP).contains(to);
             case READY_FOR_PICKUP -> Set.of(ClientOrderStatus.COMPLETED).contains(to);
