@@ -41,19 +41,40 @@ public class OrdersService {
     private final ConversationsService conversationsService;
     private final MaterialsService materialsService;
     private final ProductionService productionService;
+    private final CatalogService catalogService;
 
     @Transactional
     public ClientOrderResponseDto createOrder(CreateOrderRequestDto request) {
         ClientApplicationEntity application = clientApplicationsService.getById(request.getClientApplicationId());
         EmployeeEntity manager = employeesService.getByAccountId(currentUserService.getAccountId());
-        ProductDesignEntity design = application.getTemplateProductDesign() == null
-                ? designsService.createEmptyDesign()
-                : application.getTemplateProductDesign();
+
+        ProductDesignEntity design;
+        BigDecimal initialPrice = null;
+
+        if (application.getTemplateProductDesign() != null) {
+            design = designsService.copyDesign(application.getTemplateProductDesign());
+
+            try {
+                ProductCatalogEntity catalogProduct = catalogService.getByProductDesignId(
+                    application.getTemplateProductDesign().getId()
+                );
+                if (catalogProduct != null) {
+                    initialPrice = catalogProduct.getPrice();
+                }
+            } catch (Exception e) {
+            }
+        } else {
+            design = designsService.createEmptyDesign();
+        }
 
         ClientOrderEntity order = new ClientOrderEntity();
         order.setClientApplication(application);
         order.setManager(manager);
         order.setProductDesign(design);
+
+        if (initialPrice != null) {
+            order.setPrice(initialPrice);
+        }
 
         order = clientOrderRepository.save(order);
 
@@ -129,10 +150,6 @@ public class OrdersService {
 
         if (next == ClientOrderStatus.READY_FOR_PRODUCTION) {
             productionService.createForOrder(order);
-        }
-
-        if (next == ClientOrderStatus.READY_FOR_PICKUP) {
-            materialsService.recordMaterialConsumptionForOrder(order);
         }
 
         if (next == ClientOrderStatus.REWORK && order.getProductDesign() != null) {

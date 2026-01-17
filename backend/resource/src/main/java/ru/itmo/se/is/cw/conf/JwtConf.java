@@ -48,7 +48,9 @@ public class JwtConf {
                     "files.read",
                     "files.write",
                     "employees.read",
-                    "catalog.write", "catalog.delete"
+                    "catalog.write",
+                    "catalog.delete",
+                    "designs.read"
             ),
             "CONSTRUCTOR", Set.of(
                     "designs.read",

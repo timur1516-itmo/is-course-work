@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   ordersService,
   conversationsService,
@@ -13,6 +13,7 @@ import {
 } from "../../../services/api";
 import type {
   ClientOrderResponseDto,
+  ClientApplicationResponseDto,
   ConversationResponseDto,
   MessageResponseDto,
   ClientResponseDto,
@@ -35,6 +36,7 @@ function OrderDetails() {
   const { isClient, isStaff, role } = useUserRole();
 
   const [order, setOrder] = useState<ClientOrderResponseDto | null>(null);
+  const [application, setApplication] = useState<ClientApplicationResponseDto | null>(null);
   const [conversation, setConversation] = useState<ConversationResponseDto | null>(null);
   const [messages, setMessages] = useState<MessageResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,14 @@ function OrderDetails() {
       setOrder(orderData);
       setConversation(conversationData);
 
+      // Загружаем заявку
       if (orderData.clientApplicationId) {
+        try {
+          const applicationData = await applicationsService.getApplicationById(orderData.clientApplicationId);
+          setApplication(applicationData);
+        } catch (err) {
+          console.error("Failed to load application:", err);
+        }
         loadOrderFiles(orderData.clientApplicationId);
       }
 
@@ -203,7 +212,7 @@ function OrderDetails() {
           }));
           return;
         }
-      } catch (err: any) {
+      } catch (err) {
         const apiError = extractApiError(err);
         if (apiError.status !== 404) {
           console.error(`Failed to load client for accountId ${authorId}:`, apiError);
@@ -219,7 +228,7 @@ function OrderDetails() {
           }));
           return;
         }
-      } catch (err: any) {
+      } catch (err) {
         const apiError = extractApiError(err);
         if (apiError.status !== 404) {
           console.error(`Failed to load employee for accountId ${authorId}:`, apiError);
@@ -425,6 +434,21 @@ function OrderDetails() {
             <h1 className="text-2xl font-bold text-white mb-6">
               {formatOrderName(order)}
             </h1>
+
+            {/* Плашка о товаре из каталога */}
+            {application && application.catalogProductId && (
+              <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40">
+                <div className="text-emerald-400 text-sm font-medium mb-1">
+                  📦 {t("order.basedOnCatalogProduct") || "Заказ создан на основе товара из каталога"}
+                </div>
+                <Link
+                  to={`/catalog/${application.catalogProductId}`}
+                  className="text-emerald-300 hover:text-emerald-200 text-xs underline"
+                >
+                  {t("order.viewInCatalog") || "Посмотреть в каталоге"}
+                </Link>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>

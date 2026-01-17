@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { catalogService } from "../../../services/api";
+import {catalogService, filesService} from "../../../services/api";
 import type { ProductCatalogResponseDto } from "../../../services/api";
 import LocalPhoneIcon from "@mui/icons-material/LocalPhone";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
@@ -19,6 +19,7 @@ function HomePage() {
   const navigate = useNavigate();
   const [popularProducts, setPopularProducts] = useState<ProductCatalogResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
 
   useEffect(() => {
     loadPopularProducts();
@@ -33,6 +34,29 @@ function HomePage() {
         sort: ["id,DESC"],
       });
       setPopularProducts(response?.content || []);
+
+      const photoPromises = (response?.content || [])
+        .filter(product => product.photos && product.photos.length > 0)
+        .map(async (product) => {
+          const firstPhoto = product.photos![0];
+          try {
+            const blob = await filesService.getFileBlob(firstPhoto.fileId);
+            const url = URL.createObjectURL(blob);
+            return { fileId: firstPhoto.fileId, url };
+          } catch (error) {
+            console.error(`Failed to load photo for product ${product.id}:`, error);
+            return null;
+          }
+        });
+
+      const photoResults = await Promise.all(photoPromises);
+      const newPhotoUrls: Record<number, string> = {};
+      photoResults.forEach(result => {
+        if (result) {
+          newPhotoUrls[result.fileId] = result.url;
+        }
+      });
+      setPhotoUrls(newPhotoUrls);
     } catch (err) {
       console.error("Failed to load popular products:", err);
       setPopularProducts([]);
@@ -91,26 +115,39 @@ function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {popularProducts.map((product) => (
-                <Link
-                  key={product.id}
-                  to={`/catalog/${product.id}`}
-                  className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6 hover:bg-stone-800 transition-colors"
-                >
-                  {product.photos && product.photos.length > 0 && (
-                    <div className="mb-4 aspect-square bg-stone-800 rounded-xl flex items-center justify-center overflow-hidden">
-                      <span className="text-gray-500 text-sm">Фото</span>
+              {popularProducts.map((product) => {
+                const firstPhoto = product.photos?.[0];
+                const photoUrl = firstPhoto ? photoUrls[firstPhoto.fileId] : null;
+
+                return (
+                  <Link
+                    key={product.id}
+                    to={`/catalog/${product.id}`}
+                    className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6 hover:bg-stone-800 transition-colors"
+                  >
+                    <div className="mb-4 aspect-square bg-stone-800 rounded-xl overflow-hidden">
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500">
+                          {firstPhoto ? "Загрузка..." : "Нет фотографий"}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
-                  {product.description && (
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                      {product.description}
-                    </p>
-                  )}
-                  <div className="text-2xl font-bold">{product.price} ₽</div>
-                </Link>
-              ))}
+                    <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
+                    {product.description && (
+                      <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                        {product.description}
+                      </p>
+                    )}
+                    <div className="text-2xl font-bold">{product.price} ₽</div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

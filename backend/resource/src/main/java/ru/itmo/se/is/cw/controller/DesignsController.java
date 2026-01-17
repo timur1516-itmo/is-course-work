@@ -225,6 +225,32 @@ public class DesignsController {
         return ResponseEntity.ok(updated);
     }
 
+    @PutMapping("/{id}/materials")
+    @Operation(
+            summary = "Обновить список материалов дизайна",
+            description = "Заменяет все материалы дизайна новым списком."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Материалы обновлены",
+                    content = @Content(schema = @Schema(implementation = ProductDesignResponseDto.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Дизайн не найден",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_designs.write')")
+    public ResponseEntity<ProductDesignResponseDto> updateDesignMaterials(
+            @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id,
+            @RequestBody java.util.List<ru.itmo.se.is.cw.dto.RequiredMaterialDto> materials
+    ) {
+        ProductDesignResponseDto updated = designsService.updateDesignMaterials(id, materials);
+        return ResponseEntity.ok(updated);
+    }
+
     @PostMapping("/{id}/assign")
     @Operation(
             summary = "Прикрепить конструктора к дизайну",

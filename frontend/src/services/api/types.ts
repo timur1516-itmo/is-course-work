@@ -15,6 +15,16 @@ export interface ProductPhotoDto {
   fileId: number;
 }
 
+export interface ProductCatalogRequestDto {
+  name: string;
+  description?: string;
+  productDesignId?: number;
+  price: number;
+  minimalAmount: number;
+  category?: string;
+  photoFileIds?: number[];
+}
+
 export interface ProductCatalogResponseDto {
   id: number;
   name: string;

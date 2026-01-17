@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
-import { ordersService, applicationsService, clientsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto, ClientResponseDto } from "../../../services/api/types";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import * as Yup from "yup";
+import { ordersService, applicationsService, clientsService, catalogService, designsService, filesService, extractApiError } from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, ClientResponseDto, ProductDesignResponseDto, ProductCatalogRequestDto } from "../../../services/api/types";
 import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 
 interface ManagerStats {
@@ -20,6 +22,14 @@ function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
+  const [creatingProduct, setCreatingProduct] = useState(false);
+  const [productError, setProductError] = useState<string | null>(null);
+  const [productSuccess, setProductSuccess] = useState(false);
+  const [designs, setDesigns] = useState<ProductDesignResponseDto[]>([]);
+  const [loadingDesigns, setLoadingDesigns] = useState(false);
+  const [uploadedPhotoFiles, setUploadedPhotoFiles] = useState<number[]>([]);
 
   const formatOrderName = (order: ClientOrderResponseDto): string => {
     const date = new Date(order.createdAt);
@@ -135,6 +145,89 @@ function ManagerDashboard() {
     setActiveFilter(null);
   };
 
+  const loadDesigns = async () => {
+    try {
+      setLoadingDesigns(true);
+
+      const designsResponse = await designsService.getDesigns({ page: 0, size: 1000 });
+      const allDesigns = designsResponse.content || [];
+
+      const catalogResponse = await catalogService.getProducts({ page: 0, size: 1000 });
+      const allProducts = catalogResponse.content || [];
+
+      const usedDesignIds = new Set(
+        allProducts
+          .map(product => product.productDesignId)
+          .filter((id): id is number => id !== undefined && id !== null)
+      );
+
+      const availableDesigns = allDesigns.filter(
+        design => !usedDesignIds.has(design.id)
+      );
+
+      setDesigns(availableDesigns);
+    } catch (error) {
+      console.error('Failed to load designs:', error);
+    } finally {
+      setLoadingDesigns(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isCreateProductOpen) {
+      loadDesigns();
+    }
+  }, [isCreateProductOpen]);
+
+  const handleFileUpload = async (file: File): Promise<number> => {
+    try {
+      const response = await filesService.uploadFile(file);
+      return response.id;
+    } catch (err) {
+      const apiError = extractApiError(err);
+      throw new Error(apiError.message || 'Ошибка загрузки файла');
+    }
+  };
+
+  const handleCreateProduct = async (values: {
+    name: string;
+    description?: string;
+    productDesignId?: number;
+    price: number;
+    minimalAmount: number;
+    category?: string;
+  }) => {
+    try {
+      setCreatingProduct(true);
+      setProductError(null);
+      setProductSuccess(false);
+
+      const productData: ProductCatalogRequestDto = {
+        name: values.name,
+        description: values.description,
+        productDesignId: values.productDesignId || undefined,
+        price: values.price,
+        minimalAmount: values.minimalAmount,
+        category: values.category,
+        photoFileIds: uploadedPhotoFiles.length > 0 ? uploadedPhotoFiles : undefined,
+      };
+
+      await catalogService.createProduct(productData);
+
+      setProductSuccess(true);
+      setUploadedPhotoFiles([]);
+      setTimeout(() => {
+        setIsCreateProductOpen(false);
+        setProductSuccess(false);
+      }, 2000);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setProductError(apiError.message || 'Ошибка создания товара');
+    } finally {
+      setCreatingProduct(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[calc(100vh-72px)] bg-stone-950 text-white px-4 py-10 flex items-center justify-center">
@@ -219,6 +312,25 @@ function ManagerDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold">
+                {t("manager.catalogManagement")}
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                {t("manager.catalogManagementInfo")}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsCreateProductOpen(true)}
+              className="rounded-full bg-white text-black text-sm font-medium px-4 py-2 hover:bg-gray-200 transition-colors"
+            >
+              {t("manager.createProduct")}
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold">
                 {t("manager.ordersList")}
               </h2>
               {activeFilter && (
@@ -264,6 +376,13 @@ function ManagerDashboard() {
                         <td className="px-3 py-3">
                           <div className="text-sm font-medium">{formatOrderName(order)}</div>
                           <div className="text-xs text-gray-500">ID: {order.id}</div>
+                          {application && application.catalogProductId && (
+                            <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40">
+                              <span className="text-emerald-400 text-xs">
+                                📦 {t("manager.fromCatalog") || "Из каталога"}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-sm text-gray-300">
                           {client ? (
@@ -302,6 +421,214 @@ function ManagerDashboard() {
           </div>
         </section>
       </div>
+
+      {isCreateProductOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-stone-900 rounded-3xl border border-gray-800 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                {t("manager.createProduct") || "Создать товар каталога"}
+              </h2>
+              <button
+                onClick={() => {
+                  setIsCreateProductOpen(false);
+                  setProductError(null);
+                  setProductSuccess(false);
+                  setUploadedPhotoFiles([]);
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {productError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
+                {productError}
+              </div>
+            )}
+
+            {productSuccess && (
+              <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-sm">
+                {t("manager.productCreated")}
+              </div>
+            )}
+
+            <Formik
+              initialValues={{
+                name: '',
+                description: '',
+                productDesignId: undefined,
+                price: 0,
+                minimalAmount: 1,
+                category: '',
+              }}
+              validationSchema={Yup.object({
+                name: Yup.string().required(t("manager.productNameRequired")),
+                price: Yup.number().required().min(0, t("manager.priceMustBePositive")),
+                minimalAmount: Yup.number().required().min(1, t("manager.minAmountMustBePositive")),
+              })}
+              onSubmit={handleCreateProduct}
+            >
+              {({ isSubmitting }) => (
+                <Form className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("manager.productName")}
+                    </label>
+                    <Field
+                      name="name"
+                      type="text"
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                      placeholder={t("manager.productNamePlaceholder")}
+                    />
+                    <ErrorMessage
+                      name="name"
+                      component="div"
+                      className="mt-1 text-xs text-red-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("manager.productDescription")}
+                    </label>
+                    <Field
+                      name="description"
+                      as="textarea"
+                      rows={3}
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                      placeholder={t("manager.productDescriptionPlaceholder")}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("manager.selectDesign")}
+                    </label>
+                    {loadingDesigns ? (
+                      <div className="text-sm text-gray-400">{t("catalog.loading")}...</div>
+                    ) : (
+                      <Field
+                        name="productDesignId"
+                        as="select"
+                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                      >
+                        <option value="">{t("manager.noDesign") || "Без дизайна"}</option>
+                        {designs.map((design) => (
+                          <option key={design.id} value={design.id}>
+                            {design.productName} (ID: {design.id})
+                          </option>
+                        ))}
+                      </Field>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        {t("manager.price") || "Цена"}
+                      </label>
+                      <Field
+                        name="price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        placeholder="0.00"
+                      />
+                      <ErrorMessage
+                        name="price"
+                        component="div"
+                        className="mt-1 text-xs text-red-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">
+                        {t("manager.minimalAmount")}
+                      </label>
+                      <Field
+                        name="minimalAmount"
+                        type="number"
+                        min="1"
+                        className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        placeholder="1"
+                      />
+                      <ErrorMessage
+                        name="minimalAmount"
+                        component="div"
+                        className="mt-1 text-xs text-red-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("manager.category")}
+                    </label>
+                    <Field
+                      name="category"
+                      type="text"
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                      placeholder={t("manager.categoryPlaceholder")}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("manager.productPhotos") || "Фотографии товара"}
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        try {
+                          const fileIds = await Promise.all(files.map(file => handleFileUpload(file)));
+                          setUploadedPhotoFiles(prev => [...prev, ...fileIds]);
+                        } catch (error) {
+                          const errorMessage = error instanceof Error ? error.message : 'Ошибка загрузки фотографий';
+                          setProductError(errorMessage);
+                        }
+                      }}
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                    />
+                    {uploadedPhotoFiles.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-400">
+                        {t("manager.photosUploaded")}: {uploadedPhotoFiles.length}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={creatingProduct || isSubmitting}
+                      className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    >
+                      {creatingProduct ? t("catalog.loading") : (t("manager.create") || "Создать")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreateProductOpen(false);
+                        setProductError(null);
+                        setProductSuccess(false);
+                        setUploadedPhotoFiles([]);
+                      }}
+                      className="flex-1 rounded-full bg-stone-800 text-white text-sm font-medium py-2.5 hover:bg-stone-700 transition-colors"
+                    >
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

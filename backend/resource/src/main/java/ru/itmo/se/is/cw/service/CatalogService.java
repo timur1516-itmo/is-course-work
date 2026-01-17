@@ -57,6 +57,17 @@ public class CatalogService {
                 .orElseThrow(() -> new EntityNotFoundException("Product with id " + id + " not found"));
     }
 
+    @Transactional(readOnly = true)
+    public ProductCatalogEntity getByProductDesignId(Long productDesignId) {
+        ProductCatalogFilter filter = new ProductCatalogFilter();
+        filter.setProductDesignId(productDesignId);
+        return productCatalogRepository
+                .findAll(ProductCatalogSpecification.byFilter(filter))
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
     @Transactional
     public ProductCatalogResponseDto updateProduct(Long id, ProductCatalogRequestDto request) {
         ProductCatalogEntity entity = getById(id);

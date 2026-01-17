@@ -38,6 +38,7 @@ public class ClientApplicationsService {
     private final FilesService filesService;
     private final ClientsService clientsService;
     private final DesignsService designsService;
+    private final CatalogService catalogService;
     private final CurrentUserService currentUserService;
 
     @Transactional
@@ -50,6 +51,14 @@ public class ClientApplicationsService {
             application.setTemplateProductDesign(
                     designsService.getById(request.getTemplateProductDesignId())
             );
+        }
+
+        if (request.getCatalogProductId() != null) {
+            var catalogProduct = catalogService.getById(request.getCatalogProductId());
+
+            if (catalogProduct.getProductDesign() != null) {
+                application.setTemplateProductDesign(catalogProduct.getProductDesign());
+            }
         }
 
         application.setClient(

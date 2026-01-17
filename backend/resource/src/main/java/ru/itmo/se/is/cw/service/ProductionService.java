@@ -26,6 +26,7 @@ public class ProductionService {
     private final EmployeesService employeesService;
     private final CurrentUserService currentUserService;
     private final ClientOrderRepository clientOrderRepository;
+    private final MaterialsService materialsService;
     private final EntityManager em;
 
     @Transactional
@@ -81,6 +82,9 @@ public class ProductionService {
     public void startProductionTask(Long id) {
         changeStatus(id, ProductionTaskStatus.IN_PROGRESS);
         ProductionTaskEntity task = getById(id);
+
+        materialsService.recordMaterialConsumptionForOrder(task.getClientOrder());
+
         clientOrderRepository.updateStatusAndSetCurrent(
                 task.getClientOrder().getId(),
                 ClientOrderStatus.IN_PRODUCTION.name()

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { catalogService, extractApiError } from "../../../services/api";
+import { catalogService, filesService, extractApiError } from "../../../services/api";
 import type { ProductCatalogResponseDto, CatalogQueryParams } from "../../../services/api/types";
 
 function Catalog() {
@@ -13,6 +13,7 @@ function Catalog() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
 
   useEffect(() => {
     loadProducts();
@@ -55,6 +56,29 @@ function Catalog() {
       const response = await catalogService.getProducts(params);
       setProducts(response.content);
       setTotalPages(response.page.totalPages);
+
+      const photoPromises = response.content
+        .filter(product => product.photos && product.photos.length > 0)
+        .map(async (product) => {
+          const firstPhoto = product.photos![0];
+          try {
+            const blob = await filesService.getFileBlob(firstPhoto.fileId);
+            const url = URL.createObjectURL(blob);
+            return { fileId: firstPhoto.fileId, url };
+          } catch (error) {
+            console.error(`Failed to load photo for product ${product.id}:`, error);
+            return null;
+          }
+        });
+
+      const photoResults = await Promise.all(photoPromises);
+      const newPhotoUrls: Record<number, string> = {};
+      photoResults.forEach(result => {
+        if (result) {
+          newPhotoUrls[result.fileId] = result.url;
+        }
+      });
+      setPhotoUrls(newPhotoUrls);
     } catch (err) {
       const apiError = extractApiError(err);
       setError(apiError.message || "Ошибка загрузки каталога");
@@ -119,40 +143,53 @@ function Catalog() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <Link
-                  key={product.id}
-                  to={`/catalog/${product.id}`}
-                  className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6 hover:bg-stone-800 transition-colors"
-                >
-                  {product.photos && product.photos.length > 0 && (
-                    <div className="mb-4 aspect-square bg-stone-800 rounded-xl flex items-center justify-center overflow-hidden">
-                      <span className="text-gray-500 text-sm">Фото</span>
-                    </div>
-                  )}
-                  <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
-                  {product.description && (
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                      {product.description}
-                    </p>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold">{product.price} ₽</div>
-                      {product.minimalAmount > 1 && (
-                        <div className="text-xs text-gray-500">
-                          {t("catalog.minimalAmount")}: {product.minimalAmount}
+              {products.map((product) => {
+                const firstPhoto = product.photos?.[0];
+                const photoUrl = firstPhoto ? photoUrls[firstPhoto.fileId] : null;
+
+                return (
+                  <Link
+                    key={product.id}
+                    to={`/catalog/${product.id}`}
+                    className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6 hover:bg-stone-800 transition-colors"
+                  >
+                    <div className="aspect-square bg-stone-800 rounded-xl overflow-hidden mb-4">
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500">
+                          {firstPhoto ? t("catalog.loading") : "Нет фотографий"}
                         </div>
                       )}
                     </div>
-                    {product.category && (
-                      <span className="text-xs rounded-full border border-gray-700 px-3 py-1">
-                        {product.category}
-                      </span>
+                    <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
+                    {product.description && (
+                      <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                        {product.description}
+                      </p>
                     )}
-                  </div>
-                </Link>
-              ))}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold">{product.price} ₽</div>
+                        {product.minimalAmount > 1 && (
+                          <div className="text-xs text-gray-500">
+                            {t("catalog.minimalAmount")}: {product.minimalAmount}
+                          </div>
+                        )}
+                      </div>
+                      {product.category && (
+                        <span className="text-xs rounded-full border border-gray-700 px-3 py-1">
+                          {product.category}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
 
             {totalPages > 1 && (
@@ -184,4 +221,3 @@ function Catalog() {
 }
 
 export default Catalog;
-

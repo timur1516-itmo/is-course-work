@@ -46,6 +46,14 @@ function DesignerDashboard() {
   const [showApplicationModal, setShowApplicationModal] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<Record<number, MessageResponseDto[]>>({});
   const [loadingChat, setLoadingChat] = useState<Record<number, boolean>>({});
+  const [isCreateDesignOpen, setIsCreateDesignOpen] = useState(false);
+  const [creatingDesign, setCreatingDesign] = useState(false);
+  const [designError, setDesignError] = useState<string | null>(null);
+  const [designSuccess, setDesignSuccess] = useState(false);
+  const [uploaded3DFile, setUploaded3DFile] = useState<number | null>(null);
+  const [uploadedUPFile, setUploadedUPFile] = useState<number | null>(null);
+  const [uploaded3DFileName, setUploaded3DFileName] = useState<string>("");
+  const [uploadedUPFileName, setUploadedUPFileName] = useState<string>("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -109,24 +117,24 @@ function DesignerDashboard() {
               if (hasBeenInRework) {
                 reworkOrdersSet.add(order.id);
               }
-            } catch (err) {
-              console.error(`Failed to check REWORK status for order ${order.id}:`, err);
+            } catch (error) {
+              console.error(`Failed to check REWORK status for order ${order.id}:`, error);
             }
           }
         }
 
         await Promise.all(
           designFilesToLoad.map(designId => 
-            loadDesignFiles(designId).catch(err => {
-              console.error(`Failed to load design files for design ${designId}:`, err);
+            loadDesignFiles(designId).catch(error => {
+              console.error(`Failed to load design files for design ${designId}:`, error);
             })
           )
         );
         setApplications(applicationsMap);
         setClients(clientsMap);
         setOrdersWithReworkHistory(reworkOrdersSet);
-      } catch (err) {
-        const apiError = extractApiError(err);
+      } catch (error) {
+        const apiError = extractApiError(error);
         setError(apiError.message || apiError.detail || 'Ошибка загрузки данных');
       } finally {
         setLoading(false);
@@ -242,10 +250,10 @@ function DesignerDashboard() {
           o.status === "IN_PROGRESS"
       );
       setOrders(designerOrders);
-    } catch (err) {
-      const apiError = extractApiError(err);
+    } catch (error) {
+      const apiError = extractApiError(error);
       setError(apiError.message || 'Ошибка удаления файла');
-      console.error('Failed to remove file:', err);
+      console.error('Failed to remove file:', error);
     }
   };
 
@@ -288,10 +296,10 @@ function DesignerDashboard() {
   const handleDownloadFile = async (fileId: number, filename: string) => {
     try {
       await filesService.downloadFile(fileId, filename);
-    } catch (err) {
-      const apiError = extractApiError(err);
+    } catch (error) {
+      const apiError = extractApiError(error);
       setError(apiError.message || 'Ошибка загрузки файла');
-      console.error('Failed to download file:', err);
+      console.error('Failed to download file:', error);
     }
   };
 
@@ -307,10 +315,10 @@ function DesignerDashboard() {
       } else {
         await handleDownloadFile(fileId, filename);
       }
-    } catch (err) {
-      const apiError = extractApiError(err);
+    } catch (error) {
+      const apiError = extractApiError(error);
       setError(apiError.message || 'Ошибка просмотра файла');
-      console.error('Failed to view file:', err);
+      console.error('Failed to view file:', error);
     }
   };
 
@@ -525,8 +533,26 @@ function DesignerDashboard() {
         await designsService.assignDesigner(designId);
       }
 
-      for (const material of materials) {
-        await designsService.addMaterialToDesign(designId, material);
+      // Проверяем, изменились ли материалы
+      const validMaterials = materials.filter(m => m.materialId > 0 && m.amount > 0);
+
+      if (validMaterials.length > 0) {
+        // Загружаем текущие материалы дизайна
+        const currentDesign = await designsService.getDesignById(designId);
+        const currentMaterials = currentDesign.requiredMaterials || [];
+
+        // Проверяем, изменились ли материалы
+        const materialsChanged =
+          currentMaterials.length !== validMaterials.length ||
+          validMaterials.some(newMat => {
+            const existingMat = currentMaterials.find(m => m.materialId === newMat.materialId);
+            return !existingMat || existingMat.amount !== newMat.amount;
+          });
+
+        // Обновляем только если есть изменения
+        if (materialsChanged) {
+          await designsService.updateDesignMaterials(designId, validMaterials);
+        }
       }
 
       if (!order.price || order.price === null) {
@@ -578,6 +604,58 @@ function DesignerDashboard() {
       setSendingRework(prev => ({ ...prev, [orderId]: false }));
     }
   };
+
+  const handleFileUpload = async (file: File): Promise<number> => {
+    try {
+      const response = await filesService.uploadFile(file);
+      return response.id;
+    } catch (err) {
+      const apiError = extractApiError(err);
+      throw new Error(apiError.message || 'Ошибка загрузки файла');
+    }
+  };
+
+  const handleCreateDesign = async (values: {
+    productName: string;
+    materials: Array<{ materialId: number; amount: number }>;
+  }) => {
+    try {
+      setCreatingDesign(true);
+      setDesignError(null);
+      setDesignSuccess(false);
+
+      if (!uploaded3DFile || !uploadedUPFile) {
+        setDesignError(t("designer.bothFilesRequired") || 'Необходимо загрузить 3D модель и УП файл');
+        return;
+      }
+
+      const validMaterials = values.materials.filter(m => m.materialId > 0 && m.amount > 0);
+
+      const design = await designsService.createDesign({
+        productName: values.productName,
+        fileIds: [uploaded3DFile, uploadedUPFile],
+        requiredMaterials: validMaterials.length > 0 ? validMaterials : undefined,
+      });
+
+      await designsService.assignDesigner(design.id);
+
+      setDesignSuccess(true);
+      setUploaded3DFile(null);
+      setUploadedUPFile(null);
+      setUploaded3DFileName("");
+      setUploadedUPFileName("");
+      setTimeout(() => {
+        setIsCreateDesignOpen(false);
+        setDesignSuccess(false);
+      }, 2000);
+    } catch (err) {
+      const apiError = extractApiError(err);
+      setDesignError(apiError.message || 'Ошибка создания дизайна');
+    } finally {
+      setCreatingDesign(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -669,6 +747,24 @@ function DesignerDashboard() {
                           <tr key={`${order.id}-details`}>
                             <td colSpan={3} className="px-3 py-4">
                               <div className="bg-stone-800/50 rounded-xl p-6 space-y-4">
+                                {application && application.catalogProductId && (
+                                  <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-emerald-400 text-sm font-medium">
+                                        📦 {t("designer.basedOnCatalogProduct") || "Заказ создан на основе товара из каталога"}
+                                      </span>
+                                      <a
+                                        href={`/catalog/${application.catalogProductId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-emerald-300 hover:text-emerald-200 text-xs underline"
+                                      >
+                                        {t("designer.viewInCatalog") || "Посмотреть в каталоге"}
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
                                     <div className="text-xs text-gray-500 mb-1">
@@ -1133,6 +1229,25 @@ function DesignerDashboard() {
             </table>
           </div>
         </section>
+
+        <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold">
+                {t("designer.createDesign")}
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                {t("designer.createDesignInfo")}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsCreateDesignOpen(true)}
+              className="rounded-full bg-white text-black text-sm font-medium px-4 py-2 hover:bg-gray-200 transition-colors"
+            >
+              {t("designer.createDesignButton")}
+            </button>
+          </div>
+        </section>
       </div>
 
       {showChatModal && (
@@ -1191,6 +1306,240 @@ function DesignerDashboard() {
                 <div className="text-sm text-white">{applications[showApplicationModal].amount || "—"}</div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isCreateDesignOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-stone-900 rounded-3xl border border-gray-800 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                {t("designer.createDesign")}
+              </h2>
+              <button
+                onClick={() => {
+                  setIsCreateDesignOpen(false);
+                  setDesignError(null);
+                  setDesignSuccess(false);
+                  setUploaded3DFile(null);
+                  setUploadedUPFile(null);
+                  setUploaded3DFileName("");
+                  setUploadedUPFileName("");
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {designError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
+                {designError}
+              </div>
+            )}
+
+            {designSuccess && (
+              <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-sm">
+                {t("designer.designCreated")}
+              </div>
+            )}
+
+            <Formik
+              initialValues={{
+                productName: '',
+                materials: [{ materialId: 0, amount: 0 }]
+              }}
+              validationSchema={Yup.object({
+                productName: Yup.string().required(t("designer.designNameRequired")),
+                materials: Yup.array().of(
+                  Yup.object({
+                    materialId: Yup.number().min(0),
+                    amount: Yup.number().min(0),
+                  })
+                ),
+              })}
+              onSubmit={handleCreateDesign}
+            >
+              {({ isSubmitting }) => (
+                <Form className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("designer.designName")}
+                    </label>
+                    <Field
+                      name="productName"
+                      type="text"
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                      placeholder={t("designer.designNamePlaceholder")}
+                    />
+                    <ErrorMessage
+                      name="productName"
+                      component="div"
+                      className="mt-1 text-xs text-red-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("designer.upload3DModel")}
+                    </label>
+                    <input
+                      type="file"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const fileId = await handleFileUpload(file);
+                          setUploaded3DFile(fileId);
+                          setUploaded3DFileName(file.name);
+                        } catch (error) {
+                          const errorMessage = error instanceof Error ? error.message : 'Ошибка загрузки файла';
+                          setDesignError(errorMessage);
+                        }
+                      }}
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                      disabled={!!uploaded3DFile}
+                    />
+                    {uploaded3DFile && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-emerald-400">✓ {uploaded3DFileName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploaded3DFile(null);
+                            setUploaded3DFileName("");
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          {t("remove")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {t("designer.generateUP") || "УП файл"}
+                    </label>
+                    <input
+                      type="file"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const fileId = await handleFileUpload(file);
+                          setUploadedUPFile(fileId);
+                          setUploadedUPFileName(file.name);
+                        } catch (error) {
+                          const errorMessage = error instanceof Error ? error.message : 'Ошибка загрузки файла';
+                          setDesignError(errorMessage);
+                        }
+                      }}
+                      className="w-full rounded-xl bg-stone-950/70 border border-gray-700 px-4 py-2.5 text-sm text-white"
+                      disabled={!!uploadedUPFile}
+                    />
+                    {uploadedUPFile && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-emerald-400">✓ {uploadedUPFileName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadedUPFile(null);
+                            setUploadedUPFileName("");
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          {t("remove")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-2">
+                      {t("designer.requiredMaterials") || "Требуемые материалы"}
+                    </label>
+                    <FieldArray name="materials">
+                      {({ push, remove, form }) => (
+                        <div className="space-y-2">
+                          {form.values.materials.map((_material: { materialId: number; amount: number }, index: number) => (
+                            <div key={index} className="flex gap-2 items-start">
+                              <div className="flex-1">
+                                <Field
+                                  as="select"
+                                  name={`materials.${index}.materialId`}
+                                  className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-xs text-white"
+                                >
+                                  <option value={0}>{t("designer.selectMaterial") || "Выберите материал"}</option>
+                                  {allMaterials.map((material) => (
+                                    <option key={material.id} value={material.id}>
+                                      {material.name} ({material.unitOfMeasure})
+                                    </option>
+                                  ))}
+                                </Field>
+                              </div>
+                              <div className="w-24">
+                                <Field
+                                  name={`materials.${index}.amount`}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder={t("designer.amount") || "Кол-во"}
+                                  className="w-full rounded-lg bg-stone-950/70 border border-gray-700 px-3 py-2 text-xs text-white"
+                                />
+                              </div>
+                              {form.values.materials.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => remove(index)}
+                                  className="p-2 text-red-400 hover:text-red-300"
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => push({ materialId: 0, amount: 0 })}
+                            className="w-full rounded-lg border border-dashed border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white hover:border-gray-600 transition-colors flex items-center justify-center gap-1"
+                          >
+                            <AddIcon fontSize="small" />
+                            {t("designer.addMaterial") || "Добавить материал"}
+                          </button>
+                        </div>
+                      )}
+                    </FieldArray>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={creatingDesign || isSubmitting}
+                      className="flex-1 rounded-full bg-white text-black text-sm font-medium py-2.5 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    >
+                      {creatingDesign ? t("catalog.loading") : (t("designer.create") || "Создать")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreateDesignOpen(false);
+                        setDesignError(null);
+                        setDesignSuccess(false);
+                        setUploaded3DFile(null);
+                        setUploadedUPFile(null);
+                        setUploaded3DFileName("");
+                        setUploadedUPFileName("");
+                      }}
+                      className="flex-1 rounded-full bg-stone-800 text-white text-sm font-medium py-2.5 hover:bg-stone-700 transition-colors"
+                    >
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
           </div>
         </div>
       )}

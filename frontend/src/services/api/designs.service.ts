@@ -1,7 +1,22 @@
 import { apiClient, extractApiError } from './config';
-import type { ProductDesignResponseDto, ProductDesignRequestDto, RequiredMaterialDto } from './types';
+import type { ProductDesignResponseDto, ProductDesignRequestDto, RequiredMaterialDto, PagedResponse } from './types';
 
 export const designsService = {
+  getDesigns: async (params?: {
+    constructorId?: number;
+    productName?: string;
+    page?: number;
+    size?: number;
+    sort?: string[];
+  }): Promise<PagedResponse<ProductDesignResponseDto>> => {
+    try {
+      const response = await apiClient.get<PagedResponse<ProductDesignResponseDto>>('/designs', { params });
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
   getDesignById: async (id: number): Promise<ProductDesignResponseDto> => {
     try {
       const response = await apiClient.get<ProductDesignResponseDto>(`/designs/${id}`);
@@ -46,6 +61,18 @@ export const designsService = {
       const response = await apiClient.post<ProductDesignResponseDto>(
         `/designs/${designId}/materials`,
         material
+      );
+      return response.data;
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  updateDesignMaterials: async (designId: number, materials: RequiredMaterialDto[]): Promise<ProductDesignResponseDto> => {
+    try {
+      const response = await apiClient.put<ProductDesignResponseDto>(
+        `/designs/${designId}/materials`,
+        materials
       );
       return response.data;
     } catch (error) {

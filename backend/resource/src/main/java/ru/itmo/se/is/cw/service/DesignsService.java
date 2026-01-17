@@ -150,6 +150,19 @@ public class DesignsService {
     }
 
     @Transactional
+    public ProductDesignResponseDto updateDesignMaterials(Long designId, List<RequiredMaterialDto> materials) {
+        ProductDesignEntity design = getById(designId);
+
+        design.getRequiredMaterials().clear();
+
+        applyRequiredMaterials(design, materials);
+
+        return productDesignMapper.toDto(
+                productDesignRepository.save(design)
+        );
+    }
+
+    @Transactional
     public ProductDesignResponseDto assignDesigner(Long designId) {
         ProductDesignEntity design = getById(designId);
         design.setConstructor(
@@ -167,6 +180,33 @@ public class DesignsService {
         return productDesignMapper.toDto(
                 productDesignRepository.save(design)
         );
+    }
+
+    @Transactional
+    public ProductDesignEntity copyDesign(ProductDesignEntity source) {
+        ProductDesignEntity copy = new ProductDesignEntity();
+        copy.setProductName(source.getProductName());
+
+        copy = productDesignRepository.save(copy);
+
+        for (var sourceFile : source.getFiles()) {
+            var copyFile = productDesignFileMapper.toEntity(copy, sourceFile.getFile());
+            copy.addFile(copyFile);
+        }
+
+        for (var sourceMaterial : source.getRequiredMaterials()) {
+            var copyMaterial = requiredMaterialMapper.toEntity(
+                    new RequiredMaterialDto(
+                        sourceMaterial.getMaterial().getId(),
+                        sourceMaterial.getAmount().doubleValue()
+                    ),
+                    sourceMaterial.getMaterial(),
+                    copy
+            );
+            copy.addMaterial(copyMaterial);
+        }
+
+        return productDesignRepository.save(copy);
     }
 }
 

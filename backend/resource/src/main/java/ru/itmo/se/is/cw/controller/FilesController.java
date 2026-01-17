@@ -111,7 +111,6 @@ public class FilesController {
                     )
             )
     })
-    @PreAuthorize("hasAuthority('SCOPE_files.read')")
     public ResponseEntity<StreamingResponseBody> downloadFile(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {
