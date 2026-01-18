@@ -2,8 +2,18 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage, FieldArray } from "formik";
 import * as Yup from "yup";
-import { ordersService, applicationsService, filesService, designsService, materialsService, conversationsService, clientsService, extractApiError } from "../../../services/api";
-import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, MessageResponseDto, ClientResponseDto } from "../../../services/api/types";
+import {
+  ordersService,
+  applicationsService,
+  filesService,
+  designsService,
+  materialsService,
+  conversationsService,
+  clientsService,
+  extractApiError,
+  catalogService, type ProductDesignResponseDto
+} from "../../../services/api";
+import type { ClientOrderResponseDto, ClientApplicationResponseDto, FileMetadataResponseDto, RequiredMaterialDto, MaterialResponseDto, MessageResponseDto, ClientResponseDto, ProductCatalogResponseDto } from "../../../services/api/types";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -54,6 +64,15 @@ function DesignerDashboard() {
   const [uploadedUPFile, setUploadedUPFile] = useState<number | null>(null);
   const [uploaded3DFileName, setUploaded3DFileName] = useState<string>("");
   const [uploadedUPFileName, setUploadedUPFileName] = useState<string>("");
+  const [loadingDesigns, setLoadingDesigns] = useState(false);
+  const [myDesigns, setMyDesigns] = useState<ProductDesignResponseDto[]>([]);
+  const [editingDesign, setEditingDesign] = useState<number | null>(null);
+  const [editDesignMaterials, setEditDesignMaterials] = useState<RequiredMaterialDto[]>([]);
+  const [editDesignPrice, setEditDesignPrice] = useState<number>(0);
+  const [catalogProducts, setCatalogProducts] = useState<Record<number, ProductCatalogResponseDto>>({});
+  const [designsPage, setDesignsPage] = useState(0);
+  const [designsPerPage] = useState(10);
+  const [totalDesigns, setTotalDesigns] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -133,6 +152,8 @@ function DesignerDashboard() {
         setApplications(applicationsMap);
         setClients(clientsMap);
         setOrdersWithReworkHistory(reworkOrdersSet);
+
+        await loadMyDesigns();
       } catch (error) {
         const apiError = extractApiError(error);
         setError(apiError.message || apiError.detail || 'Ошибка загрузки данных');
@@ -444,6 +465,91 @@ function DesignerDashboard() {
     }
   };
 
+  const loadMyDesigns = async (page: number = 0) => {
+    try {
+      setLoadingDesigns(true);
+      const response = await designsService.getDesigns({ page, size: designsPerPage });
+      const designs = response.content || [];
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const catalogDesigns = designs.filter(d => !d.productName.match(uuidRegex));
+      setMyDesigns(catalogDesigns);
+      setTotalDesigns(catalogDesigns.length || 0);
+
+      const catalogResponse = await catalogService.getProducts({ page: 0, size: 1000 });
+      const products = catalogResponse.content || [];
+      const productsByDesign: Record<number, ProductCatalogResponseDto> = {};
+      products.forEach(product => {
+        if (product.productDesignId) {
+          productsByDesign[product.productDesignId] = product;
+        }
+      });
+      setCatalogProducts(productsByDesign);
+    } catch (err) {
+      console.error('Failed to load designs:', err);
+      const apiError = extractApiError(err);
+      console.error('API Error details:', apiError);
+    } finally {
+      setLoadingDesigns(false);
+    }
+  };
+
+  const handleDownloadDesignFile = async (fileId: number, filename: string) => {
+    try {
+      await filesService.downloadFile(fileId, filename);
+    } catch (err) {
+      console.error('Failed to download file:', err);
+      setError('Ошибка скачивания файла');
+    }
+  };
+
+  const handleUpdateDesignFile = async (designId: number, _fileType: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileMetadata = await filesService.uploadFile(file);
+      await designsService.addFileToDesign(designId, fileMetadata.id);
+      await loadMyDesigns(designsPage);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to update design file:', err);
+      setError('Ошибка обновления файла');
+    }
+    event.target.value = "";
+  };
+
+  const handleEditDesign = (design: ProductDesignResponseDto) => {
+    setEditingDesign(design.id);
+    setEditDesignMaterials(design.requiredMaterials || [{ materialId: 0, amount: 0 }]);
+
+    const catalogProduct = catalogProducts[design.id];
+    setEditDesignPrice(catalogProduct?.price || 0);
+  };
+
+  const handleSaveDesignChanges = async (designId: number) => {
+    try {
+      const validMaterials = editDesignMaterials.filter(m => m.materialId > 0 && m.amount > 0);
+      if (validMaterials.length > 0) {
+        await designsService.updateDesignMaterials(designId, validMaterials);
+      }
+
+      const catalogProduct = catalogProducts[designId];
+      if (catalogProduct && editDesignPrice > 0) {
+        await catalogService.updateProduct(catalogProduct.id, {
+          ...catalogProduct,
+          price: editDesignPrice,
+        });
+      }
+
+      await loadMyDesigns();
+      setEditingDesign(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to save design changes:', err);
+      setError('Ошибка сохранения изменений');
+    }
+  };
+
   const handleSaveMaterials = async (orderId: number, materials: RequiredMaterialDto[], price?: number) => {
     try {
       setSavingMaterials(prev => ({ ...prev, [orderId]: true }));
@@ -533,15 +639,12 @@ function DesignerDashboard() {
         await designsService.assignDesigner(designId);
       }
 
-      // Проверяем, изменились ли материалы
       const validMaterials = materials.filter(m => m.materialId > 0 && m.amount > 0);
 
       if (validMaterials.length > 0) {
-        // Загружаем текущие материалы дизайна
         const currentDesign = await designsService.getDesignById(designId);
         const currentMaterials = currentDesign.requiredMaterials || [];
 
-        // Проверяем, изменились ли материалы
         const materialsChanged =
           currentMaterials.length !== validMaterials.length ||
           validMaterials.some(newMat => {
@@ -549,7 +652,6 @@ function DesignerDashboard() {
             return !existingMat || existingMat.amount !== newMat.amount;
           });
 
-        // Обновляем только если есть изменения
         if (materialsChanged) {
           await designsService.updateDesignMaterials(designId, validMaterials);
         }
@@ -673,6 +775,273 @@ function DesignerDashboard() {
             {t("designer.dashboard")}
           </h1>
         </div>
+
+        <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">{t("designer.myDesigns") || "Мои дизайны"}</h2>
+            <button
+              onClick={() => setIsCreateDesignOpen(true)}
+              className="rounded-full bg-white text-black text-sm font-medium px-4 py-2 hover:bg-gray-200 transition-colors"
+            >
+              {t("designer.createDesign") || "Создать дизайн"}
+            </button>
+          </div>
+
+          {loadingDesigns ? (
+            <div className="text-center py-8 text-gray-400">{t("catalog.loading")}</div>
+          ) : myDesigns.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">{t("designer.noDesigns") || "Нет созданных дизайнов"}</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase text-gray-500 border-b border-gray-700">
+                    <th className="text-left px-3 pb-2">{t("designer.designName") || "Название"}</th>
+                    <th className="text-left px-3 pb-2">{t("designer.materials") || "Материалы"}</th>
+                    <th className="text-left px-3 pb-2">{t("designer.files") || "Файлы"}</th>
+                    <th className="text-left px-3 pb-2">{t("designer.catalogProduct") || "Товар в каталоге"}</th>
+                    <th className="text-right px-3 pb-2">{t("designer.actions") || "Действия"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myDesigns.map((design: ProductDesignResponseDto) => {
+                    const catalogProduct = catalogProducts[design.id];
+                    const isEditing = editingDesign === design.id;
+                    const designFiles = design.files || [];
+
+                    return (
+                      <tr key={design.id} className="border-b border-gray-800 hover:bg-stone-800/50">
+                        <td className="px-3 py-3">
+                          <div className="font-medium">{design.productName}</div>
+                          <div className="text-xs text-gray-500">ID: {design.id}</div>
+                        </td>
+                        <td className="px-3 py-3">
+                          {isEditing ? (
+                            <div className="space-y-2 max-w-xs">
+                              {editDesignMaterials.map((mat, idx) => (
+                                <div key={idx} className="flex gap-2 items-center">
+                                  <select
+                                    value={mat.materialId}
+                                    onChange={(e) => {
+                                      const newMats = [...editDesignMaterials];
+                                      newMats[idx].materialId = Number(e.target.value);
+                                      setEditDesignMaterials(newMats);
+                                    }}
+                                    className="flex-1 rounded bg-stone-950 border border-gray-700 px-2 py-1 text-xs text-white"
+                                  >
+                                    <option value={0}>{t("designer.selectMaterial") || "Выберите"}</option>
+                                    {allMaterials.map((m) => (
+                                      <option key={m.id} value={m.id}>
+                                        {m.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="number"
+                                    value={mat.amount}
+                                    onChange={(e) => {
+                                      const newMats = [...editDesignMaterials];
+                                      newMats[idx].amount = Number(e.target.value);
+                                      setEditDesignMaterials(newMats);
+                                    }}
+                                    className="w-20 rounded bg-stone-950 border border-gray-700 px-2 py-1 text-xs text-white"
+                                  />
+                                  {editDesignMaterials.length > 1 && (
+                                    <button
+                                      onClick={() => {
+                                        setEditDesignMaterials(editDesignMaterials.filter((_, i) => i !== idx));
+                                      }}
+                                      className="text-red-400 hover:text-red-300"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              <button
+                                onClick={() => setEditDesignMaterials([...editDesignMaterials, { materialId: 0, amount: 0 }])}
+                                className="text-xs text-emerald-400 hover:text-emerald-300"
+                              >
+                                + {t("designer.addMaterial") || "Добавить"}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-xs space-y-1">
+                              {design.requiredMaterials && design.requiredMaterials.length > 0 ? (
+                                design.requiredMaterials.map((mat: RequiredMaterialDto, idx: number) => {
+                                  const material = allMaterials.find(m => m.id === mat.materialId);
+                                  return (
+                                    <div key={idx}>
+                                      {material?.name || `ID: ${mat.materialId}`}: {mat.amount} {material?.unitOfMeasure || ''}
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-gray-500">{t("designer.noMaterials") || "Нет материалов"}</span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {isEditing ? (
+                            <div className="space-y-2 max-w-xs">
+                              {designFiles.length === 0 ? (
+                                <div className="text-xs text-gray-500">{t("designer.noFiles") || "Нет файлов"}</div>
+                              ) : (
+                                designFiles.map((file: FileMetadataResponseDto) => (
+                                  <div key={file.id} className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleDownloadDesignFile(file.id, file.filename)}
+                                      className="text-xs text-emerald-400 hover:text-emerald-300 truncate flex-1 text-left"
+                                      title={file.filename}
+                                    >
+                                      {file.filename}
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          await designsService.removeFileFromDesign(design.id, file.id);
+                                          await loadMyDesigns(designsPage);
+                                        } catch (err) {
+                                          console.error('Failed to remove file:', err);
+                                          setError('Ошибка удаления файла');
+                                        }
+                                      }}
+                                      className="text-red-400 hover:text-red-300 text-xs"
+                                      title={t("designer.removeFile") || "Удалить"}
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                              <label className="cursor-pointer block">
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) => handleUpdateDesignFile(design.id, 'file', e)}
+                                />
+                                <span className="text-xs text-blue-400 hover:text-blue-300">
+                                  + {t("designer.addFile") || "Добавить файл"}
+                                </span>
+                              </label>
+                              {designFiles.length !== 2 && (
+                                <div className="text-xs text-amber-400">
+                                  ⚠️ {t("designer.needTwoFiles") || "Необходимо ровно 2 файла"}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              {designFiles.length === 0 ? (
+                                <div className="text-xs text-gray-500">{t("designer.noFiles") || "Нет файлов"}</div>
+                              ) : (
+                                designFiles.map((file: FileMetadataResponseDto) => (
+                                  <div key={file.id}>
+                                    <button
+                                      onClick={() => handleDownloadDesignFile(file.id, file.filename)}
+                                      className="text-xs text-emerald-400 hover:text-emerald-300 truncate max-w-[200px] block"
+                                      title={file.filename}
+                                    >
+                                      {file.filename}
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {catalogProduct ? (
+                            <div>
+                              <div className="text-xs font-medium">{catalogProduct.name}</div>
+                              {isEditing ? (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-xs text-gray-400">{t("designer.price") || "Цена"}:</span>
+                                  <input
+                                    type="number"
+                                    value={editDesignPrice}
+                                    onChange={(e) => setEditDesignPrice(Number(e.target.value))}
+                                    className="w-24 rounded bg-stone-950 border border-gray-700 px-2 py-1 text-xs text-white"
+                                  />
+                                  <span className="text-xs text-gray-400">₽</span>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400">{catalogProduct.price} ₽</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500">{t("designer.notInCatalog") || "Нет в каталоге"}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          {isEditing ? (
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => handleSaveDesignChanges(design.id)}
+                                className="rounded-full bg-emerald-500 text-white text-xs px-3 py-1 hover:bg-emerald-600 transition-colors"
+                              >
+                                {t("designer.save") || "Сохранить"}
+                              </button>
+                              <button
+                                onClick={() => setEditingDesign(null)}
+                                className="rounded-full bg-stone-700 text-white text-xs px-3 py-1 hover:bg-stone-600 transition-colors"
+                              >
+                                {t("cancel") || "Отмена"}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleEditDesign(design)}
+                              className="rounded-full bg-stone-700 text-white text-xs px-3 py-1 hover:bg-stone-600 transition-colors"
+                            >
+                              {t("designer.edit") || "Редактировать"}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loadingDesigns && myDesigns.length > 0 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-400">
+                {t("catalog.showing") || "Показано"} {designsPage * designsPerPage + 1}-{Math.min((designsPage + 1) * designsPerPage, totalDesigns)} {t("catalog.of") || "из"} {totalDesigns}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newPage = designsPage - 1;
+                    setDesignsPage(newPage);
+                    loadMyDesigns(newPage);
+                  }}
+                  disabled={designsPage === 0}
+                  className="px-3 py-1 rounded bg-stone-800 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-stone-700 transition-colors"
+                >
+                  {t("catalog.previous") || "Назад"}
+                </button>
+                <span className="px-3 py-1 text-sm text-gray-300">
+                  {t("catalog.page") || "Страница"} {designsPage + 1} {t("catalog.of") || "из"} {Math.max(1, Math.ceil(totalDesigns / designsPerPage))}
+                </span>
+                <button
+                  onClick={() => {
+                    const newPage = designsPage + 1;
+                    setDesignsPage(newPage);
+                    loadMyDesigns(newPage);
+                  }}
+                  disabled={designsPage >= Math.ceil(totalDesigns / designsPerPage) - 1}
+                  className="px-3 py-1 rounded bg-stone-800 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-stone-700 transition-colors"
+                >
+                  {t("catalog.next") || "Далее"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
 
         {error && (
           <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
@@ -1227,25 +1596,6 @@ function DesignerDashboard() {
                 )}
               </tbody>
             </table>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold">
-                {t("designer.createDesign")}
-              </h2>
-              <p className="text-xs text-gray-400 mt-1">
-                {t("designer.createDesignInfo")}
-              </p>
-            </div>
-            <button
-              onClick={() => setIsCreateDesignOpen(true)}
-              className="rounded-full bg-white text-black text-sm font-medium px-4 py-2 hover:bg-gray-200 transition-colors"
-            >
-              {t("designer.createDesignButton")}
-            </button>
           </div>
         </section>
       </div>

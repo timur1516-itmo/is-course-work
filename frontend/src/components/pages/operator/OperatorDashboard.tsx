@@ -141,7 +141,6 @@ function OperatorDashboard() {
         setError(null);
         await productionService.completeTask(currentTask.id);
 
-        // очистка UI
         setCurrentTask(null);
         setCurrentOrder(null);
         setDesignFiles([]);

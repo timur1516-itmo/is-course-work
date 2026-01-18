@@ -214,7 +214,22 @@
     "designName": "Название дизайна",
     "designNameRequired": "Название дизайна обязательно",
     "designCreated": "Дизайн успешно создан!",
-    "requiredMaterials": "Необходимые материалы"
+    "requiredMaterials": "Необходимые материалы",
+    "myDesigns": "Мои дизайны",
+    "noDesigns": "Нет созданных дизайнов",
+    "materials": "Материалы",
+    "files": "Файлы",
+    "catalogProduct": "Товар в каталоге",
+    "actions": "Действия",
+    "notInCatalog": "Нет в каталоге",
+    "edit": "Редактировать",
+    "save": "Сохранить",
+    "upload": "Загрузить",
+    "noMaterials": "Нет материалов",
+    "basedOnCatalogProduct": "Заказ создан на основе товара из каталога",
+    "viewInCatalog": "Посмотреть в каталоге",
+    "atLeastOneMaterial": "Добавьте хотя бы один материал",
+    "noFiles": "Файлы не выбраны"
   },
   "operator": {
     "dashboard": "Панель оператора станка",
@@ -306,7 +321,12 @@
     "orderPointMin": "Точка заказа должна быть неотрицательной",
     "creating": "Создание...",
     "invoice": "Накладная",
-    "receivedAmount": "Принято"
+    "receivedAmount": "Принято",
+    "materialBalances": "Остатки материалов",
+    "currentBalance": "Текущий остаток",
+    "status": "Статус",
+    "lowStock": "Низкий остаток",
+    "normal": "Норма"
   },
   "catalog": {
     "title": "Каталог товаров",
@@ -318,7 +338,12 @@
     "addToCart": "Добавить в корзину",
     "noProducts": "Товары не найдены",
     "loading": "Загрузка...",
-    "allCategories": "Все категории"
+    "allCategories": "Все категории",
+    "showing": "Показано",
+    "of": "из",
+    "previous": "Назад",
+    "next": "Далее",
+    "page": "Страница"
   },
   "product": {
     "title": "Карточка товара",

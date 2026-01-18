@@ -102,7 +102,6 @@ function OrderDetails() {
       setOrder(orderData);
       setConversation(conversationData);
 
-      // Загружаем заявку
       if (orderData.clientApplicationId) {
         try {
           const applicationData = await applicationsService.getApplicationById(orderData.clientApplicationId);
@@ -435,7 +434,6 @@ function OrderDetails() {
               {formatOrderName(order)}
             </h1>
 
-            {/* Плашка о товаре из каталога */}
             {application && application.catalogProductId && (
               <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40">
                 <div className="text-emerald-400 text-sm font-medium mb-1">

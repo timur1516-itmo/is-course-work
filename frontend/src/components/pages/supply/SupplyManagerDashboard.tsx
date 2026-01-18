@@ -228,6 +228,90 @@ function SupplyManagerDashboard() {
           </div>
         )}
 
+        <div className="mb-6 rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">{t("supply.materialBalances") || "Остатки материалов"}</h2>
+            <button
+              onClick={() => setShowCreateMaterialModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
+            >
+              <AddIcon fontSize="small" />
+              {t("supply.createMaterial") || "Создать материал"}
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-xs uppercase text-gray-500 border-b border-gray-700">
+                  <th className="text-left px-3 pb-2">{t("supply.materialName") || "Материал"}</th>
+                  <th className="text-center px-3 pb-2">{t("supply.currentBalance") || "Текущий остаток"}</th>
+                  <th className="text-center px-3 pb-2">{t("supply.orderPoint") || "Необходимый остаток"}</th>
+                  <th className="text-center px-3 pb-2">{t("supply.unitOfMeasure") || "Ед. изм."}</th>
+                  <th className="text-center px-3 pb-2">{t("supply.status") || "Статус"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allMaterials.map((material) => {
+                  const currentBalance = material.currentBalance || 0;
+                  const orderPoint = material.orderPoint || 0;
+                  const threshold = orderPoint * 1.15;
+                  const isLow = currentBalance < threshold;
+                  const percentage = orderPoint > 0 ? ((currentBalance - orderPoint) / orderPoint) * 100 : 100;
+
+                  return (
+                    <tr
+                      key={material.id}
+                      className={`border-b border-gray-800 hover:bg-stone-800/50 ${isLow ? 'bg-red-900/20' : ''}`}
+                    >
+                      <td className="px-3 py-3">
+                        <div className="font-medium">{material.name}</div>
+                        <div className="text-xs text-gray-500">ID: {material.id}</div>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold ${isLow ? 'text-red-400' : 'text-white'}`}>
+                          {currentBalance.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center text-gray-300">
+                        {orderPoint.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-3 text-center text-gray-400">
+                        {material.unitOfMeasure}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {isLow ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                            {t("supply.lowStock") || "Низкий остаток"}
+                            {percentage >= 0 && (
+                              <span className="text-gray-500">
+                                (+{percentage.toFixed(0)}%)
+                              </span>
+                            )}
+                            {percentage < 0 && (
+                              <span className="text-red-500 font-bold">
+                                ({percentage.toFixed(0)}%)
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-emerald-400">
+                            ✓ {t("supply.normal") || "Норма"}
+                            {percentage >= 0 && (
+                              <span className="text-gray-500 ml-1">
+                                (+{percentage.toFixed(0)}%)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="rounded-3xl border border-gray-800 bg-stone-900/80 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden">
           <table className="min-w-full">
             <thead className="bg-stone-800/50">
