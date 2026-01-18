@@ -77,7 +77,6 @@ public class DesignsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
-    @PreAuthorize("hasAuthority('SCOPE_designs.read')")
     public ResponseEntity<ProductDesignResponseDto> getDesignById(
             @PathVariable @Parameter(description = "Идентификатор дизайна", required = true) Long id
     ) {

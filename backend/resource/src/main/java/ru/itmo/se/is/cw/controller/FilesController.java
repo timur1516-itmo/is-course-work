@@ -82,7 +82,6 @@ public class FilesController {
                     )
             )
     })
-    @PreAuthorize("hasAuthority('SCOPE_files.read')")
     public ResponseEntity<FileMetadataResponseDto> getFileMetadata(
             @PathVariable @Parameter(description = "Идентификатор файла", required = true) Long id
     ) {

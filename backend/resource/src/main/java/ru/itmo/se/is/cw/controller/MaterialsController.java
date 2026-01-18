@@ -106,7 +106,6 @@ public class MaterialsController {
                     )
             )
     })
-    @PreAuthorize("hasAuthority('SCOPE_materials.read')")
     public ResponseEntity<MaterialResponseDto> getMaterialById(
             @PathVariable @Parameter(description = "Идентификатор материала", required = true) Long id
     ) {

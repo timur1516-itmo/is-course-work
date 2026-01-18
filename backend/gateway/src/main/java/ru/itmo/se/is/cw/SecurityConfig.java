@@ -30,7 +30,10 @@ public class SecurityConfig {
                                 "/resource/v3/api-docs.yaml",
                                 "/resource/swagger-ui.html", "/resource/swagger-ui/**",
                                 "/resource/register",
-                                "/resource/catalog", "/resource/catalog/**"
+                                "/resource/catalog", "/resource/catalog/**",
+                                "/resource/files", "/resource/files/**",
+                                "/resource/designs", "/resource/designs/**",
+                                "/resource/materials", "/resource/materials/**"
                         ).permitAll()
                         .requestMatchers("/resource/**").authenticated()
                         .anyRequest().denyAll()
