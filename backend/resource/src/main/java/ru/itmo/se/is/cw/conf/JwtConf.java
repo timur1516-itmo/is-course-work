@@ -32,7 +32,8 @@ public class JwtConf {
                     "files.write",
                     "catalog.read",
                     "clients.read",
-                    "employees.read"
+                    "employees.read",
+                    "orders.status.clint-approve"
             ),
             "SALES_MANAGER", Set.of(
                     "orders.read",
@@ -106,7 +107,7 @@ public class JwtConf {
                     "catalog.read", "catalog.write", "catalog.delete",
                     "po.read", "po.write", "po.receive",
                     "production.read", "production.execute",
-                    "orders.read", "orders.write", "orders.status.write", "orders.price.write", "orders.conversation.read", "orders.materials.read",
+                    "orders.read", "orders.write", "orders.status.write", "orders.price.write", "orders.conversation.read", "orders.materials.read", "orders.status.clint-approve",
                     "clients.read",
                     "designs.read", "designs.write", "designs.delete",
                     "employees.read", "employees.write",

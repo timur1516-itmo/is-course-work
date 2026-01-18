@@ -183,6 +183,32 @@ public class OrdersController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{id}/client-approve")
+    @Operation(
+            summary = "Согласовать заказ (клиент)",
+            description = "Утвердить заказ со стороны клиента"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Статус успешно изменён",
+                    content = @Content()
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Заказ не найден",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetail.class)
+                    )
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_orders.status.clint-approve')")
+    public ResponseEntity<Void> clientApprove(
+            @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
+    ) {
+        ordersService.clientApprove(id);
+        return ResponseEntity.ok().build();
+    }
 
     @PatchMapping("/{id}/price")
     @Operation(
@@ -302,8 +328,8 @@ public class OrdersController {
             @PathVariable @Parameter(description = "Статус для проверки", required = true) String status
     ) {
         try {
-            ru.itmo.se.is.cw.model.value.ClientOrderStatus orderStatus = 
-                ru.itmo.se.is.cw.model.value.ClientOrderStatus.valueOf(status);
+            ru.itmo.se.is.cw.model.value.ClientOrderStatus orderStatus =
+                    ru.itmo.se.is.cw.model.value.ClientOrderStatus.valueOf(status);
             return ResponseEntity.ok(ordersService.hasOrderBeenInStatus(id, orderStatus));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(false);

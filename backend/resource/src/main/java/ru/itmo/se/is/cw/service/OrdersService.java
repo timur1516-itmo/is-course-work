@@ -22,7 +22,6 @@ import ru.itmo.se.is.cw.repository.ClientOrderStatusRepository;
 import ru.itmo.se.is.cw.repository.ProductDesignRepository;
 
 import java.math.BigDecimal;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -139,9 +138,6 @@ public class OrdersService {
         if (next == null) {
             throw new IllegalArgumentException("status must not be null");
         }
-        if (current != null && !isAllowedTransition(current, next)) {
-            throw new IllegalArgumentException("Invalid status transition: " + current + " -> " + next);
-        }
 
         clientOrderRepository.updateStatusAndSetCurrent(id, next.name());
         em.refresh(order);
@@ -193,19 +189,9 @@ public class OrdersService {
         return clientOrderMapper.toDto(clientOrderRepository.save(order));
     }
 
-    private boolean isAllowedTransition(ClientOrderStatus from, ClientOrderStatus to) {
-        if (from == to) return true;
-
-        return switch (from) {
-            case CREATED -> Set.of(ClientOrderStatus.IN_PROGRESS, ClientOrderStatus.PENDING_APPROVAL).contains(to);
-            case IN_PROGRESS ->
-                    Set.of(ClientOrderStatus.PENDING_APPROVAL, ClientOrderStatus.REWORK, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
-            case PENDING_APPROVAL -> Set.of(ClientOrderStatus.REWORK, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
-            case REWORK -> Set.of(ClientOrderStatus.PENDING_APPROVAL, ClientOrderStatus.READY_FOR_PRODUCTION).contains(to);
-            case READY_FOR_PRODUCTION -> Set.of(ClientOrderStatus.IN_PRODUCTION).contains(to);
-            case IN_PRODUCTION -> Set.of(ClientOrderStatus.READY_FOR_PICKUP).contains(to);
-            case READY_FOR_PICKUP -> Set.of(ClientOrderStatus.COMPLETED).contains(to);
-            case COMPLETED -> false;
-        };
+    @Transactional
+    public void clientApprove(Long id) {
+        getById(id);
+        clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.CLIENT_PENDING_APPROVAL.name());
     }
 }
