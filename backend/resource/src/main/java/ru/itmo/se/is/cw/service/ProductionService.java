@@ -15,6 +15,7 @@ import ru.itmo.se.is.cw.model.value.ProductionTaskStatus;
 import ru.itmo.se.is.cw.repository.ClientOrderRepository;
 import ru.itmo.se.is.cw.repository.ProductionTaskRepository;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Service
@@ -82,6 +83,7 @@ public class ProductionService {
     public void startProductionTask(Long id) {
         changeStatus(id, ProductionTaskStatus.IN_PROGRESS);
         ProductionTaskEntity task = getById(id);
+        task.setStartedAt(ZonedDateTime.now());
 
         materialsService.recordMaterialConsumptionForOrder(task.getClientOrder());
 
@@ -95,6 +97,7 @@ public class ProductionService {
     public void finishProductionTask(Long id) {
         changeStatus(id, ProductionTaskStatus.COMPLETED);
         ProductionTaskEntity task = getById(id);
+        task.setStartedAt(ZonedDateTime.now());
         clientOrderRepository.updateStatusAndSetCurrent(
                 task.getClientOrder().getId(),
                 ClientOrderStatus.READY_FOR_PICKUP.name()

@@ -191,7 +191,8 @@ public class OrdersService {
 
     @Transactional
     public void clientApprove(Long id) {
-        getById(id);
+        ClientOrderEntity order = getById(id);
+        productionService.createForOrder(order);
         clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.READY_FOR_PRODUCTION.name());
     }
 
@@ -203,6 +204,6 @@ public class OrdersService {
         Long constructorAccountId = order.getProductDesign().getConstructor().getAccountId();
         conversationsService.addParticipantToConversation(conversation, constructorAccountId);
 
-        clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.REWORK.name());
+        clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.CLIENT_REWORK.name());
     }
 }

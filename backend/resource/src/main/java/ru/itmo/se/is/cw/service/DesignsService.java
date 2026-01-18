@@ -114,17 +114,17 @@ public class DesignsService {
             return;
         }
 
-        design.setRequiredMaterials(
-                requiredMaterials.stream()
-                        .map(dto ->
-                                requiredMaterialMapper.toEntity(
-                                        dto,
-                                        materialsService.getById(dto.getMaterialId()),
-                                        design
-                                )
+        design.getRequiredMaterials().clear();
+
+        requiredMaterials.stream()
+                .map(dto ->
+                        requiredMaterialMapper.toEntity(
+                                dto,
+                                materialsService.getById(dto.getMaterialId()),
+                                design
                         )
-                        .toList()
-        );
+                )
+                .forEach(design::addMaterial);
     }
 
     @Transactional
@@ -197,8 +197,8 @@ public class DesignsService {
         for (var sourceMaterial : source.getRequiredMaterials()) {
             var copyMaterial = requiredMaterialMapper.toEntity(
                     new RequiredMaterialDto(
-                        sourceMaterial.getMaterial().getId(),
-                        sourceMaterial.getAmount().doubleValue()
+                            sourceMaterial.getMaterial().getId(),
+                            sourceMaterial.getAmount().doubleValue()
                     ),
                     sourceMaterial.getMaterial(),
                     copy

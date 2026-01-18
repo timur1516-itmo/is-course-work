@@ -29,6 +29,7 @@ function DesignerDashboard() {
   const [applications, setApplications] = useState<Record<number, ClientApplicationResponseDto>>({});
   const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
   const [ordersWithReworkHistory, setOrdersWithReworkHistory] = useState<Set<number>>(new Set());
+  const [ordersWithReworkClientHistory, setOrdersWithReworkClientHistory] = useState<Set<number>>(new Set());
 
   const formatOrderName = (order: ClientOrderResponseDto): string => {
     const date = new Date(order.createdAt);
@@ -93,9 +94,10 @@ function DesignerDashboard() {
         }
 
         const designerOrders = allOrders.filter(
-          (order) => 
+          (order) =>
             order.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
-            order.status === "REWORK" || 
+            order.status === "REWORK" ||
+            order.status === "CLIENT_REWORK" ||
             order.status === "IN_PROGRESS"
         );
         setOrders(designerOrders);
@@ -103,47 +105,58 @@ function DesignerDashboard() {
         const applicationsMap: Record<number, ClientApplicationResponseDto> = {};
         const clientsMap = new Map<number, ClientResponseDto>();
         const reworkOrdersSet = new Set<number>();
+        const reworkClientsSet = new Set<number>();
         const designFilesToLoad: number[] = [];
 
         for (const order of designerOrders) {
-          if (order.clientApplicationId && !applicationsMap[order.clientApplicationId]) {
-            try {
-              const app = await applicationsService.getApplicationById(order.clientApplicationId);
-              if (app) {
-                applicationsMap[order.clientApplicationId] = app;
-                
-                if (app.clientId && !clientsMap.has(app.clientId)) {
-                  try {
-                    const client = await clientsService.getClientById(app.clientId);
-                    clientsMap.set(app.clientId, client);
-                  } catch (err) {
-                    console.error(`Failed to load client ${app.clientId}:`, err);
-                  }
+            if (order.clientApplicationId && !applicationsMap[order.clientApplicationId]) {
+                try {
+                    const app = await applicationsService.getApplicationById(order.clientApplicationId);
+                    if (app) {
+                        applicationsMap[order.clientApplicationId] = app;
+
+                        if (app.clientId && !clientsMap.has(app.clientId)) {
+                            try {
+                                const client = await clientsService.getClientById(app.clientId);
+                                clientsMap.set(app.clientId, client);
+                            } catch (err) {
+                                console.error(`Failed to load client ${app.clientId}:`, err);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to load application ${order.clientApplicationId}:`, err);
                 }
-              }
-            } catch (err) {
-              console.error(`Failed to load application ${order.clientApplicationId}:`, err);
             }
-          }
 
-          if (order.productDesignId && !designFilesToLoad.includes(order.productDesignId)) {
-            designFilesToLoad.push(order.productDesignId);
-          }
-
-          if (order.id) {
-            try {
-              const hasBeenInRework = await ordersService.hasOrderBeenInStatus(order.id, "REWORK");
-              if (hasBeenInRework) {
-                reworkOrdersSet.add(order.id);
-              }
-            } catch (error) {
-              console.error(`Failed to check REWORK status for order ${order.id}:`, error);
+            if (order.productDesignId && !designFilesToLoad.includes(order.productDesignId)) {
+                designFilesToLoad.push(order.productDesignId);
             }
-          }
+
+            if (order.id) {
+                try {
+                    const hasBeenInRework = await ordersService.hasOrderBeenInStatus(order.id, "REWORK");
+                    if (hasBeenInRework) {
+                        reworkOrdersSet.add(order.id);
+                    }
+                } catch (error) {
+                    console.error(`Failed to check REWORK status for order ${order.id}:`, error);
+                }
+            }
+            if (order.id) {
+                try {
+                    const hasClientBeenInRework = await ordersService.hasOrderBeenInStatus(order.id, "CLIENT_REWORK");
+                    if (hasClientBeenInRework) {
+                        reworkClientsSet.add(order.id);
+                    }
+                } catch (error) {
+                    console.error(`Failed to check CLIENT_REWORK status for order ${order.id}:`, error);
+                }
+            }
         }
 
         await Promise.all(
-          designFilesToLoad.map(designId => 
+          designFilesToLoad.map(designId =>
             loadDesignFiles(designId).catch(error => {
               console.error(`Failed to load design files for design ${designId}:`, error);
             })
@@ -152,6 +165,7 @@ function DesignerDashboard() {
         setApplications(applicationsMap);
         setClients(clientsMap);
         setOrdersWithReworkHistory(reworkOrdersSet);
+        setOrdersWithReworkClientHistory(reworkClientsSet);
 
         await loadMyDesigns();
       } catch (error) {
@@ -161,7 +175,7 @@ function DesignerDashboard() {
         setLoading(false);
       }
     };
-    
+
     loadData();
   }, []);
 
@@ -189,10 +203,14 @@ function DesignerDashboard() {
   }, []);
 
   const toggleOrder = async (orderId: number) => {
+    const order = await ordersService.getOrderById(orderId);
     setExpandedOrders((prev) => {
       const newSet = new Set(prev);
+      if(order.productDesignId != null) {
+        designsService.assignDesigner(order.productDesignId);
+      }
       const isExpanding = !newSet.has(orderId);
-      
+
       if (isExpanding) {
         newSet.add(orderId);
         const order = orders.find(o => o.id === orderId);
@@ -214,17 +232,17 @@ function DesignerDashboard() {
   const getFileType = (filename: string): '3d' | 'up' | null => {
     const ext = filename.toLowerCase().split('.').pop();
     if (!ext) return null;
-    
+
     const model3DExts = ['stl', 'obj', '3ds', 'step', 'iges', 'stp', 'igs'];
     if (model3DExts.includes(ext)) {
       return '3d';
     }
-    
+
     const upExts = ['nc', 'cnc', 'tap', 'gcode'];
     if (upExts.includes(ext)) {
       return 'up';
     }
-    
+
     return null;
   };
 
@@ -233,7 +251,7 @@ function DesignerDashboard() {
       const design = await designsService.getDesignById(designId);
       const files = design.files || [];
       setDesignFiles(prev => ({ ...prev, [designId]: files }));
-      
+
       setFileTypes(prev => {
         const newMap = new Map(prev);
         files.forEach(file => {
@@ -254,20 +272,21 @@ function DesignerDashboard() {
     try {
       setError(null);
       await designsService.removeFileFromDesign(designId, fileId);
-      
+
       setFileTypes(prev => {
         const newMap = new Map(prev);
         newMap.delete(fileId);
         return newMap;
       });
-      
+
       await loadDesignFiles(designId);
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
-        (o) => 
+        (o) =>
           o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
-          o.status === "REWORK" || 
+          o.status === "REWORK" ||
+          o.status === "CLIENT_REWORK" ||
           o.status === "IN_PROGRESS"
       );
       setOrders(designerOrders);
@@ -356,12 +375,12 @@ function DesignerDashboard() {
       const fileId = fileMetadata.id;
 
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
-      const productName = application 
+      const productName = application
         ? `${formatOrderName(order)} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : formatOrderName(order);
 
       let designId = order.productDesignId;
-      
+
       if (!designId) {
         const newDesign = await designsService.createDesign({
           productName,
@@ -369,21 +388,21 @@ function DesignerDashboard() {
           requiredMaterials: [],
         });
         designId = newDesign.id;
-        await designsService.assignDesigner(designId);
         await ordersService.updateOrderDesign(order.id, designId);
       }
 
       await designsService.addFileToDesign(designId, fileId);
-      
+
       setFileTypes(prev => new Map(prev).set(fileId, '3d'));
 
       await loadDesignFiles(designId);
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
-        (o) => 
+        (o) =>
           o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
-          o.status === "REWORK" || 
+          o.status === "REWORK" ||
+          o.status === "CLIENT_REWORK" ||
           o.status === "IN_PROGRESS"
       );
       const updatedOrder = designerOrders.find(o => o.id === order.id);
@@ -412,12 +431,12 @@ function DesignerDashboard() {
       const fileId = fileMetadata.id;
 
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
-      const productName = application 
+      const productName = application
         ? `${formatOrderName(order)} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : formatOrderName(order);
 
       let designId = order.productDesignId;
-      
+
       if (!designId) {
         const newDesign = await designsService.createDesign({
           productName,
@@ -425,7 +444,6 @@ function DesignerDashboard() {
           requiredMaterials: [],
         });
         designId = newDesign.id;
-        await designsService.assignDesigner(designId);
         await ordersService.updateOrderDesign(order.id, designId);
       }
 
@@ -437,9 +455,10 @@ function DesignerDashboard() {
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
-        (o) => 
+        (o) =>
           o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
-          o.status === "REWORK" || 
+          o.status === "REWORK" ||
+          o.status === "CLIENT_REWORK" ||
           o.status === "IN_PROGRESS"
       );
       const updatedOrder = designerOrders.find(o => o.id === order.id);
@@ -580,7 +599,7 @@ function DesignerDashboard() {
           designFilesList = designFiles[order.productDesignId];
         }
       }
-      
+
       const hasEnoughFiles = designFilesList.length >= 2;
       const has3DFile = hasEnoughFiles || designFilesList.some(f => {
         const type = fileTypes.get(f.id) || getFileType(f.filename);
@@ -607,15 +626,15 @@ function DesignerDashboard() {
         if (mat.materialId === 0 || mat.amount <= 0) {
           continue;
         }
-        
+
         await loadMaterial(mat.materialId);
         const material = materialsMap.get(mat.materialId);
-        
+
         if (material) {
           const availableBalance = material.currentBalance ?? 0;
           if (mat.amount > availableBalance) {
             throw new Error(
-              t("designer.insufficientMaterial") || 
+              t("designer.insufficientMaterial") ||
               `Недостаточно материала "${material.name}". Доступно: ${availableBalance} ${material.unitOfMeasure}, требуется: ${mat.amount} ${material.unitOfMeasure}`
             );
           }
@@ -623,12 +642,12 @@ function DesignerDashboard() {
       }
 
       const application = order.clientApplicationId ? applications[order.clientApplicationId] : null;
-      const productName = application 
+      const productName = application
         ? `${formatOrderName(order)} - ${application.description?.substring(0, 50) || 'Без описания'}`
         : formatOrderName(order);
 
       let designId = order.productDesignId;
-      
+
       if (!designId) {
         const newDesign = await designsService.createDesign({
           productName,
@@ -636,7 +655,6 @@ function DesignerDashboard() {
           requiredMaterials: [],
         });
         designId = newDesign.id;
-        await designsService.assignDesigner(designId);
       }
 
       const validMaterials = materials.filter(m => m.materialId > 0 && m.amount > 0);
@@ -666,9 +684,10 @@ function DesignerDashboard() {
       const allOrders = await ordersService.getOrders();
 
       const designerOrders = allOrders.filter(
-        (o) => 
+        (o) =>
           o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
-          o.status === "REWORK" || 
+          o.status === "REWORK" ||
+          o.status === "CLIENT_REWORK" ||
           o.status === "IN_PROGRESS"
       );
       setOrders(designerOrders);
@@ -691,9 +710,10 @@ function DesignerDashboard() {
 
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
-        (o) => 
+        (o) =>
           o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
-          o.status === "REWORK" || 
+          o.status === "REWORK" ||
+          o.status === "CLIENT_REWORK" ||
           o.status === "IN_PROGRESS"
       );
       setOrders(designerOrders);
@@ -1096,7 +1116,7 @@ function DesignerDashboard() {
                             {application ? (
                               (() => {
                                 const client = clients.get(application.clientId);
-                                return client 
+                                return client
                                   ? `${client.person.firstName} ${client.person.lastName}`
                                   : `Клиент #${application.clientId}`;
                               })()
@@ -1144,7 +1164,7 @@ function DesignerDashboard() {
                                     </div>
                                   </div>
                                   <div className="flex gap-2">
-                                    {ordersWithReworkHistory.has(order.id) && (
+                                    {ordersWithReworkHistory.has(order.id) || ordersWithReworkClientHistory.has(order.id) && (
                                       <button
                                         onClick={async () => {
                                           if (order.id) {
@@ -1251,7 +1271,7 @@ function DesignerDashboard() {
                                               >
                                                 <DownloadIcon fontSize="small" />
                                               </button>
-                                              {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
+                                              {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CLIENT_REWORK" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                                 <button
                                                   onClick={() => handleRemoveDesignFile(order.productDesignId!, file.id)}
                                                   className="text-red-400 hover:text-red-300 transition-colors"
@@ -1272,7 +1292,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CLIENT_REWORK" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                   <div className="flex gap-4 pt-2">
                                     {(() => {
                                       const designFilesList = order.productDesignId ? designFiles[order.productDesignId] || [] : [];
@@ -1285,7 +1305,7 @@ function DesignerDashboard() {
                                         const type = fileTypes.get(f.id) || getFileType(f.filename);
                                         return type === 'up';
                                       });
-                                      
+
                                       return (
                                         <>
                                           <label className="flex-1">
@@ -1326,7 +1346,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CLIENT_REWORK" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                   <div className="mt-4 pt-4 border-t border-gray-700">
                                     {!showMaterialForm[order.id] ? (
                                       <button
@@ -1374,7 +1394,7 @@ function DesignerDashboard() {
                                         {({ values, isSubmitting, setFieldValue }) => {
                                           let hasInsufficientMaterial = false;
                                           const materialErrors: Record<number, string> = {};
-                                          
+
                                           values.materials.forEach((material: RequiredMaterialDto, index: number) => {
                                             if (material.materialId > 0 && material.amount > 0) {
                                               const mat = allMaterials.find(m => m.id === material.materialId);
@@ -1382,7 +1402,7 @@ function DesignerDashboard() {
                                                 const availableBalance = mat.currentBalance ?? 0;
                                                 if (material.amount > availableBalance) {
                                                   hasInsufficientMaterial = true;
-                                                  materialErrors[index] = t("designer.insufficientMaterial") || 
+                                                  materialErrors[index] = t("designer.insufficientMaterial") ||
                                                     `Недостаточно материала. Доступно: ${availableBalance} ${mat.unitOfMeasure}`;
                                                 }
                                               }
@@ -1401,7 +1421,7 @@ function DesignerDashboard() {
                                                       const selectedMaterial = allMaterials.find(m => m.id === material.materialId);
                                                       const availableBalance = selectedMaterial?.currentBalance ?? null;
                                                       const isInsufficient = materialErrors[index] !== undefined;
-                                                      
+
                                                       return (
                                                         <div key={index} className="grid grid-cols-2 gap-3 p-3 bg-stone-900/50 rounded-lg border border-gray-700">
                                                           <div>
@@ -1530,7 +1550,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CLIENT_REWORK" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                   <div className="mt-4 pt-4 border-t border-gray-700">
                                     {!showReworkComment[order.id] ? (
                                       <button

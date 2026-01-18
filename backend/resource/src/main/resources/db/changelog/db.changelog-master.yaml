@@ -78,3 +78,13 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: true
+
+  - changeSet:
+      id: 010-client-rework-status
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/010-client-rework-status.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
