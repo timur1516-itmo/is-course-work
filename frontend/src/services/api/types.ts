@@ -117,7 +117,8 @@ export interface ClientApplicationResponseDto {
 export type OrderStatus =
   | "CREATED"
   | "IN_PROGRESS"
-  | "PENDING_APPROVAL"
+  | "CONSTRUCTOR_PENDING_APPROVAL"
+  | "CLIENT_PENDING_APPROVAL"
   | "REWORK"
   | "APPROVED"
   | "AWAITING_PAYMENT"

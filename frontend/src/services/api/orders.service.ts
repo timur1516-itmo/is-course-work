@@ -93,5 +93,21 @@ export const ordersService = {
       throw extractApiError(error);
     }
   },
+
+  clientApprove: async (orderId: number): Promise<void> => {
+    try {
+      await apiClient.post(`/orders/${orderId}/client-approve`);
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
+
+  clientDeny: async (orderId: number): Promise<void> => {
+    try {
+      await apiClient.post(`/orders/${orderId}/client-deny`);
+    } catch (error) {
+      throw extractApiError(error);
+    }
+  },
 };
 

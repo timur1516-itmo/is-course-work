@@ -192,6 +192,17 @@ public class OrdersService {
     @Transactional
     public void clientApprove(Long id) {
         getById(id);
-        clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.CLIENT_PENDING_APPROVAL.name());
+        clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.READY_FOR_PRODUCTION.name());
+    }
+
+    @Transactional
+    public void clientDeny(Long id) {
+        ClientOrderEntity order = getById(id);
+
+        ConversationEntity conversation = conversationsService.getConversationByOrderIdInternal(order.getId());
+        Long constructorAccountId = order.getProductDesign().getConstructor().getAccountId();
+        conversationsService.addParticipantToConversation(conversation, constructorAccountId);
+
+        clientOrderRepository.updateStatusAndSetCurrent(id, ClientOrderStatus.REWORK.name());
     }
 }

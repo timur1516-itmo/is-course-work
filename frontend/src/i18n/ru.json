@@ -122,7 +122,7 @@
     "dashboard": "Панель менеджера",
     "newApplications": "Новые заявки",
     "currentApplications": "Текущие заказы",
-    "pendingApproval": "Требуют согласования",
+    "pendingApproval": "Требуют согласования конструктора",
     "ordersList": "Список заказов",
     "applicationsList": "Список заявок",
     "order": "Заказ",
@@ -229,7 +229,9 @@
     "basedOnCatalogProduct": "Заказ создан на основе товара из каталога",
     "viewInCatalog": "Посмотреть в каталоге",
     "atLeastOneMaterial": "Добавьте хотя бы один материал",
-    "noFiles": "Файлы не выбраны"
+    "noFiles": "Файлы не выбраны",
+    "addFile": "Добавить файлы",
+    "needTwoFiles": "Требуются 3D модель и УП файл"
   },
   "operator": {
     "dashboard": "Панель оператора станка",
@@ -475,7 +477,8 @@
     "status": {
       "created": "Создан",
       "inProgress": "В обработке",
-      "pendingApproval": "На согласовании",
+      "pendingApproval": "На согласовании конструктора",
+      "clientPendingApproval": "Ожидает согласования клиента",
       "rework": "На доработке",
       "approved": "Согласован",
       "awaitingPayment": "Ожидает оплаты",
@@ -486,7 +489,18 @@
       "completed": "Завершён"
     },
     "noFiles": "Файлы отсутствуют",
-    "files": "Приложенные файлы"
+    "files": "Приложенные файлы",
+    "designFiles": "Файлы дизайна (УП и 3D модель)",
+    "approve": "Принять",
+    "deny": "Отклонить",
+    "processing": "Обработка...",
+    "clientApprovalRequired": "Требуется ваше одобрение заказа",
+    "approveError": "Ошибка одобрения заказа",
+    "denyError": "Ошибка отклонения заказа",
+    "denyOrder": "Отклонить заказ",
+    "denyOrderDescription": "Пожалуйста, укажите причину отклонения заказа",
+    "denyCommentPlaceholder": "Введите причину отклонения...",
+    "denyCommentRequired": "Необходимо указать причину отклонения"
   },
   "about": {
     "title": "О компании",

@@ -4,7 +4,8 @@ export function getOrderStatusTranslationKey(status: OrderStatus): string {
   const statusMap: Record<OrderStatus, string> = {
     CREATED: 'order.status.created',
     IN_PROGRESS: 'order.status.inProgress',
-    PENDING_APPROVAL: 'order.status.pendingApproval',
+    CONSTRUCTOR_PENDING_APPROVAL: 'order.status.pendingApproval',
+    CLIENT_PENDING_APPROVAL: 'order.status.clientPendingApproval',
     REWORK: 'order.status.rework',
     APPROVED: 'order.status.approved',
     AWAITING_PAYMENT: 'order.status.awaitingPayment',
@@ -21,7 +22,8 @@ export function getOrderStatusStyle(status: OrderStatus): string {
   const styleMap: Record<OrderStatus, string> = {
     CREATED: 'bg-sky-500/10 text-sky-300 ring-sky-500/40',
     IN_PROGRESS: 'bg-indigo-500/10 text-indigo-300 ring-indigo-500/40',
-    PENDING_APPROVAL: 'bg-amber-500/10 text-amber-300 ring-amber-500/40',
+    CONSTRUCTOR_PENDING_APPROVAL: 'bg-amber-500/10 text-amber-300 ring-amber-500/40',
+    CLIENT_PENDING_APPROVAL: 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/40',
     REWORK: 'bg-orange-500/10 text-orange-300 ring-orange-500/40',
     APPROVED: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/40',
     AWAITING_PAYMENT: 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/40',

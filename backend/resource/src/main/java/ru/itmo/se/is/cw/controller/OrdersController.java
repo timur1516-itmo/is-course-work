@@ -210,6 +210,33 @@ public class OrdersController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{id}/client-deny")
+    @Operation(
+            summary = "Отклонить заказ (клиент)",
+            description = "Отклонить заказ со стороны клиента"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Статус успешно изменён",
+                    content = @Content()
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Заказ не найден",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetail.class)
+                    )
+            )
+    })
+    @PreAuthorize("hasAuthority('SCOPE_orders.status.clint-deny')")
+    public ResponseEntity<Void> clientDeny(
+            @PathVariable @Parameter(description = "Идентификатор заказа", required = true) Long id
+    ) {
+        ordersService.clientDeny(id);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/{id}/price")
     @Operation(
             summary = "Обновить цену заказа",

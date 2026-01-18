@@ -8,6 +8,7 @@ import {
   employeesService,
   filesService,
   applicationsService,
+  designsService,
   extractApiError,
   type OrderStatus,
 } from "../../../services/api";
@@ -51,8 +52,13 @@ function OrderDetails() {
   const [authorNames, setAuthorNames] = useState<Record<number, string>>({});
   const [orderFiles, setOrderFiles] = useState<FileMetadataResponseDto[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [designFiles, setDesignFiles] = useState<FileMetadataResponseDto[]>([]);
+  const [loadingDesignFiles, setLoadingDesignFiles] = useState(false);
   const [messageAttachments, setMessageAttachments] = useState<Map<number, FileMetadataResponseDto[]>>(new Map());
   const [changingStatus, setChangingStatus] = useState(false);
+  const [showDenyModal, setShowDenyModal] = useState(false);
+  const [denyComment, setDenyComment] = useState("");
+  const [processingApproval, setProcessingApproval] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -112,6 +118,10 @@ function OrderDetails() {
         loadOrderFiles(orderData.clientApplicationId);
       }
 
+      if (orderData.productDesignId && orderData.status === "CLIENT_PENDING_APPROVAL") {
+        loadDesignFiles(orderData.productDesignId);
+      }
+
       if (isClient) {
         if (orderData.managerId) {
           try {
@@ -166,6 +176,19 @@ function OrderDetails() {
       setOrderFiles([]);
     } finally {
       setLoadingFiles(false);
+    }
+  };
+
+  const loadDesignFiles = async (designId: number) => {
+    try {
+      setLoadingDesignFiles(true);
+      const design = await designsService.getDesignById(designId);
+      setDesignFiles(design.files || []);
+    } catch (err) {
+      console.error("Failed to load design files:", err);
+      setDesignFiles([]);
+    } finally {
+      setLoadingDesignFiles(false);
     }
   };
 
@@ -300,8 +323,8 @@ function OrderDetails() {
     try {
       setChangingStatus(true);
       setError(null);
-      await ordersService.changeOrderStatus(order.id, "PENDING_APPROVAL");
-      setOrder({ ...order, status: "PENDING_APPROVAL" });
+      await ordersService.changeOrderStatus(order.id, "CONSTRUCTOR_PENDING_APPROVAL");
+      setOrder({ ...order, status: "CONSTRUCTOR_PENDING_APPROVAL" });
     } catch (err) {
       const apiError = extractApiError(err);
       setError(apiError.message || t("order.statusChangeError"));
@@ -375,6 +398,53 @@ function OrderDetails() {
       setError(apiError.message || "Failed to send message");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleClientApprove = async () => {
+    if (!orderId) return;
+
+    try {
+      setProcessingApproval(true);
+      setError(null);
+      await ordersService.clientApprove(orderId);
+      await loadOrderData();
+    } catch (err) {
+      console.error("Failed to approve order:", err);
+      const apiError = extractApiError(err);
+      setError(apiError.message || t("order.approveError") || "Ошибка одобрения заказа");
+    } finally {
+      setProcessingApproval(false);
+    }
+  };
+
+  const handleClientDeny = async () => {
+    if (!orderId || !denyComment.trim()) {
+      setError(t("order.denyCommentRequired") || "Необходимо указать причину отклонения");
+      return;
+    }
+
+    try {
+      setProcessingApproval(true);
+      setError(null);
+
+      if (conversation) {
+        await conversationsService.sendMessage(conversation.id, {
+          content: denyComment.trim(),
+        });
+      }
+
+      await ordersService.clientDeny(orderId);
+
+      await loadOrderData();
+      setShowDenyModal(false);
+      setDenyComment("");
+    } catch (err) {
+      console.error("Failed to deny order:", err);
+      const apiError = extractApiError(err);
+      setError(apiError.message || t("order.denyError") || "Ошибка отклонения заказа");
+    } finally {
+      setProcessingApproval(false);
     }
   };
 
@@ -477,8 +547,34 @@ function OrderDetails() {
                       {changingStatus ? t("order.changingStatus") : t("order.sendToApproval")}
                     </button>
                   )}
+                  {isClient && order.status === "CLIENT_PENDING_APPROVAL" && (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={handleClientApprove}
+                        disabled={processingApproval}
+                        className="flex-1 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processingApproval ? t("order.processing") || "Обработка..." : t("order.approve") || "Принять"}
+                      </button>
+                      <button
+                        onClick={() => setShowDenyModal(true)}
+                        disabled={processingApproval}
+                        className="flex-1 px-3 py-1.5 rounded-full bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {t("order.deny") || "Отклонить"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {isClient && order.status === "CLIENT_PENDING_APPROVAL" && (
+                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/40">
+                  <p className="text-amber-400 text-sm">
+                    ⚠️ {t("order.clientApprovalRequired") || "Требуется ваше одобрение заказа"}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-gray-500 uppercase mb-1 block">
@@ -573,11 +669,65 @@ function OrderDetails() {
                   )}
                 </div>
               )}
+
+              {isClient && order.status === "CLIENT_PENDING_APPROVAL" && order.productDesignId && (
+                <div>
+                  <label className="text-xs text-gray-500 uppercase mb-2 block">
+                    {t("order.designFiles") || "Файлы дизайна"}
+                  </label>
+                  {loadingDesignFiles ? (
+                    <div className="text-xs text-gray-500">
+                      {t("order.loadingFiles")}
+                    </div>
+                  ) : designFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {designFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between bg-stone-900/50 rounded-lg px-3 py-2 border border-gray-800"
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <AttachFileIcon className="text-gray-400 text-lg flex-shrink-0" />
+                            <span className="text-sm text-gray-300 truncate" title={file.filename}>
+                              {file.filename}
+                            </span>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              ({(file.sizeBytes / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            {file.contentType.startsWith('image/') && (
+                              <button
+                                onClick={() => handleViewFile(file.id, file.filename, file.contentType)}
+                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                title={t("order.view")}
+                              >
+                                <VisibilityIcon className="text-lg" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDownloadFile(file.id, file.filename)}
+                              className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                              title={t("order.download")}
+                            >
+                              <DownloadIcon className="text-lg" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500">
+                      {t("order.noFiles") || "Нет файлов"}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col bg-stone-950/70 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="w-2/3 flex flex-col">
           <div className="px-6 py-4 border-b border-gray-700">
             <h2 className="text-lg font-semibold text-white">
               {t("order.chat")}
@@ -717,6 +867,45 @@ function OrderDetails() {
           )}
         </div>
       </div>
+
+      {/* Модальное окно отклонения заказа */}
+      {showDenyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-stone-900 rounded-xl border border-gray-700 p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {t("order.denyOrder") || "Отклонить заказ"}
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              {t("order.denyOrderDescription") || "Пожалуйста, укажите причину отклонения заказа"}
+            </p>
+            <textarea
+              value={denyComment}
+              onChange={(e) => setDenyComment(e.target.value)}
+              placeholder={t("order.denyCommentPlaceholder") || "Введите причину отклонения..."}
+              className="w-full h-32 px-3 py-2 bg-stone-950 border border-gray-700 rounded-lg text-white placeholder-gray-500 resize-none focus:outline-none focus:border-emerald-500"
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleClientDeny}
+                disabled={processingApproval || !denyComment.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processingApproval ? t("order.processing") || "Обработка..." : t("order.deny") || "Отклонить"}
+              </button>
+              <button
+                onClick={() => {
+                  setShowDenyModal(false);
+                  setDenyComment("");
+                }}
+                disabled={processingApproval}
+                className="flex-1 px-4 py-2 rounded-lg bg-stone-700 text-white font-medium hover:bg-stone-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t("cancel") || "Отмена"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

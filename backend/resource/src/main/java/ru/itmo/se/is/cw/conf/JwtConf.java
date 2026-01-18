@@ -33,7 +33,8 @@ public class JwtConf {
                     "catalog.read",
                     "clients.read",
                     "employees.read",
-                    "orders.status.clint-approve"
+                    "orders.status.clint-approve",
+                    "orders.status.clint-deny"
             ),
             "SALES_MANAGER", Set.of(
                     "orders.read",

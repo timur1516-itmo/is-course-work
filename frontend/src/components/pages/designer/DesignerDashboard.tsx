@@ -94,7 +94,7 @@ function DesignerDashboard() {
 
         const designerOrders = allOrders.filter(
           (order) => 
-            order.status === "PENDING_APPROVAL" || 
+            order.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
             order.status === "REWORK" || 
             order.status === "IN_PROGRESS"
         );
@@ -266,7 +266,7 @@ function DesignerDashboard() {
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
         (o) => 
-          o.status === "PENDING_APPROVAL" || 
+          o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
@@ -382,7 +382,7 @@ function DesignerDashboard() {
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
         (o) => 
-          o.status === "PENDING_APPROVAL" || 
+          o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
@@ -438,7 +438,7 @@ function DesignerDashboard() {
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
         (o) => 
-          o.status === "PENDING_APPROVAL" || 
+          o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
@@ -661,13 +661,13 @@ function DesignerDashboard() {
         await ordersService.updateOrderPrice(orderId, finalPrice);
       }
 
-      await ordersService.changeOrderStatus(orderId, "READY_FOR_PRODUCTION");
+      await ordersService.changeOrderStatus(orderId, "CLIENT_PENDING_APPROVAL");
 
       const allOrders = await ordersService.getOrders();
 
       const designerOrders = allOrders.filter(
         (o) => 
-          o.status === "PENDING_APPROVAL" || 
+          o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
@@ -692,7 +692,7 @@ function DesignerDashboard() {
       const allOrders = await ordersService.getOrders();
       const designerOrders = allOrders.filter(
         (o) => 
-          o.status === "PENDING_APPROVAL" || 
+          o.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
           o.status === "REWORK" || 
           o.status === "IN_PROGRESS"
       );
@@ -1251,7 +1251,7 @@ function DesignerDashboard() {
                                               >
                                                 <DownloadIcon fontSize="small" />
                                               </button>
-                                              {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
+                                              {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                                 <button
                                                   onClick={() => handleRemoveDesignFile(order.productDesignId!, file.id)}
                                                   className="text-red-400 hover:text-red-300 transition-colors"
@@ -1272,7 +1272,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                   <div className="flex gap-4 pt-2">
                                     {(() => {
                                       const designFilesList = order.productDesignId ? designFiles[order.productDesignId] || [] : [];
@@ -1326,7 +1326,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                   <div className="mt-4 pt-4 border-t border-gray-700">
                                     {!showMaterialForm[order.id] ? (
                                       <button
@@ -1530,7 +1530,7 @@ function DesignerDashboard() {
                                   </div>
                                 )}
 
-                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "PENDING_APPROVAL") && (
+                                {order.status !== "REWORK" && (order.status === "IN_PROGRESS" || order.status === "CONSTRUCTOR_PENDING_APPROVAL") && (
                                   <div className="mt-4 pt-4 border-t border-gray-700">
                                     {!showReworkComment[order.id] ? (
                                       <button

@@ -97,7 +97,7 @@ function ManagerDashboard() {
     ).length;
 
     const pendingApprovalCount = ordersArray.filter(
-      (order) => order.status === "PENDING_APPROVAL" || order.status === "REWORK"
+      (order) => order.status === "CONSTRUCTOR_PENDING_APPROVAL" || order.status === "REWORK"
     ).length;
     
     return {
@@ -121,7 +121,7 @@ function ManagerDashboard() {
         return orders.filter(
           (order) =>
             order.status === "IN_PROGRESS" ||
-            order.status === "PENDING_APPROVAL" ||
+            order.status === "CONSTRUCTOR_PENDING_APPROVAL" ||
             order.status === "REWORK"
         );
       default:
@@ -379,7 +379,7 @@ function ManagerDashboard() {
                           {application && application.catalogProductId && (
                             <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40">
                               <span className="text-emerald-400 text-xs">
-                                📦 {t("manager.fromCatalog") || "Из каталога"}
+                                {t("manager.fromCatalog") || "Из каталога"}
                               </span>
                             </div>
                           )}

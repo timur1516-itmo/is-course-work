@@ -68,3 +68,13 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: true
+
+  - changeSet:
+      id: 009-pending-status-update
+      author: you
+      changes:
+        - sqlFile:
+            path: db/changelog/009-pending-status-update.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
