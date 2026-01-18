@@ -670,7 +670,7 @@ function OrderDetails() {
                 </div>
               )}
 
-              {isClient && order.status === "CLIENT_PENDING_APPROVAL" && order.productDesignId && (
+              {isClient && !(order.status === "CREATED" || order.status === "IN_PROGRESS") && order.productDesignId && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase mb-2 block">
                     {t("order.designFiles") || "Файлы дизайна"}
