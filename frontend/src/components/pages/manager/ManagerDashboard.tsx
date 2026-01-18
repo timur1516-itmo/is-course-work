@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { ordersService, applicationsService, clientsService, catalogService, designsService, filesService, extractApiError } from "../../../services/api";
+import {
+  ordersService, applicationsService, clientsService, catalogService, designsService, filesService, extractApiError,
+  authService
+} from "../../../services/api";
 import type { ClientOrderResponseDto, ClientApplicationResponseDto, ClientResponseDto, ProductDesignResponseDto, ProductCatalogRequestDto } from "../../../services/api/types";
 import { getOrderStatusTranslationKey, getOrderStatusStyle } from "../../../utils/orderStatus";
 
@@ -17,6 +20,7 @@ function ManagerDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<ClientOrderResponseDto[]>([]);
+  const [myOrders, setMyOrders] = useState<ClientOrderResponseDto[]>([]);
   const [applications, setApplications] = useState<ClientApplicationResponseDto[]>([]);
   const [clients, setClients] = useState<Map<number, ClientResponseDto>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -51,7 +55,9 @@ function ManagerDashboard() {
         ]);
         
         const ordersArray = Array.isArray(ordersData) ? ordersData : [];
+        const me = await authService.getCurrentUser();
         setOrders(ordersArray);
+        setMyOrders(ordersArray.filter(order => order.managerId === me.employee?.id));
         setApplications(applicationsData.content || []);
 
         const clientsMap = new Map<number, ClientResponseDto>();
@@ -109,7 +115,7 @@ function ManagerDashboard() {
 
   const filteredOrders = useMemo(() => {
     if (!activeFilter) {
-      return orders;
+      return myOrders;
     }
 
     switch (activeFilter) {
@@ -125,7 +131,7 @@ function ManagerDashboard() {
             order.status === "REWORK"
         );
       default:
-        return orders;
+        return myOrders;
     }
   }, [activeFilter, orders]);
 

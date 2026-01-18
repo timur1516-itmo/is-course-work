@@ -1311,7 +1311,7 @@ function DesignerDashboard() {
                                           <label className="flex-1">
                                             <input
                                               type="file"
-                                              // accept=".stl,.obj,.3ds,.step,.iges,.stp,.igs"
+                                              accept=".stl,.obj,.3ds,.step,.iges,.stp,.igs"
                                               onChange={(e) => handle3DModelUpload(order, e)}
                                               className="hidden"
                                               disabled={has3DFile}
@@ -1327,7 +1327,7 @@ function DesignerDashboard() {
                                           <label className="flex-1">
                                             <input
                                               type="file"
-                                              // accept=".nc,.cnc,.tap,.gcode"
+                                              accept=".nc,.cnc,.tap,.gcode,.dxf"
                                               onChange={(e) => handleUPGenerate(order, e)}
                                               className="hidden"
                                               disabled={hasUPFile}

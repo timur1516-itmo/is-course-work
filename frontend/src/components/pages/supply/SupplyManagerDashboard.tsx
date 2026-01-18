@@ -7,7 +7,7 @@ import type { PurchaseOrderResponseDto, PurchaseOrderRequestDto, PurchaseOrderMa
 import type { MaterialResponseDto } from "../../../services/api/types";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+// import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
 function SupplyManagerDashboard() {
@@ -71,11 +71,11 @@ function SupplyManagerDashboard() {
     setError(null);
   };
 
-  const handleEditOrder = (order: PurchaseOrderResponseDto) => {
-    setSelectedOrder(order);
-    setShowEditModal(true);
-    setError(null);
-  };
+  // const handleEditOrder = (order: PurchaseOrderResponseDto) => {
+  //   setSelectedOrder(order);
+  //   setShowEditModal(true);
+  //   setError(null);
+  // };
 
   const handleViewDetails = async (order: PurchaseOrderResponseDto) => {
     setSelectedOrder(order);
@@ -360,15 +360,15 @@ function SupplyManagerDashboard() {
                         >
                           <VisibilityIcon fontSize="small" />
                         </button>
-                        {order.status === "CREATED" && (
-                          <button
-                            onClick={() => handleEditOrder(order)}
-                            className="p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors"
-                            title={t("supply.approveOrder")}
-                          >
-                            <CheckCircleIcon fontSize="small" />
-                          </button>
-                        )}
+                        {/*{order.status === "CREATED" && (*/}
+                        {/*  <button*/}
+                        {/*    onClick={() => handleEditOrder(order)}*/}
+                        {/*    className="p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors"*/}
+                        {/*    title={t("supply.approveOrder")}*/}
+                        {/*  >*/}
+                        {/*    <CheckCircleIcon fontSize="small" />*/}
+                        {/*  </button>*/}
+                        {/*)}*/}
                       </div>
                     </td>
                   </tr>
